@@ -162,12 +162,14 @@ class PayrollService:
         company_social_insurance = record.company_social_insurance or record.social_insurance  # Same as employee
         company_employment_insurance = record.company_employment_insurance or round(record.gross_salary * 0.009)
         paid_leave_cost = record.paid_leave_hours * hourly_rate
+        transport_cost = record.transport_allowance or 0
 
         total_company_cost = record.total_company_cost or (
             record.gross_salary +
             company_social_insurance +
             company_employment_insurance +
-            paid_leave_cost
+            paid_leave_cost +
+            transport_cost  # 通勤費も含める
         )
 
         # Calculate profit
