@@ -72,6 +72,7 @@ def init_db():
             billing_amount REAL DEFAULT 0,
             company_social_insurance REAL DEFAULT 0,
             company_employment_insurance REAL DEFAULT 0,
+            company_workers_comp REAL DEFAULT 0,
             total_company_cost REAL DEFAULT 0,
             gross_profit REAL DEFAULT 0,
             profit_margin REAL DEFAULT 0,
@@ -80,6 +81,12 @@ def init_db():
             UNIQUE(employee_id, period)
         )
     """)
+
+    # Add column if not exists (for existing databases)
+    try:
+        cursor.execute("ALTER TABLE payroll_records ADD COLUMN company_workers_comp REAL DEFAULT 0")
+    except sqlite3.OperationalError:
+        pass  # Column already exists
 
     # Create indexes for performance
     cursor.execute("""
@@ -159,11 +166,13 @@ def insert_sample_data(conn):
             # Billing
             billing_amount = billing_rate * (work_hours + overtime_hours)
 
-            # Company costs
-            company_social_insurance = social_insurance  # Same as employee
-            company_employment_insurance = round(gross_salary * 0.009)
+            # Company costs (2024年度 rates)
+            company_social_insurance = social_insurance  # Same as employee (労使折半)
+            company_employment_insurance = round(gross_salary * 0.0095)  # 0.95% (2024)
+            company_workers_comp = round(gross_salary * 0.003)  # 労災保険 0.3%
             paid_leave_cost = paid_leave_hours * hourly_rate
-            total_company_cost = gross_salary + company_social_insurance + company_employment_insurance + paid_leave_cost
+            # NOTE: transport is already in gross_salary, don't add again
+            total_company_cost = gross_salary + company_social_insurance + company_employment_insurance + company_workers_comp + paid_leave_cost
 
             # Profit
             gross_profit = billing_amount - total_company_cost
@@ -176,15 +185,15 @@ def insert_sample_data(conn):
                     transport_allowance, other_allowances, gross_salary,
                     social_insurance, employment_insurance, income_tax, resident_tax,
                     net_salary, billing_amount, company_social_insurance,
-                    company_employment_insurance, total_company_cost, gross_profit, profit_margin
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    company_employment_insurance, company_workers_comp, total_company_cost, gross_profit, profit_margin
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 employee_id, period, work_hours // 8, work_hours, overtime_hours,
                 paid_leave_hours, paid_leave_hours / 8, base_salary, overtime_pay,
                 transport_allowance, other_allowances, gross_salary,
                 social_insurance, employment_insurance, income_tax, resident_tax,
                 net_salary, billing_amount, company_social_insurance,
-                company_employment_insurance, total_company_cost, gross_profit, profit_margin
+                company_employment_insurance, company_workers_comp, total_company_cost, gross_profit, profit_margin
             ))
 
     conn.commit()

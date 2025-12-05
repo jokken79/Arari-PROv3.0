@@ -153,6 +153,10 @@ class PayrollService:
         """)
         return [row['period'] for row in cursor.fetchall()]
 
+    # Insurance rates (2024年度) - configurable constants
+    EMPLOYMENT_INSURANCE_RATE = 0.0095  # 雇用保険（会社負担）0.95%
+    WORKERS_COMP_RATE = 0.003  # 労災保険 0.3% (派遣業の場合、業種により0.25%~0.88%)
+
     def create_payroll_record(self, record: PayrollRecordCreate) -> Dict:
         """Create a new payroll record with calculated fields"""
         # Get employee info for calculations
@@ -163,17 +167,29 @@ class PayrollService:
         hourly_rate = employee['hourly_rate']
 
         # Calculate company costs
-        company_social_insurance = record.company_social_insurance or record.social_insurance  # Same as employee
-        company_employment_insurance = record.company_employment_insurance or round(record.gross_salary * 0.009)
+        # 社会保険（会社負担）= 本人負担と同額 (労使折半)
+        company_social_insurance = record.company_social_insurance or record.social_insurance
+
+        # 雇用保険（会社負担）= 0.95% of gross salary (2024年度)
+        company_employment_insurance = record.company_employment_insurance or round(record.gross_salary * self.EMPLOYMENT_INSURANCE_RATE)
+
+        # 労災保険（会社負担100%）= 0.3% of gross salary (派遣業)
+        company_workers_comp = getattr(record, 'company_workers_comp', None) or round(record.gross_salary * self.WORKERS_COMP_RATE)
+
+        # 有給コスト = paid leave hours × hourly rate
         paid_leave_cost = record.paid_leave_hours * hourly_rate
-        transport_cost = record.transport_allowance or 0
+
+        # NOTE: transport_allowance is already included in gross_salary (総支給額)
+        # DO NOT add it again to avoid double counting
+        # gross_salary = base_salary + overtime_pay + transport_allowance + other_allowances
 
         total_company_cost = record.total_company_cost or (
             record.gross_salary +
             company_social_insurance +
             company_employment_insurance +
-            paid_leave_cost +
-            transport_cost  # 通勤費も含める
+            company_workers_comp +  # 労災保険追加
+            paid_leave_cost
+            # transport_cost removed - already in gross_salary
         )
 
         # Calculate profit
@@ -192,8 +208,8 @@ class PayrollService:
                 transport_allowance, other_allowances, gross_salary,
                 social_insurance, employment_insurance, income_tax, resident_tax,
                 other_deductions, net_salary, billing_amount, company_social_insurance,
-                company_employment_insurance, total_company_cost, gross_profit, profit_margin
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                company_employment_insurance, company_workers_comp, total_company_cost, gross_profit, profit_margin
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             record.employee_id, record.period, record.work_days, record.work_hours,
             record.overtime_hours, record.paid_leave_hours, record.paid_leave_days,
@@ -201,8 +217,8 @@ class PayrollService:
             record.other_allowances, record.gross_salary, record.social_insurance,
             record.employment_insurance, record.income_tax, record.resident_tax,
             record.other_deductions, record.net_salary, record.billing_amount,
-            company_social_insurance, company_employment_insurance, total_company_cost,
-            gross_profit, profit_margin
+            company_social_insurance, company_employment_insurance, company_workers_comp,
+            total_company_cost, gross_profit, profit_margin
         ))
 
         self.db.commit()

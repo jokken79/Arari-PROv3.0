@@ -62,6 +62,7 @@ class PayrollRecordCreate(PayrollRecordBase):
     # Optional calculated fields - will be calculated if not provided
     company_social_insurance: Optional[float] = None
     company_employment_insurance: Optional[float] = None
+    company_workers_comp: Optional[float] = None  # 労災保険（会社負担100%）
     total_company_cost: Optional[float] = None
     gross_profit: Optional[float] = None
     profit_margin: Optional[float] = None
@@ -70,6 +71,7 @@ class PayrollRecord(PayrollRecordBase):
     id: Optional[int] = None
     company_social_insurance: float = Field(0, description="社会保険（会社負担）")
     company_employment_insurance: float = Field(0, description="雇用保険（会社負担）")
+    company_workers_comp: float = Field(0, description="労災保険（会社負担100%）")
     total_company_cost: float = Field(0, description="会社総コスト")
     gross_profit: float = Field(0, description="粗利")
     profit_margin: float = Field(0, description="マージン率")

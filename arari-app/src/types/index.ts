@@ -40,7 +40,8 @@ export interface PayrollRecord {
   billingAmount: number       // 請求金額 (to client)
   // Calculated fields
   companySocialInsurance: number  // 社会保険（会社負担）= 本人負担と同額
-  companyEmploymentInsurance: number // 雇用保険（会社負担）
+  companyEmploymentInsurance: number // 雇用保険（会社負担）0.95%
+  companyWorkersComp: number  // 労災保険（会社負担100%）0.3%
   totalCompanyCost: number    // 会社総コスト
   grossProfit: number         // 粗利
   profitMargin: number        // マージン率
@@ -55,9 +56,10 @@ export interface MonthlySummary {
   totalRevenue: number        // 総売上
   totalSalaryCost: number     // 総給与コスト
   totalSocialInsurance: number // 総社会保険（会社負担）
-  totalEmploymentInsurance: number // 総雇用保険
+  totalEmploymentInsurance: number // 総雇用保険 0.95%
+  totalWorkersComp: number    // 総労災保険 0.3%
   totalPaidLeaveCost: number  // 総有給コスト
-  totalTransportCost: number  // 総通勤費
+  totalTransportCost: number  // 総通勤費（gross_salaryに含む）
   totalCompanyCost: number    // 会社総コスト
   totalGrossProfit: number    // 総粗利
   averageMargin: number       // 平均マージン率
