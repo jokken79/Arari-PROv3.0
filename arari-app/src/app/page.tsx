@@ -258,8 +258,8 @@ export default function DashboardPage() {
                   title="平均マージン率"
                   value={formatPercent(dashboardStats.averageMargin)}
                   icon={Percent}
-                  subtitle={dashboardStats.averageMargin >= 25 ? '目標達成' : '目標: 25%'}
-                  variant={dashboardStats.averageMargin >= 25 ? 'success' : 'warning'}
+                  subtitle={dashboardStats.averageMargin >= 15 ? '目標達成' : '目標: 15%'}
+                  variant={dashboardStats.averageMargin >= 15 ? 'success' : 'warning'}
                   delay={2}
                 />
                 <StatsCard
@@ -304,7 +304,7 @@ export default function DashboardPage() {
               <div className="grid gap-6 lg:grid-cols-3 mb-6">
                 <MarginGaugeChart
                   currentMargin={dashboardStats.averageMargin}
-                  targetMargin={25}
+                  targetMargin={15}
                   previousMargin={chartData?.previousMargin}
                 />
                 {chartData && (

@@ -58,15 +58,16 @@ export function MonthlySummaryTable({ data }: MonthlySummaryTableProps) {
   }
 
   const MarginBadge = ({ margin }: { margin: number }) => {
-    const colorClass = margin >= 30
-      ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/30'
-      : margin >= 25
-        ? 'bg-green-500/10 text-green-500 border-green-500/30'
-        : margin >= 20
-          ? 'bg-amber-500/10 text-amber-500 border-amber-500/30'
-          : margin >= 15
-            ? 'bg-orange-500/10 text-orange-500 border-orange-500/30'
-            : 'bg-red-500/10 text-red-500 border-red-500/30'
+    // 製造派遣 standards: target is 15%
+    const colorClass = margin >= 18
+      ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/30'  // excellent
+      : margin >= 15
+        ? 'bg-green-500/10 text-green-500 border-green-500/30'      // target achieved
+        : margin >= 12
+          ? 'bg-amber-500/10 text-amber-500 border-amber-500/30'    // close to target
+          : margin >= 10
+            ? 'bg-orange-500/10 text-orange-500 border-orange-500/30' // needs improvement
+            : 'bg-red-500/10 text-red-500 border-red-500/30'        // below standard
 
     return (
       <span className={cn(

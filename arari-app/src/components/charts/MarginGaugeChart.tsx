@@ -20,7 +20,7 @@ interface MarginGaugeChartProps {
 
 export function MarginGaugeChart({
   currentMargin,
-  targetMargin = 25,
+  targetMargin = 15,
   previousMargin
 }: MarginGaugeChartProps) {
   // Clamp margin between 0 and 50 for display
@@ -35,23 +35,23 @@ export function MarginGaugeChart({
 
   // Determine color based on margin
   const getMarginColor = (margin: number) => {
-    if (margin >= 30) return '#10b981' // emerald
-    if (margin >= 25) return '#22c55e' // green
-    if (margin >= 20) return '#eab308' // yellow
-    if (margin >= 15) return '#f59e0b' // amber
-    return '#ef4444' // red
+    if (margin >= 18) return '#10b981' // emerald - excellent for 製造派遣
+    if (margin >= 15) return '#22c55e' // green - target achieved
+    if (margin >= 12) return '#eab308' // yellow - close to target
+    if (margin >= 10) return '#f59e0b' // amber - needs improvement
+    return '#ef4444' // red - below standard
   }
 
   const marginColor = getMarginColor(currentMargin)
   const isAboveTarget = currentMargin >= targetMargin
   const marginChange = previousMargin !== undefined ? currentMargin - previousMargin : null
 
-  // Background segments for better gauge visualization
+  // Background segments for better gauge visualization (製造派遣 standards)
   const backgroundSegments = [
-    { name: 'danger', value: 30, color: 'rgba(239, 68, 68, 0.1)' },      // 0-15%
-    { name: 'warning', value: 20, color: 'rgba(245, 158, 11, 0.1)' },    // 15-25%
-    { name: 'good', value: 20, color: 'rgba(34, 197, 94, 0.1)' },        // 25-35%
-    { name: 'excellent', value: 30, color: 'rgba(16, 185, 129, 0.1)' },  // 35-50%
+    { name: 'danger', value: 20, color: 'rgba(239, 68, 68, 0.1)' },      // 0-10%
+    { name: 'warning', value: 10, color: 'rgba(245, 158, 11, 0.1)' },    // 10-15%
+    { name: 'good', value: 10, color: 'rgba(34, 197, 94, 0.1)' },        // 15-20%
+    { name: 'excellent', value: 60, color: 'rgba(16, 185, 129, 0.1)' },  // 20-50%
   ]
 
   return (
@@ -173,23 +173,23 @@ export function MarginGaugeChart({
             </div>
           </div>
 
-          {/* Legend */}
+          {/* Legend - 製造派遣 standards */}
           <div className="flex justify-center gap-4 mt-4 text-xs">
             <div className="flex items-center gap-1">
               <div className="w-2 h-2 rounded-full bg-red-500" />
-              <span className="text-muted-foreground">&lt;15%</span>
+              <span className="text-muted-foreground">&lt;10%</span>
             </div>
             <div className="flex items-center gap-1">
               <div className="w-2 h-2 rounded-full bg-amber-500" />
-              <span className="text-muted-foreground">15-25%</span>
+              <span className="text-muted-foreground">10-15%</span>
             </div>
             <div className="flex items-center gap-1">
               <div className="w-2 h-2 rounded-full bg-green-500" />
-              <span className="text-muted-foreground">25-35%</span>
+              <span className="text-muted-foreground">15-18%</span>
             </div>
             <div className="flex items-center gap-1">
               <div className="w-2 h-2 rounded-full bg-emerald-500" />
-              <span className="text-muted-foreground">&gt;35%</span>
+              <span className="text-muted-foreground">&gt;18%</span>
             </div>
           </div>
 

@@ -185,8 +185,8 @@ export default function MonthlyPage() {
                   title="平均マージン"
                   value={formatPercent(summaryStats.avgMargin)}
                   icon={Percent}
-                  subtitle={summaryStats.avgMargin >= 25 ? '目標達成' : '目標: 25%'}
-                  variant={summaryStats.avgMargin >= 25 ? 'success' : 'default'}
+                  subtitle={summaryStats.avgMargin >= 15 ? '目標達成' : '目標: 15%'}
+                  variant={summaryStats.avgMargin >= 15 ? 'success' : 'default'}
                   delay={3}
                 />
               </div>
