@@ -36,24 +36,22 @@ app = FastAPI(
 )
 
 # CORS middleware for React frontend
+# Allow all frontend instances (ports 4000-4009 for multi-instance setup)
+allowed_origins = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+]
+
+# Add all 10 frontend instance ports (4000-4009)
+for port in range(4000, 4010):
+    allowed_origins.extend([
+        f"http://localhost:{port}",
+        f"http://127.0.0.1:{port}",
+    ])
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-        "http://localhost:3004",
-        "http://127.0.0.1:3004",
-        "http://localhost:3005",
-        "http://127.0.0.1:3005",
-        "http://localhost:3006",
-        "http://127.0.0.1:3006",
-        "http://localhost:3007",
-        "http://127.0.0.1:3007",
-        "http://localhost:4321",
-        "http://127.0.0.1:4321",
-        "http://localhost:8765",
-        "http://127.0.0.1:8765",
-    ],
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -139,7 +137,9 @@ async def create_payroll_record(
 ):
     """Create a new payroll record"""
     service = PayrollService(db)
-    return service.create_payroll_record(record)
+    result = service.create_payroll_record(record)
+    db.commit()  # Explicit commit after single record creation
+    return result
 
 # ============== Statistics ==============
 
@@ -232,45 +232,69 @@ async def upload_payroll_file(
             parser = ExcelParser()
             records = parser.parse(content, file_ext)
 
-        # Save to database with improved error tracking
+        # Save to database with transaction support
+        # All records are saved in a single transaction - if any fails, all rollback
         service = PayrollService(db)
         saved_count = 0
         skipped = []  # Employees not found in database
         errors = []   # Other errors
 
-        for record in records:
-            try:
-                # Check if employee exists first
-                employee = service.get_employee(record.employee_id)
-                if not employee:
-                    skipped.append({
-                        'employee_id': record.employee_id,
-                        'period': record.period,
-                        'reason': 'Employee not found in database'
-                    })
-                    continue
+        # Start explicit transaction
+        cursor = db.cursor()
+        cursor.execute("BEGIN TRANSACTION")
 
-                service.create_payroll_record(record)
-                saved_count += 1
+        try:
+            for record in records:
+                try:
+                    # Check if employee exists first
+                    employee = service.get_employee(record.employee_id)
+                    if not employee:
+                        skipped.append({
+                            'employee_id': record.employee_id,
+                            'period': record.period,
+                            'reason': 'Employee not found in database'
+                        })
+                        continue
 
-            except sqlite3.IntegrityError as e:
-                # Duplicate record with same (employee_id, period) - this is OK
-                # INSERT OR REPLACE in services.py handles this
-                if 'UNIQUE constraint failed' in str(e):
-                    saved_count += 1  # Count as saved (replaced)
-                else:
+                    service.create_payroll_record(record)
+                    saved_count += 1
+
+                except sqlite3.IntegrityError as e:
+                    # Duplicate record with same (employee_id, period) - this is OK
+                    # INSERT OR REPLACE in services.py handles this
+                    if 'UNIQUE constraint failed' in str(e):
+                        saved_count += 1  # Count as saved (replaced)
+                    else:
+                        errors.append({
+                            'employee_id': record.employee_id,
+                            'period': record.period,
+                            'error': str(e)
+                        })
+                        # Rollback on integrity errors (other than duplicate)
+                        db.rollback()
+                        raise
+
+                except Exception as e:
                     errors.append({
                         'employee_id': record.employee_id,
                         'period': record.period,
                         'error': str(e)
                     })
+                    # Rollback on any unexpected error
+                    db.rollback()
+                    raise
 
-            except Exception as e:
-                errors.append({
-                    'employee_id': record.employee_id,
-                    'period': record.period,
-                    'error': str(e)
-                })
+            # If we got here, all records processed successfully - commit transaction
+            db.commit()
+
+        except Exception as e:
+            # Rollback already happened in inner catch, but ensure it's done
+            try:
+                db.rollback()
+            except:
+                pass
+            # Re-raise to outer handler
+            raise
 
         return {
             "success": True,
@@ -363,15 +387,23 @@ async def sync_from_folder(
 
             payroll_records = parser.parse(file_content)
 
-            # Insert records
-            for record_data in payroll_records:
-                try:
-                    service.create_payroll_record(record_data)
-                    total_saved += 1
-                except Exception:
-                    total_errors += 1
+            # Insert records with transaction per file
+            cursor = db.cursor()
+            cursor.execute("BEGIN TRANSACTION")
+            try:
+                for record_data in payroll_records:
+                    try:
+                        service.create_payroll_record(record_data)
+                        total_saved += 1
+                    except Exception:
+                        total_errors += 1
+                        raise  # Rollback this file
 
-            files_processed += 1
+                db.commit()  # Commit this file's records
+                files_processed += 1
+            except:
+                db.rollback()
+                # File failed, but continue with next file
 
         except Exception as e:
             total_errors += 1

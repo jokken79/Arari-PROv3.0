@@ -308,7 +308,16 @@ class PayrollService:
             record.gross_salary * rates['workers_comp_rate']
         )
 
-        # 有給コスト: Usar valor directo si existe, sino calcular por horas
+        # ================================================================
+        # 有給コスト (Paid Leave Cost) Calculation
+        # ================================================================
+        # IMPORTANT: 有給 cost is ADDITIONAL to gross_salary
+        # - gross_salary (総支給額) = what employee receives in their paycheck
+        # - paid_leave_cost = company's additional cost for paid leave (not in paycheck)
+        #
+        # If paid_leave_amount is provided in Excel: use it directly
+        # Otherwise: calculate as paid_leave_hours × hourly_rate
+        # ================================================================
         paid_leave_amount = getattr(record, 'paid_leave_amount', 0) or 0
         if paid_leave_amount > 0:
             paid_leave_cost = paid_leave_amount
@@ -316,6 +325,7 @@ class PayrollService:
             paid_leave_cost = record.paid_leave_hours * hourly_rate
 
         # NOTE: transport_allowance is already included in gross_salary (総支給額)
+        # Paid leave cost is ADDED separately (not included in gross_salary)
         total_company_cost = record.total_company_cost or (
             record.gross_salary +
             company_social_insurance +
@@ -356,7 +366,8 @@ class PayrollService:
             total_company_cost, gross_profit, profit_margin
         ))
 
-        self.db.commit()
+        # NOTE: Commit is handled by the calling endpoint to allow transactions
+        # self.db.commit()  # Removed - caller must commit
 
         # Return the created record
         cursor.execute("""
@@ -535,13 +546,15 @@ class PayrollService:
             FROM payroll_records
         """
 
+        params = []
         if year and month:
             period = f"{year}年{month}月"
-            query += f" WHERE period = '{period}'"
+            query += " WHERE period = ?"
+            params.append(period)
 
         query += " GROUP BY period ORDER BY period DESC"
 
-        cursor.execute(query)
+        cursor.execute(query, params)
         return [dict(row) for row in cursor.fetchall()]
 
     def get_company_statistics(self) -> List[Dict]:
