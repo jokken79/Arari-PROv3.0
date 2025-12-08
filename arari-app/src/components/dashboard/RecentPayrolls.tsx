@@ -1,7 +1,7 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import { TrendingUp, TrendingDown, User } from 'lucide-react'
+import { TrendingUp, TrendingDown, User, Calendar, AlertCircle } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { formatYen, formatPercent } from '@/lib/utils'
@@ -17,10 +17,13 @@ export function RecentPayrolls({ payrolls, employees }: RecentPayrollsProps) {
     return employees.find(e => e.employeeId === employeeId)
   }
 
+  // 製造派遣 margin targets
   const getBadgeVariant = (margin: number) => {
-    if (margin >= 30) return 'success'
-    if (margin >= 20) return 'warning'
-    return 'danger'
+    if (margin >= 18) return 'success'   // excellent
+    if (margin >= 15) return 'success'   // target
+    if (margin >= 12) return 'warning'   // close
+    if (margin >= 10) return 'warning'   // needs improvement
+    return 'danger'                      // below standard
   }
 
   return (
@@ -42,6 +45,19 @@ export function RecentPayrolls({ payrolls, employees }: RecentPayrollsProps) {
               const employee = getEmployee(payroll.employeeId)
               const isPositive = payroll.grossProfit > 0
 
+              // Check if there's significant 有給休暇
+              const hasPaidLeave = payroll.paidLeaveDays > 0 || payroll.paidLeaveAmount > 0
+              const paidLeaveAmount = payroll.paidLeaveAmount > 0
+                ? payroll.paidLeaveAmount
+                : payroll.paidLeaveHours * (employee?.hourlyRate || 0)
+
+              // Calculate ratio: grossSalary vs billingAmount
+              const salaryToBillingRatio = payroll.billingAmount > 0
+                ? (payroll.grossSalary / payroll.billingAmount)
+                : 0
+              // If salary > billing by more than 50%, likely due to 有給
+              const hasHighPaidLeave = salaryToBillingRatio > 1.5 && hasPaidLeave
+
               return (
                 <motion.div
                   key={payroll.id}
@@ -59,6 +75,14 @@ export function RecentPayrolls({ payrolls, employees }: RecentPayrollsProps) {
                       <p className="text-sm text-muted-foreground">
                         {employee?.dispatchCompany}
                       </p>
+                      {/* Show 有給 indicator if significant */}
+                      {hasPaidLeave && (
+                        <p className="text-xs text-amber-500 flex items-center gap-1 mt-0.5">
+                          <Calendar className="h-3 w-3" />
+                          有給: {payroll.paidLeaveDays}日
+                          {paidLeaveAmount > 0 && ` (${formatYen(paidLeaveAmount)})`}
+                        </p>
+                      )}
                     </div>
                   </div>
 
@@ -67,9 +91,17 @@ export function RecentPayrolls({ payrolls, employees }: RecentPayrollsProps) {
                       <p className={`font-semibold ${isPositive ? 'text-emerald-500' : 'text-red-500'}`}>
                         {formatYen(payroll.grossProfit)}
                       </p>
-                      <p className="text-sm text-muted-foreground">
-                        売上: {formatYen(payroll.billingAmount)}
-                      </p>
+                      <div className="text-sm text-muted-foreground space-y-0.5">
+                        <p>請求: {formatYen(payroll.billingAmount)}</p>
+                        <p className="text-xs">支給: {formatYen(payroll.grossSalary)}</p>
+                      </div>
+                      {/* Explanation when billing << salary */}
+                      {hasHighPaidLeave && (
+                        <p className="text-xs text-amber-500 flex items-center gap-1 justify-end mt-1">
+                          <AlertCircle className="h-3 w-3" />
+                          有給で請求少
+                        </p>
+                      )}
                     </div>
 
                     <Badge variant={getBadgeVariant(payroll.profitMargin)}>
