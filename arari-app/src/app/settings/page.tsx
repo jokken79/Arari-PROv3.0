@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import {
   Settings,
@@ -14,15 +14,29 @@ import {
   RefreshCw,
   Check,
   AlertCircle,
+  Percent,
+  Save,
+  Calendar,
 } from 'lucide-react'
 import { Header } from '@/components/layout/Header'
 import { Sidebar } from '@/components/layout/Sidebar'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { Input } from '@/components/ui/input'
 import { useTheme } from '@/components/ui/theme-provider'
 import { cn } from '@/lib/utils'
 import { syncApi } from '@/lib/api'
+
+// API base URL
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+
+interface InsuranceSettings {
+  employment_insurance_rate: string
+  workers_comp_rate: string
+  fiscal_year: string
+  target_margin: string
+}
 
 export default function SettingsPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -33,6 +47,76 @@ export default function SettingsPage() {
     message?: string
     stats?: any
   } | null>(null)
+
+  // Insurance settings state
+  const [insuranceSettings, setInsuranceSettings] = useState<InsuranceSettings>({
+    employment_insurance_rate: '0.0090',
+    workers_comp_rate: '0.003',
+    fiscal_year: '2025',
+    target_margin: '15',
+  })
+  const [isSavingInsurance, setIsSavingInsurance] = useState(false)
+  const [insuranceSaveStatus, setInsuranceSaveStatus] = useState<{
+    success?: boolean
+    message?: string
+  } | null>(null)
+
+  // Load insurance settings on mount
+  useEffect(() => {
+    const loadSettings = async () => {
+      try {
+        const response = await fetch(`${API_URL}/api/settings`)
+        if (response.ok) {
+          const data = await response.json()
+          const settings: InsuranceSettings = {
+            employment_insurance_rate: '0.0090',
+            workers_comp_rate: '0.003',
+            fiscal_year: '2025',
+            target_margin: '15',
+          }
+          data.forEach((item: { key: string; value: string }) => {
+            if (item.key in settings) {
+              settings[item.key as keyof InsuranceSettings] = item.value
+            }
+          })
+          setInsuranceSettings(settings)
+        }
+      } catch (error) {
+        console.error('Error loading settings:', error)
+      }
+    }
+    loadSettings()
+  }, [])
+
+  // Save insurance settings
+  const handleSaveInsurance = async () => {
+    setIsSavingInsurance(true)
+    setInsuranceSaveStatus(null)
+
+    try {
+      const updates = [
+        { key: 'employment_insurance_rate', value: insuranceSettings.employment_insurance_rate, description: `雇用保険（会社負担）- ${insuranceSettings.fiscal_year}年度` },
+        { key: 'workers_comp_rate', value: insuranceSettings.workers_comp_rate, description: '労災保険 - 製造業' },
+        { key: 'fiscal_year', value: insuranceSettings.fiscal_year, description: '適用年度' },
+        { key: 'target_margin', value: insuranceSettings.target_margin, description: '目標マージン率 (%) - 製造派遣' },
+      ]
+
+      for (const update of updates) {
+        await fetch(`${API_URL}/api/settings/${update.key}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ value: update.value, description: update.description }),
+        })
+      }
+
+      setInsuranceSaveStatus({ success: true, message: '設定を保存しました' })
+      setTimeout(() => setInsuranceSaveStatus(null), 3000)
+    } catch (error) {
+      setInsuranceSaveStatus({ success: false, message: '保存に失敗しました' })
+    } finally {
+      setIsSavingInsurance(false)
+    }
+  }
 
   const handleSync = async () => {
     setIsSyncing(true)
@@ -187,6 +271,156 @@ export default function SettingsPage() {
                       </div>
                       <Badge variant="secondary">無効</Badge>
                     </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+
+            {/* Insurance Rates Settings */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.25 }}
+            >
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center gap-2">
+                    <Percent className="h-5 w-5 text-primary" />
+                    <CardTitle>保険料率設定</CardTitle>
+                  </div>
+                  <CardDescription>
+                    雇用保険・労災保険の料率を設定（毎年4月に更新）
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {/* Fiscal Year */}
+                    <div className="flex items-center gap-4 p-4 rounded-lg bg-muted">
+                      <Calendar className="h-5 w-5 text-muted-foreground" />
+                      <div className="flex-1">
+                        <label className="text-sm font-medium">適用年度</label>
+                        <p className="text-xs text-muted-foreground">保険料率が適用される年度</p>
+                      </div>
+                      <Input
+                        type="number"
+                        value={insuranceSettings.fiscal_year}
+                        onChange={(e) => setInsuranceSettings(prev => ({
+                          ...prev,
+                          fiscal_year: e.target.value
+                        }))}
+                        className="w-24 text-center"
+                      />
+                      <span className="text-sm text-muted-foreground">年度</span>
+                    </div>
+
+                    {/* Employment Insurance */}
+                    <div className="flex items-center gap-4 p-4 rounded-lg bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-900">
+                      <div className="flex-1">
+                        <label className="text-sm font-medium text-blue-900 dark:text-blue-100">
+                          雇用保険（会社負担）
+                        </label>
+                        <p className="text-xs text-blue-700 dark:text-blue-300">
+                          2025年度: 0.90% / 2024年度: 0.95%
+                        </p>
+                      </div>
+                      <Input
+                        type="number"
+                        step="0.0001"
+                        value={insuranceSettings.employment_insurance_rate}
+                        onChange={(e) => setInsuranceSettings(prev => ({
+                          ...prev,
+                          employment_insurance_rate: e.target.value
+                        }))}
+                        className="w-28 text-center"
+                      />
+                      <span className="text-sm text-muted-foreground">
+                        ({(parseFloat(insuranceSettings.employment_insurance_rate) * 100).toFixed(2)}%)
+                      </span>
+                    </div>
+
+                    {/* Workers Comp */}
+                    <div className="flex items-center gap-4 p-4 rounded-lg bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900">
+                      <div className="flex-1">
+                        <label className="text-sm font-medium text-amber-900 dark:text-amber-100">
+                          労災保険（会社負担）
+                        </label>
+                        <p className="text-xs text-amber-700 dark:text-amber-300">
+                          製造業: 0.3% (業種により異なる)
+                        </p>
+                      </div>
+                      <Input
+                        type="number"
+                        step="0.0001"
+                        value={insuranceSettings.workers_comp_rate}
+                        onChange={(e) => setInsuranceSettings(prev => ({
+                          ...prev,
+                          workers_comp_rate: e.target.value
+                        }))}
+                        className="w-28 text-center"
+                      />
+                      <span className="text-sm text-muted-foreground">
+                        ({(parseFloat(insuranceSettings.workers_comp_rate) * 100).toFixed(2)}%)
+                      </span>
+                    </div>
+
+                    {/* Target Margin */}
+                    <div className="flex items-center gap-4 p-4 rounded-lg bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-900">
+                      <div className="flex-1">
+                        <label className="text-sm font-medium text-emerald-900 dark:text-emerald-100">
+                          目標マージン率
+                        </label>
+                        <p className="text-xs text-emerald-700 dark:text-emerald-300">
+                          製造派遣の標準: 15%
+                        </p>
+                      </div>
+                      <Input
+                        type="number"
+                        step="1"
+                        value={insuranceSettings.target_margin}
+                        onChange={(e) => setInsuranceSettings(prev => ({
+                          ...prev,
+                          target_margin: e.target.value
+                        }))}
+                        className="w-20 text-center"
+                      />
+                      <span className="text-sm text-muted-foreground">%</span>
+                    </div>
+
+                    {/* Save Button */}
+                    <div className="flex items-center justify-between pt-4 border-t">
+                      <p className="text-xs text-muted-foreground">
+                        ※ 変更は新規データ登録時に適用されます
+                      </p>
+                      <Button
+                        onClick={handleSaveInsurance}
+                        disabled={isSavingInsurance}
+                        className="gap-2"
+                      >
+                        <Save className={cn("h-4 w-4", isSavingInsurance && "animate-spin")} />
+                        {isSavingInsurance ? '保存中...' : '設定を保存'}
+                      </Button>
+                    </div>
+
+                    {/* Save Status */}
+                    {insuranceSaveStatus && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className={cn(
+                          "p-3 rounded-md text-sm flex items-center gap-2",
+                          insuranceSaveStatus.success
+                            ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-300"
+                            : "bg-red-100 text-red-800 dark:bg-red-950/30 dark:text-red-300"
+                        )}
+                      >
+                        {insuranceSaveStatus.success ? (
+                          <Check className="h-4 w-4" />
+                        ) : (
+                          <AlertCircle className="h-4 w-4" />
+                        )}
+                        {insuranceSaveStatus.message}
+                      </motion.div>
+                    )}
                   </div>
                 </CardContent>
               </Card>

@@ -123,6 +123,32 @@ def init_db():
         ON employees(dispatch_company)
     """)
 
+    # ================================================================
+    # SETTINGS TABLE - For configurable rates like 雇用保険
+    # ================================================================
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS settings (
+            key TEXT PRIMARY KEY,
+            value TEXT NOT NULL,
+            description TEXT,
+            updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+
+    # Insert default settings if not exist
+    default_settings = [
+        ('employment_insurance_rate', '0.0090', '雇用保険（会社負担）- 2025年度: 0.90%'),
+        ('workers_comp_rate', '0.003', '労災保険 - 製造業: 0.3%'),
+        ('fiscal_year', '2025', '適用年度'),
+        ('target_margin', '15', '目標マージン率 (%) - 製造派遣'),
+    ]
+
+    for key, value, description in default_settings:
+        cursor.execute("""
+            INSERT OR IGNORE INTO settings (key, value, description)
+            VALUES (?, ?, ?)
+        """, (key, value, description))
+
     conn.commit()
 
     # NO sample data - start with clean database

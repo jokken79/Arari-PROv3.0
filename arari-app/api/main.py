@@ -491,6 +491,47 @@ async def import_employees(
             }
         )
 
+# ============== SETTINGS ==============
+
+@app.get("/api/settings")
+async def get_settings(db: sqlite3.Connection = Depends(get_db)):
+    """Get all system settings"""
+    service = PayrollService(db)
+    return service.get_all_settings()
+
+@app.get("/api/settings/{key}")
+async def get_setting(key: str, db: sqlite3.Connection = Depends(get_db)):
+    """Get a single setting by key"""
+    service = PayrollService(db)
+    value = service.get_setting(key)
+    if value is None:
+        raise HTTPException(status_code=404, detail=f"Setting '{key}' not found")
+    return {"key": key, "value": value}
+
+@app.put("/api/settings/{key}")
+async def update_setting(
+    key: str,
+    payload: dict,
+    db: sqlite3.Connection = Depends(get_db)
+):
+    """Update a setting"""
+    service = PayrollService(db)
+    value = payload.get("value")
+    description = payload.get("description")
+
+    if value is None:
+        raise HTTPException(status_code=400, detail="'value' is required")
+
+    service.update_setting(key, str(value), description)
+    return {"key": key, "value": value, "status": "updated"}
+
+@app.get("/api/settings/rates/insurance")
+async def get_insurance_rates(db: sqlite3.Connection = Depends(get_db)):
+    """Get current insurance rates"""
+    service = PayrollService(db)
+    return service.get_insurance_rates()
+
+
 # ============== Run Server ==============
 
 if __name__ == "__main__":

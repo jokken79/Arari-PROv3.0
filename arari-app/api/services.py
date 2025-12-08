@@ -18,6 +18,51 @@ class PayrollService:
         self.db = db
         self.db.row_factory = sqlite3.Row
 
+    # ============== Settings Operations ==============
+
+    def get_setting(self, key: str, default: str = None) -> Optional[str]:
+        """Get a single setting value by key"""
+        cursor = self.db.cursor()
+        cursor.execute("SELECT value FROM settings WHERE key = ?", (key,))
+        row = cursor.fetchone()
+        return row['value'] if row else default
+
+    def get_all_settings(self) -> List[Dict]:
+        """Get all settings"""
+        cursor = self.db.cursor()
+        cursor.execute("SELECT * FROM settings ORDER BY key")
+        return [dict(row) for row in cursor.fetchall()]
+
+    def update_setting(self, key: str, value: str, description: str = None) -> bool:
+        """Update or create a setting"""
+        cursor = self.db.cursor()
+        if description:
+            cursor.execute("""
+                INSERT INTO settings (key, value, description, updated_at)
+                VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+                ON CONFLICT(key) DO UPDATE SET
+                    value = excluded.value,
+                    description = excluded.description,
+                    updated_at = CURRENT_TIMESTAMP
+            """, (key, value, description))
+        else:
+            cursor.execute("""
+                INSERT INTO settings (key, value, updated_at)
+                VALUES (?, ?, CURRENT_TIMESTAMP)
+                ON CONFLICT(key) DO UPDATE SET
+                    value = excluded.value,
+                    updated_at = CURRENT_TIMESTAMP
+            """, (key, value))
+        self.db.commit()
+        return cursor.rowcount > 0
+
+    def get_insurance_rates(self) -> Dict[str, float]:
+        """Get current insurance rates from settings"""
+        return {
+            'employment_insurance_rate': float(self.get_setting('employment_insurance_rate', '0.0090')),
+            'workers_comp_rate': float(self.get_setting('workers_comp_rate', '0.003')),
+        }
+
     # ============== Employee Operations ==============
 
     def get_employees(self, search: Optional[str] = None, company: Optional[str] = None, employee_type: Optional[str] = None) -> List[Dict]:
@@ -247,14 +292,21 @@ class PayrollService:
             billing_amount = self.calculate_billing_amount(record, employee)
 
         # Calculate company costs
+        # Get insurance rates from settings (dynamic)
+        rates = self.get_insurance_rates()
+
         # 社会保険（会社負担）= 本人負担と同額 (労使折半)
         company_social_insurance = record.company_social_insurance or record.social_insurance
 
-        # 雇用保険（会社負担）= 0.95% of gross salary (2024年度)
-        company_employment_insurance = record.company_employment_insurance or round(record.gross_salary * self.EMPLOYMENT_INSURANCE_RATE)
+        # 雇用保険（会社負担）- Rate from settings (2025年度: 0.90%)
+        company_employment_insurance = record.company_employment_insurance or round(
+            record.gross_salary * rates['employment_insurance_rate']
+        )
 
-        # 労災保険（会社負担100%）= 0.3% of gross salary (派遣業)
-        company_workers_comp = getattr(record, 'company_workers_comp', None) or round(record.gross_salary * self.WORKERS_COMP_RATE)
+        # 労災保険（会社負担100%）- Rate from settings (製造業: 0.3%)
+        company_workers_comp = getattr(record, 'company_workers_comp', None) or round(
+            record.gross_salary * rates['workers_comp_rate']
+        )
 
         # 有給コスト: Usar valor directo si existe, sino calcular por horas
         paid_leave_amount = getattr(record, 'paid_leave_amount', 0) or 0
