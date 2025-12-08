@@ -2,9 +2,10 @@
 Pydantic models for API request/response validation
 """
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from typing import Optional, List
 from datetime import datetime
+import re
 
 # ============== Employee Models ==============
 
@@ -38,32 +39,48 @@ class Employee(EmployeeBase):
 # ============== Payroll Record Models ==============
 
 class PayrollRecordBase(BaseModel):
-    employee_id: str = Field(..., description="社員番号")
+    employee_id: str = Field(..., min_length=1, description="社員番号")
     period: str = Field(..., description="対象期間 (例: 2025年1月)")
-    work_days: int = Field(0, description="出勤日数")
-    work_hours: float = Field(0, description="労働時間")
-    overtime_hours: float = Field(0, description="残業時間（≤60h部分）")
-    night_hours: float = Field(0, description="深夜時間")
-    holiday_hours: float = Field(0, description="休日時間")
-    overtime_over_60h: float = Field(0, description="60H過残業（60h超え部分）")
-    paid_leave_hours: float = Field(0, description="有給時間")
-    paid_leave_days: float = Field(0, description="有給日数")
-    paid_leave_amount: float = Field(0, description="有給金額（円）- 直接値がある場合")
-    base_salary: float = Field(0, description="基本給")
-    overtime_pay: float = Field(0, description="残業代（≤60h: ×1.25）")
-    night_pay: float = Field(0, description="深夜手当（本人: ×0.25）")
-    holiday_pay: float = Field(0, description="休日手当（×1.35）")
-    overtime_over_60h_pay: float = Field(0, description="60H過残業手当（×1.5）")
-    transport_allowance: float = Field(0, description="通勤費")
-    other_allowances: float = Field(0, description="その他手当")
-    gross_salary: float = Field(0, description="総支給額")
-    social_insurance: float = Field(0, description="社会保険料（本人負担）")
-    employment_insurance: float = Field(0, description="雇用保険料")
-    income_tax: float = Field(0, description="所得税")
-    resident_tax: float = Field(0, description="住民税")
-    other_deductions: float = Field(0, description="その他控除")
-    net_salary: float = Field(0, description="差引支給額")
-    billing_amount: float = Field(0, description="請求金額")
+    work_days: int = Field(0, ge=0, le=31, description="出勤日数")
+    work_hours: float = Field(0, ge=0, le=400, description="労働時間 (max 400h/month)")
+    overtime_hours: float = Field(0, ge=0, le=100, description="残業時間（≤60h部分, max 100h)")
+    night_hours: float = Field(0, ge=0, le=200, description="深夜時間")
+    holiday_hours: float = Field(0, ge=0, le=100, description="休日時間")
+    overtime_over_60h: float = Field(0, ge=0, le=100, description="60H過残業（60h超え部分）")
+    paid_leave_hours: float = Field(0, ge=0, le=200, description="有給時間")
+    paid_leave_days: float = Field(0, ge=0, le=25, description="有給日数")
+    paid_leave_amount: float = Field(0, ge=0, description="有給金額（円）- 直接値がある場合")
+    base_salary: float = Field(0, ge=0, description="基本給")
+    overtime_pay: float = Field(0, ge=0, description="残業代（≤60h: ×1.25）")
+    night_pay: float = Field(0, ge=0, description="深夜手当（本人: ×0.25）")
+    holiday_pay: float = Field(0, ge=0, description="休日手当（×1.35）")
+    overtime_over_60h_pay: float = Field(0, ge=0, description="60H過残業手当（×1.5）")
+    transport_allowance: float = Field(0, ge=0, description="通勤費")
+    other_allowances: float = Field(0, ge=0, description="その他手当")
+    gross_salary: float = Field(0, ge=0, description="総支給額")
+    social_insurance: float = Field(0, ge=0, description="社会保険料（本人負担）")
+    employment_insurance: float = Field(0, ge=0, description="雇用保険料")
+    income_tax: float = Field(0, ge=0, description="所得税")
+    resident_tax: float = Field(0, ge=0, description="住民税")
+    other_deductions: float = Field(0, ge=0, description="その他控除")
+    net_salary: float = Field(0, ge=0, description="差引支給額")
+    billing_amount: float = Field(0, ge=0, description="請求金額")
+
+    @field_validator('period')
+    @classmethod
+    def validate_period(cls, v: str) -> str:
+        """Validate period format is YYYY年M月 or YYYY年MM月"""
+        if not re.match(r'^\d{4}年\d{1,2}月$', v):
+            raise ValueError('Period must be in format YYYY年M月 (例: 2025年1月)')
+        return v
+
+    @field_validator('employee_id')
+    @classmethod
+    def validate_employee_id(cls, v: str) -> str:
+        """Validate employee_id is not empty"""
+        if not v or not v.strip():
+            raise ValueError('Employee ID cannot be empty')
+        return v.strip()
 
 class PayrollRecordCreate(PayrollRecordBase):
     # Optional calculated fields - will be calculated if not provided

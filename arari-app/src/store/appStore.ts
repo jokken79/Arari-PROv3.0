@@ -233,21 +233,19 @@ export const useAppStore = create<AppState>()(
       loadDataFromBackend: async () => {
         set({ isLoading: true })
 
-        try {
-          // Fetch employees from backend
-          const empResponse = await employeeApi.getAll()
+        try:
+          // Parallel fetch all data at once (4x faster than sequential)
+          const [empResponse, payrollResponse, periodsResponse, statsResponse] = await Promise.all([
+            employeeApi.getAll(),
+            payrollApi.getAll(),
+            payrollApi.getPeriods(),
+            statisticsApi.getDashboard()
+          ])
+
+          // Check for errors
           if (empResponse.error) throw new Error(empResponse.error)
-
-          // Fetch payroll records
-          const payrollResponse = await payrollApi.getAll()
           if (payrollResponse.error) throw new Error(payrollResponse.error)
-
-          // Fetch periods
-          const periodsResponse = await payrollApi.getPeriods()
           if (periodsResponse.error) throw new Error(periodsResponse.error)
-
-          // Fetch dashboard stats
-          const statsResponse = await statisticsApi.getDashboard()
           if (statsResponse.error) throw new Error(statsResponse.error)
 
           // Transform backend data to frontend format

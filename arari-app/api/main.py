@@ -218,9 +218,19 @@ async def upload_payroll_file(
             detail=f"Invalid file type. Allowed: {', '.join(allowed_extensions)}"
         )
 
+    # Validate file size (max 50MB)
+    MAX_FILE_SIZE = 50 * 1024 * 1024  # 50MB in bytes
+
     try:
         # Read file content
         content = await file.read()
+
+        # Check file size after reading
+        if len(content) > MAX_FILE_SIZE:
+            raise HTTPException(
+                status_code=413,
+                detail=f"File too large. Maximum size: 50MB. Your file: {len(content) / 1024 / 1024:.2f}MB"
+            )
 
         # Detect file type and use appropriate parser
         # Use specialized SalaryStatementParser for .xlsm salary statement files
@@ -239,6 +249,10 @@ async def upload_payroll_file(
         skipped = []  # Employees not found in database
         errors = []   # Other errors
 
+        # Optimize N+1 queries: Load all employees once and create lookup map
+        all_employees = service.get_employees()
+        employee_map = {emp['employee_id']: emp for emp in all_employees}
+
         # Start explicit transaction
         cursor = db.cursor()
         cursor.execute("BEGIN TRANSACTION")
@@ -246,8 +260,8 @@ async def upload_payroll_file(
         try:
             for record in records:
                 try:
-                    # Check if employee exists first
-                    employee = service.get_employee(record.employee_id)
+                    # Check if employee exists using pre-loaded map (O(1) lookup)
+                    employee = employee_map.get(record.employee_id)
                     if not employee:
                         skipped.append({
                             'employee_id': record.employee_id,
