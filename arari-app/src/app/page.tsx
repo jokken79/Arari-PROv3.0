@@ -25,6 +25,7 @@ import { EmployeeRankingChart } from '@/components/charts/EmployeeRankingChart'
 import { FactoryComparisonChart } from '@/components/charts/FactoryComparisonChart'
 import { MarginGaugeChart } from '@/components/charts/MarginGaugeChart'
 import { HoursBreakdownChart } from '@/components/charts/HoursBreakdownChart'
+import { OvertimeByFactoryChart } from '@/components/charts/OvertimeByFactoryChart'
 import { RecentPayrolls } from '@/components/dashboard/RecentPayrolls'
 import { useAppStore } from '@/store/appStore'
 import { formatYen, formatPercent, formatNumber } from '@/lib/utils'
@@ -90,6 +91,10 @@ export default function DashboardPage() {
       profit: number
       margin: number
       count: number
+      overtimeHours: number
+      overtimeOver60h: number
+      nightHours: number
+      holidayHours: number
     }>()
 
     currentPeriodRecords.forEach(r => {
@@ -97,7 +102,10 @@ export default function DashboardPage() {
       const company = employee?.dispatchCompany || 'Unknown'
 
       if (!companyMap.has(company)) {
-        companyMap.set(company, { revenue: 0, cost: 0, profit: 0, margin: 0, count: 0 })
+        companyMap.set(company, {
+          revenue: 0, cost: 0, profit: 0, margin: 0, count: 0,
+          overtimeHours: 0, overtimeOver60h: 0, nightHours: 0, holidayHours: 0
+        })
       }
 
       const data = companyMap.get(company)!
@@ -106,6 +114,10 @@ export default function DashboardPage() {
       data.profit += r.grossProfit
       data.margin += r.profitMargin
       data.count += 1
+      data.overtimeHours += r.overtimeHours || 0
+      data.overtimeOver60h += r.overtimeOver60h || 0
+      data.nightHours += r.nightHours || 0
+      data.holidayHours += r.holidayHours || 0
     })
 
     const factoryData = Array.from(companyMap.entries()).map(([name, data]) => ({
@@ -116,6 +128,17 @@ export default function DashboardPage() {
       margin: data.count > 0 ? data.margin / data.count : 0,
       employeeCount: data.count,
     })).sort((a, b) => b.profit - a.profit)
+
+    // Overtime by factory data
+    const overtimeByFactoryData = Array.from(companyMap.entries()).map(([name, data]) => ({
+      companyName: name,
+      overtimeHours: data.overtimeHours,
+      overtimeOver60h: data.overtimeOver60h,
+      nightHours: data.nightHours,
+      holidayHours: data.holidayHours,
+      totalOvertime: data.overtimeHours + data.overtimeOver60h + data.nightHours + data.holidayHours,
+      employeeCount: data.count,
+    })).sort((a, b) => b.totalOvertime - a.totalOvertime)
 
     // Hours breakdown
     const totalWorkHours = currentPeriodRecords.reduce((sum, r) => sum + r.workHours, 0)
@@ -141,6 +164,7 @@ export default function DashboardPage() {
       topPerformers,
       bottomPerformers,
       factoryData,
+      overtimeByFactoryData,
       hoursData: {
         workHours: totalWorkHours,
         overtimeHours: totalOvertimeHours,
@@ -328,6 +352,13 @@ export default function DashboardPage() {
               {chartData && chartData.factoryData.length > 0 && (
                 <div className="mb-6">
                   <FactoryComparisonChart data={chartData.factoryData} />
+                </div>
+              )}
+
+              {/* Overtime by Factory - Full Width */}
+              {chartData && chartData.overtimeByFactoryData.length > 0 && (
+                <div className="mb-6">
+                  <OvertimeByFactoryChart data={chartData.overtimeByFactoryData} />
                 </div>
               )}
 
