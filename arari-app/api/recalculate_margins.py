@@ -26,8 +26,8 @@ import sqlite3
 import argparse
 from pathlib import Path
 
-# Tasas de seguro (2024年度)
-EMPLOYMENT_INSURANCE_RATE = 0.0095  # 雇用保険（会社負担）0.95%
+# Tasas de seguro (2025年度)
+EMPLOYMENT_INSURANCE_RATE = 0.0090  # 雇用保険（会社負担）0.90% ← 2025年度
 WORKERS_COMP_RATE = 0.003  # 労災保険 0.3%
 
 # Billing multipliers

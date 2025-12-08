@@ -80,6 +80,17 @@ class SalaryStatementParser:
         '残業代', '深夜代', '深夜割増', '休日割増',
     ]
 
+    # ================================================================
+    # NON-BILLABLE ALLOWANCES (会社負担のみ、派遣先に請求しない)
+    # These are paid to employee but NOT billed to client
+    # ================================================================
+    NON_BILLABLE_ALLOWANCES = [
+        '通勤手当',        # Transport allowance
+        '通勤手当（非）',   # Transport allowance (non-taxable)
+        '通勤費',          # Transport cost
+        '業務手当',        # Work allowance
+    ]
+
     # Fallback row positions (used if intelligent detection fails)
     FALLBACK_ROW_POSITIONS = {
         'period': 5,
@@ -114,6 +125,7 @@ class SalaryStatementParser:
         self.use_intelligent_mode = use_intelligent_mode
         self.detected_fields: Dict[str, int] = {}  # field_name -> row_number
         self.detected_allowances: Dict[str, int] = {}  # allowance_name -> row_number
+        self.detected_non_billable: Dict[str, int] = {}  # non-billable allowances
         self.validation_warnings: List[str] = []
 
     def parse(self, content: bytes) -> List[PayrollRecordCreate]:
@@ -173,8 +185,9 @@ class SalaryStatementParser:
             return records
 
         print(f"  📋 Sheet '{sheet_name}': {len(employee_cols)} employees, "
-              f"{len(self.detected_fields)} fields detected, "
-              f"{len(self.detected_allowances)} 手当 found")
+              f"{len(self.detected_fields)} fields, "
+              f"{len(self.detected_allowances)} 手当, "
+              f"{len(self.detected_non_billable)} non-billable")
 
         # Step 3: Extract data for each employee
         for col_idx in employee_cols:
@@ -191,6 +204,7 @@ class SalaryStatementParser:
         """
         self.detected_fields = {}
         self.detected_allowances = {}
+        self.detected_non_billable = {}
 
         # Scan first 50 rows, looking at label columns (1, 2, 15, 16, etc.)
         label_columns = [1, 2, 15, 16, 29, 30]  # Common label column positions
@@ -211,8 +225,13 @@ class SalaryStatementParser:
                                 self.detected_fields[field_name] = row
                                 break
 
+                # Check for NON-BILLABLE allowances (通勤手当（非）, 業務手当, etc.)
+                if label in self.NON_BILLABLE_ALLOWANCES:
+                    if label not in self.detected_non_billable:
+                        self.detected_non_billable[label] = row
+
                 # Check for ANY 手当 (allowance) - dynamic detection
-                if self._is_allowance(label) and label not in self.KNOWN_ALLOWANCES:
+                elif self._is_allowance(label) and label not in self.KNOWN_ALLOWANCES:
                     if label not in self.detected_allowances:
                         self.detected_allowances[label] = row
 
@@ -313,7 +332,24 @@ class SalaryStatementParser:
                 print(f"    💰 {employee_id}: Detected 手当: {', '.join(detected_allowance_details)}")
 
             # ================================================================
+            # NON-BILLABLE ALLOWANCES (通勤手当（非）, 業務手当, etc.)
+            # These are costs for company but NOT billed to 派遣先
+            # ================================================================
+            non_billable_total = 0
+            non_billable_details = []
+
+            for allowance_name, row in self.detected_non_billable.items():
+                value = self._get_numeric(ws, row, base_col + self.COLUMN_OFFSETS['value'])
+                if value > 0:
+                    non_billable_total += value
+                    non_billable_details.append(f"{allowance_name}=¥{value:,.0f}")
+
+            if non_billable_details:
+                print(f"    🚫 {employee_id}: Non-billable: {', '.join(non_billable_details)} (会社負担のみ)")
+
+            # ================================================================
             # CALCULATE GROSS SALARY (with fallback)
+            # Includes ALL allowances (both billable and non-billable)
             # ================================================================
             calculated_gross = (
                 base_salary +
@@ -323,7 +359,8 @@ class SalaryStatementParser:
                 overtime_over_60h_pay +
                 transport_allowance +
                 paid_leave_amount +
-                other_allowances_total
+                other_allowances_total +
+                non_billable_total  # 通勤手当（非）, 業務手当, etc.
             )
 
             # Use Excel's gross_salary if available, otherwise use calculated
@@ -372,7 +409,7 @@ class SalaryStatementParser:
                 'night_pay': night_pay,
                 'holiday_pay': holiday_pay,
                 'overtime_over_60h_pay': overtime_over_60h_pay,
-                'other_allowances': other_allowances_total,
+                'other_allowances': other_allowances_total + non_billable_total,  # Includes non-billable
                 'transport_allowance': transport_allowance,
                 'gross_salary': gross_salary,
 

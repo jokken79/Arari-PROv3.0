@@ -64,13 +64,19 @@ Este archivo contiene información importante para futuras sesiones de Claude.
 - Seguros (会社): `company_social_insurance`, `company_employment_insurance`, `company_workers_comp`
 - Resultado: `billing_amount`, `total_company_cost`, `gross_profit`, `profit_margin`
 
-## Tasas de Seguro (2024年度)
+## Tasas de Seguro (2025年度)
 
 | Seguro | Tasa | Base |
 |--------|------|------|
 | 社会保険 (会社) | = 本人負担 | 労使折半 |
-| 雇用保険 (会社) | 0.95% | 総支給額 |
+| 雇用保険 (会社) | **0.90%** | 総支給額 ← 2025年度 |
 | 労災保険 | 0.3% | 総支給額 (製造業) |
+
+### Historial de Tasas
+| Año | 雇用保険 (会社) |
+|-----|-----------------|
+| 2024年度 | 0.95% |
+| 2025年度 | 0.90% |
 
 ##派遣先 Conocidas (Clientes)
 
@@ -105,6 +111,21 @@ El sistema lee Excel con formato específico:
 - ROW_POSITIONS configurables para cada campo
 - Múltiples empleados por archivo (múltiples hojas)
 
+## Non-Billable Allowances (会社負担のみ)
+
+Estos 手当 se pagan al empleado pero **NO se facturan** al 派遣先:
+
+| 手当 | Descripción | ¿Se factura? |
+|------|-------------|--------------|
+| 通勤手当（非） | Transporte (no gravable) | ❌ No |
+| 業務手当 | Allowance de trabajo | ❌ No |
+| 通勤費 | Costo de transporte | ❌ No |
+
+**Impacto en cálculos:**
+- ✅ Se incluyen en `gross_salary` (costo empresa)
+- ✅ Se incluyen en `total_company_cost`
+- ❌ NO se incluyen en `billing_amount` (facturación basada en horas × 単価)
+
 ## Notas Importantes
 
 1. **NO usar datos demo** - Solo datos reales del Excel
@@ -112,6 +133,7 @@ El sistema lee Excel con formato específico:
 3. **深夜 es EXTRA** (×0.25 adicional), no reemplaza la hora base
 4. **Objetivo 15%** para 製造派遣, no 25%
 5. **単価** está en tabla `employees.billing_rate`
+6. **Non-billable allowances** (通勤手当（非）, 業務手当) son costo empresa pero no se facturan
 
 ## Commits Relevantes
 
@@ -126,4 +148,4 @@ a2d3c88 feat: Support direct 有給金額 (paid leave amount) from Excel
 ```
 
 ---
-Última actualización: 2025-12-05
+Última actualización: 2025-12-08

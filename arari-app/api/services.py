@@ -153,8 +153,8 @@ class PayrollService:
         """)
         return [row['period'] for row in cursor.fetchall()]
 
-    # Insurance rates (2024年度) - configurable constants
-    EMPLOYMENT_INSURANCE_RATE = 0.0095  # 雇用保険（会社負担）0.95%
+    # Insurance rates (2025年度) - configurable constants
+    EMPLOYMENT_INSURANCE_RATE = 0.0090  # 雇用保険（会社負担）0.90% ← 2025年度
     WORKERS_COMP_RATE = 0.003  # 労災保険 0.3% (派遣業の場合、業種により0.25%~0.88%)
 
     # Billing multipliers (for factory billing)
