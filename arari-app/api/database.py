@@ -14,6 +14,8 @@ def get_connection():
     """Create a new database connection"""
     conn = sqlite3.connect(str(DB_PATH), check_same_thread=False)
     conn.row_factory = sqlite3.Row
+    # Enable foreign key constraints (disabled by default in SQLite)
+    conn.execute("PRAGMA foreign_keys = ON")
     return conn
 
 def get_db():
@@ -121,6 +123,17 @@ def init_db():
     cursor.execute("""
         CREATE INDEX IF NOT EXISTS idx_employees_company
         ON employees(dispatch_company)
+    """)
+
+    # Composite indexes for frequently used query patterns
+    cursor.execute("""
+        CREATE INDEX IF NOT EXISTS idx_payroll_emp_period
+        ON payroll_records(employee_id, period DESC)
+    """)
+
+    cursor.execute("""
+        CREATE INDEX IF NOT EXISTS idx_payroll_period_margin
+        ON payroll_records(period, profit_margin)
     """)
 
     # ================================================================
