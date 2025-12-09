@@ -512,7 +512,29 @@ export default function SettingsPage() {
                       <Button variant="outline" disabled>
                         バックアップから復元
                       </Button>
-                      <Button variant="outline" className="text-destructive hover:text-destructive" disabled>
+                      <Button
+                        variant="outline"
+                        className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                        onClick={async () => {
+                          if (!confirm('本当にすべてのデータを削除しますか？\nこの操作は取り消せません。\n\nAre you sure you want to delete ALL data? This cannot be undone.')) {
+                            return
+                          }
+
+                          try {
+                            const res = await fetch(`${API_URL}/api/reset-db`, { method: 'DELETE' })
+                            if (res.ok) {
+                              alert('データを削除しました。\nData deleted successfully.')
+                              // Reload to refresh UI state if needed
+                              window.location.reload()
+                            } else {
+                              alert('削除に失敗しました。\nFailed to delete data.')
+                            }
+                          } catch (e) {
+                            console.error(e)
+                            alert('エラーが発生しました。\nAn error occurred.')
+                          }
+                        }}
+                      >
                         すべてのデータを削除
                       </Button>
                     </div>

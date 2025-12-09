@@ -40,6 +40,8 @@ app = FastAPI(
 allowed_origins = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
+    "http://localhost:4321",
+    "http://127.0.0.1:4321",
 ]
 
 # Add all 10 frontend instance ports (4000-4009)
@@ -579,6 +581,26 @@ async def get_insurance_rates(db: sqlite3.Connection = Depends(get_db)):
 
 
 # ============== Run Server ==============
+
+
+# ============== RESET DATA ==============
+
+@app.delete("/api/reset-db")
+async def reset_database(db: sqlite3.Connection = Depends(get_db)):
+    """Delete ALL data (employees and payroll records)"""
+    try:
+        cursor = db.cursor()
+        
+        # Delete data in correct order
+        cursor.execute("DELETE FROM payroll_records")
+        cursor.execute("DELETE FROM employees")
+        
+        db.commit()
+        
+        return {"status": "success", "message": "All data has been deleted"}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to delete data: {str(e)}")
 
 if __name__ == "__main__":
     uvicorn.run(

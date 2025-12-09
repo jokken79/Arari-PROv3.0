@@ -61,6 +61,12 @@ const navigation = [
     description: 'データ取込',
   },
   {
+    name: '給与明細データ',
+    href: '/payroll',
+    icon: BarChart3,
+    description: 'データ検証',
+  },
+  {
     name: '詳細レポート',
     href: '/reports',
     icon: FileText,

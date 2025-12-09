@@ -34,7 +34,7 @@ class DBGenzaiXParser:
         'name': ['name', '氏名', '名前'],
         'name_kana': ['name_kana', 'kana', 'フリガナ', 'カナ'],
         'hourly_rate': ['hourly_rate', '時給', '時間給', '時給額'],
-        'billing_rate': ['billing_rate', '単価', '請求単価', 'billing'],
+        'billing_rate': ['billing_rate', '単価', '請求単価', 'billing', '派遣単価', '売上単価', '請求単価(円)', '単価(円)', '支払単価', '時間単価'],
         'dispatch_company': ['dispatch_company', '派遣会社', 'company', 'companies', '派遣先'],
         'status': ['status', 'ステータス', '状態', '稼働状態', '現在'],
         'hire_date': ['hire_date', '入社日', 'hire', '雇用日'],

@@ -233,7 +233,7 @@ export const useAppStore = create<AppState>()(
       loadDataFromBackend: async () => {
         set({ isLoading: true })
 
-        try:
+        try {
           // Parallel fetch all data at once (4x faster than sequential)
           const [empResponse, payrollResponse, periodsResponse, statsResponse] = await Promise.all([
             employeeApi.getAll(),
