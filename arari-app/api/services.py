@@ -342,6 +342,9 @@ class PayrollService:
 
         cursor = self.db.cursor()
 
+        # Get non_billable_allowances from record
+        non_billable_allowances = getattr(record, 'non_billable_allowances', 0) or 0
+
         # Use INSERT OR REPLACE to handle updates for same employee+period
         cursor.execute("""
             INSERT OR REPLACE INTO payroll_records (
@@ -349,17 +352,17 @@ class PayrollService:
                 night_hours, holiday_hours, overtime_over_60h,
                 paid_leave_hours, paid_leave_days, paid_leave_amount,
                 base_salary, overtime_pay, night_pay, holiday_pay, overtime_over_60h_pay,
-                transport_allowance, other_allowances, gross_salary,
+                transport_allowance, other_allowances, non_billable_allowances, gross_salary,
                 social_insurance, employment_insurance, income_tax, resident_tax,
                 other_deductions, net_salary, billing_amount, company_social_insurance,
                 company_employment_insurance, company_workers_comp, total_company_cost, gross_profit, profit_margin
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             record.employee_id, record.period, record.work_days, record.work_hours,
             record.overtime_hours, night_hours, holiday_hours, overtime_over_60h,
             record.paid_leave_hours, record.paid_leave_days, paid_leave_amount,
             record.base_salary, record.overtime_pay, night_pay, holiday_pay, overtime_over_60h_pay,
-            record.transport_allowance, record.other_allowances, record.gross_salary,
+            record.transport_allowance, record.other_allowances, non_billable_allowances, record.gross_salary,
             record.social_insurance, record.employment_insurance, record.income_tax, record.resident_tax,
             record.other_deductions, record.net_salary, billing_amount,
             company_social_insurance, company_employment_insurance, company_workers_comp,

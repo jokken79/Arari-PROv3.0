@@ -19,6 +19,7 @@ import {
   TrendingDown,
   Calendar,
   Loader2,
+  FileSpreadsheet,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -71,6 +72,12 @@ const navigation = [
     href: '/reports',
     icon: FileText,
     description: '帳票出力',
+  },
+  {
+    name: 'テンプレート管理',
+    href: '/templates',
+    icon: FileSpreadsheet,
+    description: 'Excel解析設定',
   },
 ]
 
