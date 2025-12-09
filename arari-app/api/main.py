@@ -16,6 +16,7 @@ from models import Employee, PayrollRecord, EmployeeCreate, PayrollRecordCreate
 from services import PayrollService, ExcelParser
 from salary_parser import SalaryStatementParser
 from employee_parser import DBGenzaiXParser
+from template_manager import TemplateManager, create_template_from_excel
 from typing import List, Optional
 import sqlite3
 
@@ -236,9 +237,11 @@ async def upload_payroll_file(
 
         # Detect file type and use appropriate parser
         # Use specialized SalaryStatementParser for .xlsm salary statement files
+        template_stats = None
         if file_ext == '.xlsm' and ('給与明細' in file.filename or '給料明細' in file.filename):
-            parser = SalaryStatementParser()
+            parser = SalaryStatementParser(use_intelligent_mode=True)
             records = parser.parse(content)
+            template_stats = parser.get_parsing_stats()
         else:
             # Use existing ExcelParser for simple CSV/XLSX files
             parser = ExcelParser()
@@ -312,7 +315,7 @@ async def upload_payroll_file(
             # Re-raise to outer handler
             raise
 
-        return {
+        response = {
             "success": True,
             "filename": file.filename,
             "total_records": len(records),
@@ -322,6 +325,12 @@ async def upload_payroll_file(
             "skipped_details": skipped[:10] if skipped else None,  # First 10 skipped
             "errors": [e['error'] for e in errors[:10]] if errors else None  # First 10 error messages
         }
+
+        # Add template stats if available
+        if template_stats:
+            response["template_stats"] = template_stats
+
+        return response
 
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Error processing file: {str(e)}")
@@ -397,11 +406,11 @@ async def sync_from_folder(
 
             # Try to parse with salary statement parser if it looks like salary data
             if "給" in filename or "給与" in filename or "給料" in filename:
-                parser = SalaryStatementParser()
+                parser = SalaryStatementParser(use_intelligent_mode=True)
+                payroll_records = parser.parse(file_content)
             else:
                 parser = ExcelParser()
-
-            payroll_records = parser.parse(file_content)
+                payroll_records = parser.parse(file_content)
 
             # Insert records with transaction per file
             cursor = db.cursor()
@@ -579,6 +588,145 @@ async def get_insurance_rates(db: sqlite3.Connection = Depends(get_db)):
     service = PayrollService(db)
     return service.get_insurance_rates()
 
+
+# ============== TEMPLATES ==============
+
+@app.get("/api/templates")
+async def list_templates(include_inactive: bool = False):
+    """List all factory templates"""
+    template_manager = TemplateManager()
+    templates = template_manager.list_templates(include_inactive=include_inactive)
+    stats = template_manager.get_template_stats()
+    return {
+        "templates": templates,
+        "stats": stats
+    }
+
+@app.get("/api/templates/{factory_id}")
+async def get_template(factory_id: str):
+    """Get a specific template by factory identifier"""
+    template_manager = TemplateManager()
+    template = template_manager.load_template(factory_id)
+    if not template:
+        raise HTTPException(status_code=404, detail=f"Template not found: {factory_id}")
+    return template
+
+@app.put("/api/templates/{factory_id}")
+async def update_template(factory_id: str, payload: dict):
+    """Update a template's field positions or settings"""
+    template_manager = TemplateManager()
+
+    # Load existing template
+    existing = template_manager.load_template(factory_id)
+    if not existing:
+        raise HTTPException(status_code=404, detail=f"Template not found: {factory_id}")
+
+    # Merge updates
+    field_positions = payload.get('field_positions', existing.get('field_positions', {}))
+    column_offsets = payload.get('column_offsets', existing.get('column_offsets', {}))
+    detected_allowances = payload.get('detected_allowances', existing.get('detected_allowances', {}))
+    non_billable_allowances = payload.get('non_billable_allowances', existing.get('non_billable_allowances', []))
+    template_name = payload.get('template_name', existing.get('template_name'))
+    notes = payload.get('notes', existing.get('notes'))
+
+    success = template_manager.save_template(
+        factory_identifier=factory_id,
+        field_positions=field_positions,
+        column_offsets=column_offsets,
+        detected_allowances=detected_allowances,
+        non_billable_allowances=non_billable_allowances,
+        template_name=template_name,
+        notes=notes,
+        detection_confidence=existing.get('detection_confidence', 0.0),
+        sample_employee_id=existing.get('sample_employee_id'),
+        sample_period=existing.get('sample_period'),
+    )
+
+    if not success:
+        raise HTTPException(status_code=500, detail="Failed to update template")
+
+    return {"status": "success", "message": f"Template '{factory_id}' updated"}
+
+@app.delete("/api/templates/{factory_id}")
+async def delete_template(factory_id: str, hard_delete: bool = False):
+    """Delete (or deactivate) a template"""
+    template_manager = TemplateManager()
+    success = template_manager.delete_template(factory_id, hard_delete=hard_delete)
+
+    if not success:
+        raise HTTPException(status_code=404, detail=f"Template not found: {factory_id}")
+
+    action = "deleted" if hard_delete else "deactivated"
+    return {"status": "success", "message": f"Template '{factory_id}' {action}"}
+
+@app.post("/api/templates/analyze")
+async def analyze_excel_for_templates(file: UploadFile = File(...)):
+    """
+    Analyze an Excel file and generate templates for all sheets.
+    Does NOT import payroll data - only creates templates.
+    """
+    # Validate file type
+    allowed_extensions = ['.xlsx', '.xlsm', '.xls']
+    file_ext = '.' + file.filename.split('.')[-1].lower() if '.' in file.filename else ''
+
+    if file_ext not in allowed_extensions:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid file type. Allowed: {', '.join(allowed_extensions)}"
+        )
+
+    try:
+        content = await file.read()
+        template_manager = TemplateManager()
+
+        results = create_template_from_excel(content, template_manager)
+
+        return {
+            "status": "success",
+            "filename": file.filename,
+            "templates_created": results['templates_created'],
+            "templates_failed": results['templates_failed'],
+            "errors": results['errors'][:10] if results['errors'] else None
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Error analyzing file: {str(e)}")
+
+@app.post("/api/templates/create")
+async def create_template_manually(payload: dict):
+    """Create a new template manually (for custom factory formats)"""
+    template_manager = TemplateManager()
+
+    factory_identifier = payload.get('factory_identifier')
+    if not factory_identifier:
+        raise HTTPException(status_code=400, detail="'factory_identifier' is required")
+
+    field_positions = payload.get('field_positions', {})
+    if not field_positions:
+        raise HTTPException(status_code=400, detail="'field_positions' is required")
+
+    success = template_manager.save_template(
+        factory_identifier=factory_identifier,
+        field_positions=field_positions,
+        column_offsets=payload.get('column_offsets', {
+            'label': 1,
+            'value': 3,
+            'days': 5,
+            'period': 8,
+            'employee_id': 9,
+        }),
+        detected_allowances=payload.get('detected_allowances', {}),
+        non_billable_allowances=payload.get('non_billable_allowances', []),
+        employee_column_width=payload.get('employee_column_width', 14),
+        detection_confidence=1.0,  # Manual = full confidence
+        template_name=payload.get('template_name', factory_identifier),
+        notes=payload.get('notes', 'Manually created template'),
+    )
+
+    if not success:
+        raise HTTPException(status_code=500, detail="Failed to create template")
+
+    return {"status": "success", "message": f"Template '{factory_identifier}' created"}
 
 # ============== Run Server ==============
 

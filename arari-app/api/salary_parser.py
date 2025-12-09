@@ -1,11 +1,18 @@
 """
 Specialized parser for .xlsm salary statement files (給与明細)
 
-VERSIÓN 2.0 - Parser Inteligente
-================================
+VERSIÓN 3.0 - Parser con Templates
+===================================
+- Sistema híbrido: Templates guardados + Detección dinámica
+- Primera vez: Detecta campos por nombre y guarda template
+- Siguientes veces: Usa template guardado para mayor velocidad
+- Fallback: Si template falla, vuelve a detección dinámica
+
+Features:
 - Busca campos por nombre (no posiciones fijas)
 - Detecta automáticamente cualquier 手当 (allowance)
 - Valida consistencia: suma componentes vs 総支給額
+- Guarda templates por fábrica (派遣先)
 
 Handles complex multi-sheet, multi-employee layout where:
 - Each file has multiple sheets (1 summary + company sheets)
@@ -25,6 +32,7 @@ import re
 from typing import List, Optional, Dict, Any, Tuple
 from io import BytesIO
 from models import PayrollRecordCreate
+from template_manager import TemplateManager, TemplateGenerator
 
 
 class SalaryStatementParser:
@@ -125,19 +133,31 @@ class SalaryStatementParser:
         'days': 5,         # DAYS (work_days) en col 6 (base_col=1, offset=5) ← NUEVO
     }
 
-    def __init__(self, use_intelligent_mode: bool = False):
+    def __init__(self, use_intelligent_mode: bool = True, template_manager: Optional[TemplateManager] = None):
         """
-        Initialize parser
+        Initialize parser with template support.
 
         Args:
             use_intelligent_mode: If True, scan Excel for field names dynamically
-                                 DEFAULT FALSE - intelligent mode tiene bug
+                                 DEFAULT TRUE - now uses template system
+            template_manager: Optional TemplateManager instance for template storage
+                            If None, creates one automatically
         """
         self.use_intelligent_mode = use_intelligent_mode
+        self.template_manager = template_manager or TemplateManager()
+        self.template_generator = TemplateGenerator()
+
+        # Current parsing state
         self.detected_fields: Dict[str, int] = {}  # field_name -> row_number
         self.detected_allowances: Dict[str, int] = {}  # allowance_name -> row_number
         self.detected_non_billable: Dict[str, int] = {}  # non-billable allowances
+        self.current_column_offsets: Dict[str, int] = {}  # Current column offsets
         self.validation_warnings: List[str] = []
+
+        # Template tracking
+        self.templates_used: List[str] = []  # Factory names where template was used
+        self.templates_generated: List[str] = []  # Factory names where template was generated
+        self.using_template: bool = False  # Whether current sheet uses a template
 
     def parse(self, content: bytes) -> List[PayrollRecordCreate]:
         """
@@ -172,6 +192,14 @@ class SalaryStatementParser:
 
         print(f"[OK] Parsed {len(records)} employee records from Excel")
 
+        # Show template usage summary
+        if self.templates_used or self.templates_generated:
+            print(f"\n[TEMPLATES] Summary:")
+            if self.templates_used:
+                print(f"   Used existing templates: {', '.join(self.templates_used)}")
+            if self.templates_generated:
+                print(f"   Generated new templates: {', '.join(self.templates_generated)}")
+
         # Show validation warnings
         if self.validation_warnings:
             print(f"\n[WARNING] VALIDATION WARNINGS ({len(self.validation_warnings)}):")
@@ -180,33 +208,169 @@ class SalaryStatementParser:
 
         return records
 
+    def get_parsing_stats(self) -> Dict[str, Any]:
+        """
+        Get statistics about the parsing operation.
+
+        Returns:
+            Dict with parsing statistics
+        """
+        return {
+            'templates_used': self.templates_used.copy(),
+            'templates_generated': self.templates_generated.copy(),
+            'validation_warnings': len(self.validation_warnings),
+            'fields_detected': len(self.detected_fields),
+            'allowances_detected': len(self.detected_allowances),
+        }
+
     def _parse_sheet(self, ws, sheet_name: str) -> List[PayrollRecordCreate]:
-        """Parse a single company sheet"""
+        """
+        Parse a single company sheet using templates or intelligent detection.
+
+        Flow:
+        1. Try to load existing template for this factory
+        2. If template exists and is valid → Use it
+        3. If no template → Use intelligent detection
+        4. If intelligent detection succeeds → Save template for future use
+        5. If both fail → Use hardcoded fallback positions
+        """
         records = []
+        self.using_template = False
 
-        # Step 1: Detect field positions by scanning labels
-        if self.use_intelligent_mode:
-            self._detect_field_positions(ws)
+        # ================================================================
+        # STEP 1: Try to load existing template
+        # ================================================================
+        template = self.template_manager.find_matching_template(sheet_name)
 
-        # Step 2: Detect employee column positions
+        if template and template.get('detection_confidence', 0) >= 0.5:
+            # Use template
+            self._apply_template(template)
+            self.using_template = True
+            self.templates_used.append(sheet_name)
+            print(f"  [Sheet '{sheet_name}'] Using saved template "
+                  f"(confidence={template.get('detection_confidence', 0):.2f})")
+        else:
+            # ================================================================
+            # STEP 2: No template - use intelligent detection
+            # ================================================================
+            if self.use_intelligent_mode:
+                self._detect_field_positions(ws)
+
+                # Check if detection was successful (found enough fields)
+                required_fields = ['gross_salary', 'base_salary', 'work_hours']
+                found_required = sum(1 for f in required_fields if f in self.detected_fields)
+                detection_confidence = found_required / len(required_fields)
+
+                if detection_confidence >= 0.6:
+                    # ================================================================
+                    # STEP 3: Detection successful - save template
+                    # ================================================================
+                    self._save_detected_template(ws, sheet_name, detection_confidence)
+                    self.templates_generated.append(sheet_name)
+                    print(f"  [Sheet '{sheet_name}'] Generated new template "
+                          f"(confidence={detection_confidence:.2f})")
+                else:
+                    print(f"  [Sheet '{sheet_name}'] Low detection confidence "
+                          f"({detection_confidence:.2f}), using fallback")
+
+            # Use default column offsets if not set by template
+            if not self.current_column_offsets:
+                self.current_column_offsets = self.COLUMN_OFFSETS.copy()
+
+        # ================================================================
+        # STEP 4: Detect employee column positions
+        # ================================================================
         employee_cols = self._detect_employee_columns(ws)
 
         if not employee_cols:
             print(f"  [WARNING] No employee IDs found in sheet '{sheet_name}'")
             return records
 
+        mode = "template" if self.using_template else "detection"
         print(f"  [Sheet '{sheet_name}'] {len(employee_cols)} employees, "
               f"{len(self.detected_fields)} fields, "
               f"{len(self.detected_allowances)} allowances, "
-              f"{len(self.detected_non_billable)} non-billable")
+              f"mode={mode}")
 
-        # Step 3: Extract data for each employee
+        # ================================================================
+        # STEP 5: Extract data for each employee
+        # ================================================================
         for col_idx in employee_cols:
             record = self._extract_employee_data(ws, col_idx, sheet_name)
             if record:
                 records.append(record)
 
         return records
+
+    def _apply_template(self, template: Dict[str, Any]) -> None:
+        """
+        Apply a saved template to the parser state.
+
+        Args:
+            template: Template dict from TemplateManager
+        """
+        self.detected_fields = template.get('field_positions', {}).copy()
+        self.detected_allowances = template.get('detected_allowances', {}).copy()
+        self.current_column_offsets = template.get('column_offsets', self.COLUMN_OFFSETS.copy())
+
+        # Handle non-billable allowances
+        non_billable_list = template.get('non_billable_allowances', [])
+        self.detected_non_billable = {}
+        for name in non_billable_list:
+            if name in self.detected_allowances:
+                self.detected_non_billable[name] = self.detected_allowances[name]
+
+    def _save_detected_template(self, ws, sheet_name: str, confidence: float) -> None:
+        """
+        Save the current detected positions as a template.
+
+        Args:
+            ws: Worksheet being parsed
+            sheet_name: Factory/sheet name
+            confidence: Detection confidence score
+        """
+        # Find sample employee ID and period for verification
+        sample_emp_id = None
+        sample_period = None
+
+        emp_id_row = self.detected_fields.get('employee_id') or self.FALLBACK_ROW_POSITIONS.get('employee_id', 6)
+        period_row = self.detected_fields.get('period') or self.FALLBACK_ROW_POSITIONS.get('period', 10)
+
+        for col in range(1, min(50, ws.max_column + 1)):
+            # Find employee ID
+            if not sample_emp_id:
+                cell_value = ws.cell(row=emp_id_row, column=col).value
+                if cell_value:
+                    emp_str = str(cell_value).strip()
+                    if emp_str.isdigit() and len(emp_str) == 6:
+                        sample_emp_id = emp_str
+
+            # Find period
+            if not sample_period:
+                cell_value = ws.cell(row=period_row, column=col).value
+                if cell_value:
+                    from datetime import datetime
+                    if isinstance(cell_value, datetime):
+                        sample_period = f"{cell_value.year}年{cell_value.month}月"
+                    else:
+                        import re
+                        match = re.search(r'(\d{4})年(\d{1,2})月', str(cell_value))
+                        if match:
+                            sample_period = f"{match.group(1)}年{int(match.group(2))}月"
+
+        # Save template
+        self.template_manager.save_template(
+            factory_identifier=sheet_name,
+            field_positions=self.detected_fields.copy(),
+            column_offsets=self.current_column_offsets or self.COLUMN_OFFSETS.copy(),
+            detected_allowances=self.detected_allowances.copy(),
+            non_billable_allowances=list(self.detected_non_billable.keys()),
+            employee_column_width=self.EMPLOYEE_COLUMN_WIDTH,
+            detection_confidence=confidence,
+            sample_employee_id=sample_emp_id,
+            sample_period=sample_period,
+            notes=f"Auto-generated from Excel parsing"
+        )
 
     def _detect_field_positions(self, ws) -> None:
         """
@@ -270,6 +434,9 @@ class SalaryStatementParser:
         """
         columns = []
 
+        # Use current column offsets (from template or default)
+        offsets = self.current_column_offsets or self.COLUMN_OFFSETS
+
         # Determine which row has employee IDs
         emp_id_row = self.detected_fields.get('employee_id') or self.FALLBACK_ROW_POSITIONS.get('employee_id', 6)
 
@@ -284,7 +451,7 @@ class SalaryStatementParser:
                 emp_id_str = str(cell_value).strip()
                 if emp_id_str.isdigit() and len(emp_id_str) == 6:
                     # Found an employee ID - calculate base column
-                    base_col = col - self.COLUMN_OFFSETS['employee_id']
+                    base_col = col - offsets.get('employee_id', 9)
                     if base_col > 0 and base_col not in columns:
                         columns.append(base_col)
             except (ValueError, AttributeError):
@@ -293,11 +460,14 @@ class SalaryStatementParser:
         return sorted(columns)
 
     def _extract_employee_data(self, ws, base_col: int, sheet_name: str) -> Optional[PayrollRecordCreate]:
-        """Extract data for one employee using intelligent field detection"""
+        """Extract data for one employee using intelligent field detection or template"""
         try:
+            # Use current column offsets (from template or default)
+            offsets = self.current_column_offsets or self.COLUMN_OFFSETS
+
             # Get period
             period_row = self.detected_fields.get('period') or self.FALLBACK_ROW_POSITIONS['period']
-            period_col = base_col + self.COLUMN_OFFSETS['period']
+            period_col = base_col + offsets.get('period', 8)
             period_cell = ws.cell(row=period_row, column=period_col)
 
             period = self._parse_period(period_cell.value)
@@ -306,7 +476,7 @@ class SalaryStatementParser:
 
             # Get employee_id
             emp_id_row = self.detected_fields.get('employee_id') or self.FALLBACK_ROW_POSITIONS.get('employee_id', 6)
-            emp_id_col = base_col + self.COLUMN_OFFSETS['employee_id']
+            emp_id_col = base_col + offsets.get('employee_id', 9)
             emp_id_cell = ws.cell(row=emp_id_row, column=emp_id_col)
             employee_id = str(emp_id_cell.value or '').strip()
 
@@ -316,7 +486,7 @@ class SalaryStatementParser:
             # Extract all standard fields
             # work_days usa columna 'days' (offset 5), no 'value'
             work_days_row = self.detected_fields.get('work_days') or self.FALLBACK_ROW_POSITIONS.get('work_days', 11)
-            work_days = self._get_numeric(ws, work_days_row, base_col + self.COLUMN_OFFSETS['days'])
+            work_days = self._get_numeric(ws, work_days_row, base_col + offsets.get('days', 5))
 
             paid_leave_days = self._get_field_value(ws, 'paid_leave_days', base_col)
             work_hours = self._get_field_value(ws, 'work_hours', base_col)
@@ -350,13 +520,13 @@ class SalaryStatementParser:
             detected_allowance_details = []
 
             for allowance_name, row in self.detected_allowances.items():
-                value = self._get_numeric(ws, row, base_col + self.COLUMN_OFFSETS['value'])
+                value = self._get_numeric(ws, row, base_col + offsets.get('value', 3))
                 if value > 0:
                     other_allowances_total += value
                     detected_allowance_details.append(f"{allowance_name}=¥{value:,.0f}")
 
             if detected_allowance_details:
-                print(f"    💰 {employee_id}: Detected 手当: {', '.join(detected_allowance_details)}")
+                print(f"    [Allowances] {employee_id}: {', '.join(detected_allowance_details)}")
 
             # ================================================================
             # NON-BILLABLE ALLOWANCES (通勤手当（非）, 業務手当, etc.)
@@ -366,13 +536,13 @@ class SalaryStatementParser:
             non_billable_details = []
 
             for allowance_name, row in self.detected_non_billable.items():
-                value = self._get_numeric(ws, row, base_col + self.COLUMN_OFFSETS['value'])
+                value = self._get_numeric(ws, row, base_col + offsets.get('value', 3))
                 if value > 0:
                     non_billable_total += value
                     non_billable_details.append(f"{allowance_name}=¥{value:,.0f}")
 
             if non_billable_details:
-                print(f"    🚫 {employee_id}: Non-billable: {', '.join(non_billable_details)} (会社負担のみ)")
+                print(f"    [Non-billable] {employee_id}: {', '.join(non_billable_details)} (company cost only)")
 
             # ================================================================
             # CALCULATE GROSS SALARY (with fallback)
@@ -471,7 +641,9 @@ class SalaryStatementParser:
         else:
             return 0.0
 
-        col = base_col + self.COLUMN_OFFSETS.get('value', 3)
+        # Use current column offsets (from template or default)
+        offsets = self.current_column_offsets or self.COLUMN_OFFSETS
+        col = base_col + offsets.get('value', 3)
         return self._get_numeric(ws, row, col)
 
     def _parse_period(self, value) -> str:

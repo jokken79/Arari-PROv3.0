@@ -162,6 +162,35 @@ def init_db():
             VALUES (?, ?, ?)
         """, (key, value, description))
 
+    # ================================================================
+    # FACTORY TEMPLATES TABLE - For Excel parser templates per factory
+    # ================================================================
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS factory_templates (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            factory_identifier TEXT UNIQUE NOT NULL,
+            template_name TEXT,
+            field_positions JSON NOT NULL,
+            column_offsets JSON NOT NULL,
+            detected_allowances JSON DEFAULT '{}',
+            non_billable_allowances JSON DEFAULT '[]',
+            employee_column_width INTEGER DEFAULT 14,
+            detection_confidence REAL DEFAULT 0.0,
+            sample_employee_id TEXT,
+            sample_period TEXT,
+            is_active INTEGER DEFAULT 1,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            notes TEXT
+        )
+    """)
+
+    # Create index for faster template lookups
+    cursor.execute("""
+        CREATE INDEX IF NOT EXISTS idx_factory_templates_identifier
+        ON factory_templates(factory_identifier)
+    """)
+
     conn.commit()
 
     # NO sample data - start with clean database

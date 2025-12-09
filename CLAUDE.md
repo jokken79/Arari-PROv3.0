@@ -185,6 +185,84 @@ Incluye: FastAPI, uvicorn, python-multipart, pydantic, openpyxl
 6. **Non-billable allowances** (通勤手当（非）, 業務手当) son costo empresa pero no se facturan
 7. **Base de datos LOCAL** - SQLite, no requiere Docker ni servidor externo
 
+## Sistema de Templates para Excel Parser (NUEVO)
+
+### Versión 3.0 - Parser con Templates
+
+El sistema ahora usa un enfoque híbrido para parsear archivos Excel:
+
+1. **Primera vez** (fábrica nueva):
+   - Detección automática de campos por labels (基本給, 残業手当, etc.)
+   - Si la detección tiene >60% de confianza → Guarda template
+   - Parsea datos usando las posiciones detectadas
+
+2. **Siguientes veces** (fábrica conocida):
+   - Carga template guardado de la base de datos
+   - Parsea datos usando posiciones del template
+   - Mucho más rápido y consistente
+
+3. **Fallback**:
+   - Si template falla → Vuelve a detección dinámica
+   - Si detección falla → Usa posiciones hardcoded
+
+### Archivos del Sistema de Templates
+
+| Archivo | Descripción |
+|---------|-------------|
+| `template_manager.py` | Gestión de templates (guardar, cargar, listar) |
+| `salary_parser.py` | Parser v3.0 con integración de templates |
+| `database.py` | Tabla `factory_templates` |
+
+### API Endpoints de Templates
+
+| Endpoint | Método | Descripción |
+|----------|--------|-------------|
+| `/api/templates` | GET | Listar todos los templates |
+| `/api/templates/{factory_id}` | GET | Obtener template específico |
+| `/api/templates/{factory_id}` | PUT | Actualizar template |
+| `/api/templates/{factory_id}` | DELETE | Eliminar/desactivar template |
+| `/api/templates/analyze` | POST | Analizar Excel y generar templates |
+| `/api/templates/create` | POST | Crear template manualmente |
+
+### Estructura de un Template
+
+```json
+{
+  "factory_identifier": "加藤木材工業",
+  "template_name": "加藤木材工業",
+  "field_positions": {
+    "employee_id": 6,
+    "period": 10,
+    "work_hours": 13,
+    "overtime_hours": 14,
+    "base_salary": 16,
+    "gross_salary": 30
+  },
+  "column_offsets": {
+    "label": 1,
+    "value": 3,
+    "days": 5,
+    "period": 8,
+    "employee_id": 9
+  },
+  "detected_allowances": {
+    "深夜手当": 18,
+    "業務手当": 25
+  },
+  "non_billable_allowances": ["通勤手当（非）", "業務手当"],
+  "detection_confidence": 0.85,
+  "employee_column_width": 14
+}
+```
+
+### Uso en Upload
+
+Cuando se sube un archivo Excel:
+1. Parser intenta cargar template para cada hoja
+2. Si existe template → Lo usa
+3. Si no existe → Detecta campos y guarda nuevo template
+4. Respuesta incluye `template_stats` con info sobre templates usados/generados
+
 ## Fixes Recientes y Problemas Resueltos
 
 ### 2025-12-09: Setup y Correcciones
@@ -229,4 +307,4 @@ a2d3c88 feat: Support direct 有給金額 (paid leave amount) from Excel
 
 ---
 **Última actualización**: 2025-12-09
-**Estado**: Sistema operativo, esperando carga de datos Excel
+**Estado**: Sistema operativo con parser de templates v3.0
