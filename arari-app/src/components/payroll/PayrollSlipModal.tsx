@@ -103,22 +103,36 @@ export function PayrollSlipModal({ isOpen, onClose, record, employee }: PayrollS
                             </div>
                         </div>
 
-                        {/* Gross Profit Summary */}
-                        <div className="flex items-center gap-2 sm:gap-4">
-                            <div className="text-right hidden sm:block">
-                                <p className="text-xs text-slate-500">粗利益 (Gross Profit)</p>
-                                <p className={`text-xl sm:text-2xl font-bold ${marginColor.text}`}>
-                                    {formatYen(record.grossProfit)}
-                                </p>
+                        {/* Hero Summary - Compact */}
+                        <div className="flex items-center gap-2 sm:gap-6">
+                            {/* Revenue */}
+                            <div className="hidden md:block text-right">
+                                <p className="text-[10px] text-slate-400 uppercase tracking-wider">Total Billed</p>
+                                <p className="text-lg font-bold text-indigo-600 dark:text-indigo-400">{formatYen(record.billingAmount)}</p>
                             </div>
-                            <div className={`px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg ${marginColor.light} border ${marginColor.border}/30`}>
-                                <span className={`text-lg sm:text-xl font-bold ${marginColor.text}`}>
-                                    {marginRate.toFixed(1)}%
-                                </span>
+
+                            {/* Cost */}
+                            <div className="hidden md:block text-right">
+                                <p className="text-[10px] text-slate-400 uppercase tracking-wider">Total Cost</p>
+                                <p className="text-lg font-bold text-slate-600 dark:text-slate-400">{formatYen(record.totalCompanyCost || (record.grossSalary + totalCompanyBenefits))}</p>
                             </div>
+
+                            {/* Profit - Highlighted */}
+                            <div className={`flex flex-col items-end px-3 py-1 rounded-lg ${marginColor.light} border ${marginColor.border}/30`}>
+                                <div className="flex items-baseline gap-2">
+                                    <span className={`text-2xl font-bold ${marginColor.text}`}>
+                                        {formatYen(record.grossProfit)}
+                                    </span>
+                                    <span className={`text-sm font-bold ${marginColor.text}`}>
+                                        {marginRate.toFixed(1)}%
+                                    </span>
+                                </div>
+                                <p className={`text-[10px] font-medium ${marginColor.text} opacity-80`}>Gross Profit</p>
+                            </div>
+
                             <button
                                 onClick={onClose}
-                                className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors text-slate-400"
+                                className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors text-slate-400 ml-2"
                             >
                                 <X className="h-5 w-5" />
                             </button>
@@ -132,8 +146,12 @@ export function PayrollSlipModal({ isOpen, onClose, record, employee }: PayrollS
                             <span className="text-sm font-medium">{employee.dispatchCompany}</span>
                         </div>
                         <div className="flex items-center gap-4 text-xs">
-                            <span>時給: <strong className="text-slate-800 dark:text-slate-200">{formatYen(employee.hourlyRate)}</strong></span>
-                            <span>単価: <strong className="text-blue-600 dark:text-blue-400">{formatYen(employee.billingRate)}</strong></span>
+                            <span className="px-2 py-0.5 bg-white dark:bg-slate-700 rounded border border-slate-200 dark:border-slate-600">
+                                時給: <strong className="text-slate-800 dark:text-slate-200">{formatYen(employee.hourlyRate)}</strong>
+                            </span>
+                            <span className="px-2 py-0.5 bg-indigo-50 dark:bg-indigo-900/30 rounded border border-indigo-200 dark:border-indigo-800">
+                                単価: <strong className="text-indigo-600 dark:text-indigo-400">{formatYen(employee.billingRate)}</strong>
+                            </span>
                         </div>
                     </div>
 
@@ -266,18 +284,31 @@ export function PayrollSlipModal({ isOpen, onClose, record, employee }: PayrollS
                                                     subLabel={`${record.paidLeaveDays || 0}日分`}
                                                     value={record.paidLeaveAmount}
                                                     highlight="green"
+                                                    badge="非請求"
                                                 />
                                             )}
                                             {(record.transportAllowance || 0) > 0 && (
                                                 <DetailRow
                                                     label="通勤手当"
                                                     value={record.transportAllowance}
+                                                    badge="非請求"
+                                                />
+                                            )}
+                                            {(record.nonBillableAllowances || 0) > 0 && (
+                                                <DetailRow
+                                                    label="非請求手当"
+                                                    subLabel="業務手当等"
+                                                    value={record.nonBillableAllowances}
+                                                    badge="非請求"
                                                 />
                                             )}
                                             {(record.otherAllowances || 0) > 0 && (
                                                 <DetailRow
                                                     label="その他手当"
+                                                    subLabel="皆勤・深夜残業等"
                                                     value={record.otherAllowances}
+                                                    badge="請求"
+                                                    badgeColor="bg-indigo-100 text-indigo-700"
                                                 />
                                             )}
                                         </div>
@@ -417,6 +448,19 @@ export function PayrollSlipModal({ isOpen, onClose, record, employee }: PayrollS
                                                 value={holidayBilling}
                                                 color="rose"
                                             />
+                                        )}
+
+                                        {/* Pass-through Allowances (New Feature) */}
+                                        {(record.otherAllowances || 0) > 0 && (
+                                            <div className="flex justify-between items-center py-2 border-b border-slate-100 dark:border-slate-700 last:border-0 bg-indigo-50/50 dark:bg-indigo-900/10 px-2 rounded">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-indigo-700 dark:text-indigo-300 text-sm font-medium">その他手当 (請求対象)</span>
+                                                    <span className="text-[10px] bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded">実費</span>
+                                                </div>
+                                                <span className="font-mono font-medium text-indigo-700 dark:text-indigo-300">
+                                                    {formatYen(record.otherAllowances)}
+                                                </span>
+                                            </div>
                                         )}
                                     </div>
 
@@ -699,11 +743,13 @@ export function PayrollSlipModal({ isOpen, onClose, record, employee }: PayrollS
 }
 
 // Helper Components
-function DetailRow({ label, subLabel, value, highlight }: {
+function DetailRow({ label, subLabel, value, highlight, badge, badgeColor }: {
     label: string
     subLabel?: string
     value?: number
     highlight?: 'amber' | 'orange' | 'purple' | 'rose' | 'green'
+    badge?: string
+    badgeColor?: string
 }) {
     const colors = {
         amber: 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800',
@@ -716,7 +762,14 @@ function DetailRow({ label, subLabel, value, highlight }: {
     return (
         <div className={`flex justify-between items-center p-2 rounded ${highlight ? colors[highlight] + ' border' : ''}`}>
             <div>
-                <span className="text-sm text-slate-700 dark:text-slate-300">{label}</span>
+                <div className="flex items-center gap-2">
+                    <span className="text-sm text-slate-700 dark:text-slate-300">{label}</span>
+                    {badge && (
+                        <span className={`text-[9px] px-1.5 py-0.5 rounded ${badgeColor || 'bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-400'}`}>
+                            {badge}
+                        </span>
+                    )}
+                </div>
                 {subLabel && (
                     <p className="text-[10px] text-slate-400 dark:text-slate-500">{subLabel}</p>
                 )}

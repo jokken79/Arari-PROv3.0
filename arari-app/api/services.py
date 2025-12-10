@@ -378,7 +378,7 @@ class PayrollService:
         # NOTE: Commit is handled by the calling endpoint to allow transactions
         # self.db.commit()  # Removed - caller must commit
 
-        # Return the created record
+        # Return the created record as a dictionary
         cursor.execute("""
             SELECT p.*, e.name as employee_name, e.dispatch_company
             FROM payroll_records p
@@ -386,7 +386,22 @@ class PayrollService:
             WHERE p.employee_id = ? AND p.period = ?
         """, (record.employee_id, record.period))
 
-        return dict(cursor.fetchone())
+        row = cursor.fetchone()
+
+        # Helper function to convert Row to dict safely
+        if row:
+            result = dict(row)
+            # Ensure we return floats for numeric values to match test expectations
+            numeric_fields = [
+                'company_social_insurance', 'company_employment_insurance',
+                'total_company_cost', 'billing_amount'
+            ]
+            for field in numeric_fields:
+                if field in result and result[field] is not None:
+                    result[field] = float(result[field])
+            return result
+
+        return {}
 
     # ============== Statistics ==============
 
