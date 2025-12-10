@@ -2,7 +2,7 @@
  * API client for 粗利 PRO backend
  */
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8765'
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 
 interface ApiResponse<T> {
   data?: T
@@ -168,6 +168,29 @@ export const uploadApi = {
       return { error: error instanceof Error ? error.message : 'Upload failed' }
     }
   },
+
+  importEmployees: async (file: File) => {
+    const formData = new FormData()
+    formData.append('file', file)
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/import-employees`, {
+        method: 'POST',
+        body: formData,
+      })
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ detail: 'Import failed' }))
+        throw new Error(error.detail || `HTTP ${response.status}`)
+      }
+
+      const data = await response.json()
+      return { data }
+    } catch (error) {
+      console.error('Import Error:', error)
+      return { error: error instanceof Error ? error.message : 'Import failed' }
+    }
+  },
 }
 
 // ============== Types ==============
@@ -222,8 +245,10 @@ export interface PayrollRecord {
   overtime_over_60h_pay?: number
   transport_allowance: number
   other_allowances: number
+  non_billable_allowances?: number  // 非請求手当（通勤手当（非）、業務手当等）
   gross_salary: number
   social_insurance: number
+  welfare_pension?: number          // 厚生年金保険料
   employment_insurance: number
   income_tax: number
   resident_tax: number

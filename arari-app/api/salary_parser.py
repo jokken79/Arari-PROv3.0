@@ -76,7 +76,9 @@ class SalaryStatementParser:
         'paid_leave_amount': ['有給金額', '有休金額', '有給手当', '有給支給'],
 
         # Deductions (控除)
+        # Deductions (控除)
         'social_insurance': ['社会保険', '社保', '健康保険'],
+        'welfare_pension': ['厚生年金', '厚生年金保険'],
         'employment_insurance': ['雇用保険'],
         'income_tax': ['所得税', '源泉税'],
         'resident_tax': ['住民税', '市民税'],
@@ -122,16 +124,18 @@ class SalaryStatementParser:
         'work_hours': 13,        # Horas de trabajo (128)
         'overtime_hours': 14,    # Horas extra (13)
         'night_hours': 15,       # Horas nocturnas (70)
-        'base_salary': 16,       # Salario base (¥172,800) ← CORREGIDO
-        'overtime_pay': 17,      # Pago horas extra (¥23,210) ← CORREGIDO
-        'night_pay': 18,         # Pago nocturno (¥23,829) ← CORREGIDO
+        'base_salary': 16,       # Salario base (¥172,800)
+        'overtime_pay': 17,      # Pago horas extra (¥23,210)
+        'night_pay': 18,         # Pago nocturno (¥23,829)
         'gross_salary': 30,      # Salario bruto (¥219,839)
-        'social_insurance': 31,  # Seguro social (¥15,030)
-        'employment_insurance': 33,  # Seguro empleo (¥1,319) ← CORREGIDO
-        'net_salary': 47,        # Salario neto (¥182,677) ← CORREGIDO
-        # Campos que NO existen en este Excel:
-        # holiday_hours, overtime_over_60h, holiday_pay, overtime_over_60h_pay
-        # transport_allowance, paid_leave_amount, income_tax, resident_tax
+        'social_insurance': 31,  # 健康保険 (¥15,030)
+        'welfare_pension': 32,   # 厚生年金 - AGREGADO para cálculo correcto
+        'employment_insurance': 33,  # 雇用保険 (¥1,319)
+        'income_tax': 34,        # 所得税
+        'resident_tax': 35,      # 住民税
+        'net_salary': 47,        # 差引支給額 (¥182,677)
+        # Campos en zona dinámica (20-29):
+        # holiday_hours, overtime_over_60h_pay, transport_allowance, paid_leave_amount
     }
 
     # Column offsets within an employee block
@@ -658,10 +662,14 @@ class SalaryStatementParser:
             night_hours = self._get_field_value(ws, 'night_hours', base_col)
             holiday_hours = self._get_field_value(ws, 'holiday_hours', base_col)
 
-            # NOTE: overtime_over_60h (hours) and overtime_over_60h_pay are in DYNAMIC ZONE
-            # They will be read from dynamic zone scanning below, not from fixed positions
-            overtime_over_60h = 0  # Will be calculated if needed
+            # NOTE: overtime_over_60h_pay is in DYNAMIC ZONE
+            # overtime_over_60h (hours) is CALCULATED from overtime_hours when > 60
             overtime_over_60h_pay = 0  # Will be set from dynamic zone
+
+            # Calculate overtime_over_60h hours:
+            # If overtime_hours > 60, the excess goes to overtime_over_60h
+            # Example: 73h overtime → 60h normal overtime + 13h over-60h
+            overtime_over_60h = max(0, overtime_hours - 60) if overtime_hours > 60 else 0
 
             base_salary = self._get_field_value(ws, 'base_salary', base_col)
             overtime_pay = self._get_field_value(ws, 'overtime_pay', base_col)
@@ -675,6 +683,7 @@ class SalaryStatementParser:
 
             # Extract deductions
             social_insurance = self._get_field_value(ws, 'social_insurance', base_col)
+            welfare_pension = self._get_field_value(ws, 'welfare_pension', base_col)
             employment_insurance = self._get_field_value(ws, 'employment_insurance', base_col)
             income_tax = self._get_field_value(ws, 'income_tax', base_col)
             resident_tax = self._get_field_value(ws, 'resident_tax', base_col)
@@ -684,74 +693,30 @@ class SalaryStatementParser:
             net_salary = self._get_field_value(ws, 'net_salary', base_col)
 
             # ================================================================
-            # V4.0: DYNAMIC ZONE SCANNING (rows 20-29) PER EMPLOYEE
-            # This handles the case where different employees have different
-            # allowances in different row positions
+            # DYNAMIC ZONE SCANNING (Rows 20-29)  
             # ================================================================
+            # Scan for employee-specific allowances in the dynamic zone
             dynamic_data = self._scan_dynamic_zone_for_employee(ws, base_col)
-
-            # Get values from dynamic zone scan
-            # Override fixed-position values if dynamic scan found them
-            if dynamic_data['overtime_over_60h_pay'] > 0:
-                overtime_over_60h_pay = dynamic_data['overtime_over_60h_pay']
-
-            if dynamic_data['paid_leave_amount'] > 0:
+            
+            # Extract values from dynamic zone
+            if 'overtime_over_60h_pay' in dynamic_data:
+                overtime_over_60h_pay =dynamic_data['overtime_over_60h_pay']
+            
+            if 'paid_leave_amount' in dynamic_data:
                 paid_leave_amount = dynamic_data['paid_leave_amount']
-
-            # Get other allowances (billable)
-            other_allowances_total = dynamic_data['other_allowances_total']
-            detected_allowance_details = dynamic_data['other_allowances_details']
-
-            if detected_allowance_details:
-                print(f"    [Allowances] {employee_id}: {', '.join(detected_allowance_details)}")
-
-            # Get non-billable allowances
-            non_billable_total = dynamic_data['non_billable_total']
-            non_billable_details = dynamic_data['non_billable_details']
-
-            if non_billable_details:
-                print(f"    [Non-billable] {employee_id}: {', '.join(non_billable_details)} (company cost only)")
-
-            # ================================================================
-            # CALCULATE GROSS SALARY (with fallback)
-            # Includes ALL allowances (both billable and non-billable)
-            # ================================================================
-            calculated_gross = (
-                base_salary +
-                overtime_pay +
-                night_pay +
-                holiday_pay +
-                overtime_over_60h_pay +
-                transport_allowance +
-                paid_leave_amount +
-                other_allowances_total +
-                non_billable_total  # 通勤手当（非）, 業務手当, etc.
+            
+            other_allowances_total = dynamic_data.get('other_allowances_total', 0)
+            non_billable_total = dynamic_data.get('non_billable_total', 0)
+            
+            # paid_leave_hours not available in this Excel format
+            paid_leave_hours = 0
+            
+            # Calculate gross_salary from components if Excel value is missing
+            gross_salary = gross_salary_excel or (
+                base_salary + overtime_pay + night_pay + holiday_pay + 
+                overtime_over_60h_pay + paid_leave_amount + other_allowances_total +
+                transport_allowance + non_billable_total
             )
-
-            # Use Excel's gross_salary if available, otherwise use calculated
-            if gross_salary_excel > 0:
-                gross_salary = gross_salary_excel
-            else:
-                gross_salary = calculated_gross
-
-            # ================================================================
-            # VALIDATION: Compare calculated vs Excel total
-            # ================================================================
-            if gross_salary_excel > 0 and calculated_gross > 0:
-                difference = abs(gross_salary_excel - calculated_gross)
-                tolerance = gross_salary_excel * 0.02  # 2% tolerance
-
-                if difference > tolerance and difference > 1000:  # More than 2% or ¥1000
-                    warning = (
-                        f"{employee_id} ({period}): "
-                        f"総支給額 mismatch! Excel=¥{gross_salary_excel:,.0f}, "
-                        f"Calculated=¥{calculated_gross:,.0f}, "
-                        f"Diff=¥{difference:,.0f}"
-                    )
-                    self.validation_warnings.append(warning)
-
-            # Calculate paid_leave_hours from days
-            paid_leave_hours = paid_leave_days * 8 if paid_leave_days > 0 else 0
 
             data = {
                 'employee_id': employee_id,
@@ -781,6 +746,7 @@ class SalaryStatementParser:
 
                 # Deductions
                 'social_insurance': social_insurance,
+                'welfare_pension': welfare_pension,
                 'employment_insurance': employment_insurance,
                 'income_tax': income_tax,
                 'resident_tax': resident_tax,

@@ -13,13 +13,20 @@ import { formatYen, formatPercent, getProfitBgColor } from '@/lib/utils'
 
 export default function CompaniesPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const { employees, payrollRecords, loadSampleData } = useAppStore()
+  const [isLoading, setIsLoading] = useState(true)
+  const { employees, payrollRecords, refreshFromBackend } = useAppStore()
 
   useEffect(() => {
-    if (employees.length === 0) {
-      loadSampleData()
+    const loadData = async () => {
+      setIsLoading(true)
+      try {
+        await refreshFromBackend()
+      } finally {
+        setIsLoading(false)
+      }
     }
-  }, [employees.length, loadSampleData])
+    loadData()
+  }, [refreshFromBackend])
 
   const companySummaries = useMemo(() => {
     const companyMap = new Map<string, {
@@ -89,7 +96,19 @@ export default function CompaniesPage() {
       .sort((a, b) => b.totalMonthlyProfit - a.totalMonthlyProfit)
   }, [employees, payrollRecords])
 
-  const maxProfit = Math.max(...companySummaries.map(c => c.totalMonthlyProfit))
+  const maxProfit = Math.max(...companySummaries.map(c => c.totalMonthlyProfit), 1)
+
+  // Show loading state
+  if (isLoading) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-background">
+        <div className="text-center">
+          <div className="h-16 w-16 animate-spin rounded-full border-4 border-primary border-t-transparent mx-auto mb-4" />
+          <p className="text-muted-foreground">データを読み込み中...</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -107,10 +126,32 @@ export default function CompaniesPage() {
               派遣先企業
             </h1>
             <p className="text-muted-foreground mt-1">
-              取引先別の収益性分析
+              取引先別の収益性分析 ({companySummaries.length}社)
             </p>
           </motion.div>
 
+          {companySummaries.length === 0 ? (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="flex flex-col items-center justify-center py-20 text-center"
+            >
+              <div className="h-24 w-24 rounded-full bg-muted/50 flex items-center justify-center mb-6">
+                <Building2 className="h-12 w-12 text-muted-foreground" />
+              </div>
+              <h2 className="text-2xl font-bold mb-2">データがありません</h2>
+              <p className="text-muted-foreground max-w-md mb-6">
+                給与明細Excelファイルをアップロードすると、
+                派遣先企業別の分析結果が表示されます。
+              </p>
+              <a
+                href="/upload"
+                className="px-6 py-3 rounded-lg bg-primary text-primary-foreground font-medium hover:bg-primary/90 transition-colors"
+              >
+                ファイルをアップロード
+              </a>
+            </motion.div>
+          ) : (
           <div className="grid gap-6">
             {companySummaries.map((company, index) => (
               <motion.div
@@ -121,7 +162,7 @@ export default function CompaniesPage() {
               >
                 <Card
                   className="overflow-hidden hover:shadow-lg transition-shadow cursor-pointer"
-                  onClick={() => window.location.href = `/employees?company=${encodeURIComponent(company.name)}`}
+                  onClick={() => window.location.href = `/companies/${encodeURIComponent(company.name)}`}
                 >
                   <CardContent className="p-6">
                     <div className="flex flex-col lg:flex-row lg:items-center gap-6">
@@ -186,6 +227,7 @@ export default function CompaniesPage() {
               </motion.div>
             ))}
           </div>
+          )}
         </div>
       </main>
     </div>

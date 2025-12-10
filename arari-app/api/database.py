@@ -73,6 +73,7 @@ def init_db():
             other_allowances REAL DEFAULT 0,
             gross_salary REAL DEFAULT 0,
             social_insurance REAL DEFAULT 0,
+            welfare_pension REAL DEFAULT 0,
             employment_insurance REAL DEFAULT 0,
             income_tax REAL DEFAULT 0,
             resident_tax REAL DEFAULT 0,
@@ -102,6 +103,7 @@ def init_db():
         ("holiday_pay", "REAL DEFAULT 0"),
         ("overtime_over_60h_pay", "REAL DEFAULT 0"),
         ("non_billable_allowances", "REAL DEFAULT 0"),  # 通勤手当（非）、業務手当等 - 会社負担のみ
+        ("welfare_pension", "REAL DEFAULT 0"),
     ]
 
     for col_name, col_type in new_columns:

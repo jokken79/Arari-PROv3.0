@@ -2,17 +2,16 @@
 
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
-import { useSearchParams } from 'next/navigation'
+import { useSearchParams, useRouter } from 'next/navigation'
 import { Header } from '@/components/layout/Header'
 import { Sidebar } from '@/components/layout/Sidebar'
 import { EmployeeTable } from '@/components/employees/EmployeeTable'
-import { EmployeeDetailModal } from '@/components/employees/EmployeeDetailModal'
 import { useAppStore } from '@/store/appStore'
 import type { Employee } from '@/types'
 
 export default function EmployeesPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null)
+  const router = useRouter()
   const searchParams = useSearchParams()
   const companyFilter = searchParams.get('company')
 
@@ -64,16 +63,8 @@ export default function EmployeesPage() {
 
           <EmployeeTable
             employees={filteredEmployees}
-            onView={(employee) => setSelectedEmployee(employee)}
+            onView={(employee) => router.push(`/employees/${employee.employeeId}`)}
           />
-
-          {selectedEmployee && (
-            <EmployeeDetailModal
-              employee={selectedEmployee}
-              isOpen={!!selectedEmployee}
-              onClose={() => setSelectedEmployee(null)}
-            />
-          )}
         </div>
       </main>
     </div>

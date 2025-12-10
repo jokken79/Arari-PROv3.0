@@ -1,0 +1,29 @@
+Opening: D:\給料明細\Kyuryo\給与明細(派遣社員)2025.1(0217支給).xlsm
+================================================================================
+
+Analyzing sheet: 'PMI'
+================================================================================
+
+Scanning ROW 6 for employee IDs (6-digit numbers):
+--------------------------------------------------------------------------------
+  Col  10: 200901
+  Col  24: 220314
+  Col  38: 220921
+  Col  52: 220803
+  Col  66: 220208
+  Col  80: 230104
+  Col  94: 230109
+
+================================================================================
+TOTAL: Found 7 employee IDs in row 6
+================================================================================
+
+Column spacing: 14 columns between employees
+First employee at column: 10
+
+Parser's base_col calculation (offset=9):
+  Employee 200901: col 10 - 9 = base_col 1
+  Employee 220314: col 24 - 9 = base_col 15
+  Employee 220921: col 38 - 9 = base_col 29
+  Employee 220803: col 52 - 9 = base_col 43
+  Employee 220208: col 66 - 9 = base_col 57

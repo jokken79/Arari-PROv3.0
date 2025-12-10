@@ -296,7 +296,9 @@ class PayrollService:
         rates = self.get_insurance_rates()
 
         # 社会保険（会社負担）= 本人負担と同額 (労使折半)
-        company_social_insurance = record.company_social_insurance or record.social_insurance
+        # NOTE: 社会保険 = 健康保険 + 厚生年金 (both employer and employee pay equal amounts)
+        welfare_pension = getattr(record, 'welfare_pension', 0) or 0
+        company_social_insurance = record.company_social_insurance or (record.social_insurance + welfare_pension)
 
         # 雇用保険（会社負担）- Rate from settings (2025年度: 0.90%)
         company_employment_insurance = record.company_employment_insurance or round(
@@ -353,17 +355,17 @@ class PayrollService:
                 paid_leave_hours, paid_leave_days, paid_leave_amount,
                 base_salary, overtime_pay, night_pay, holiday_pay, overtime_over_60h_pay,
                 transport_allowance, other_allowances, non_billable_allowances, gross_salary,
-                social_insurance, employment_insurance, income_tax, resident_tax,
+                social_insurance, welfare_pension, employment_insurance, income_tax, resident_tax,
                 other_deductions, net_salary, billing_amount, company_social_insurance,
                 company_employment_insurance, company_workers_comp, total_company_cost, gross_profit, profit_margin
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             record.employee_id, record.period, record.work_days, record.work_hours,
             record.overtime_hours, night_hours, holiday_hours, overtime_over_60h,
             record.paid_leave_hours, record.paid_leave_days, paid_leave_amount,
             record.base_salary, record.overtime_pay, night_pay, holiday_pay, overtime_over_60h_pay,
             record.transport_allowance, record.other_allowances, non_billable_allowances, record.gross_salary,
-            record.social_insurance, record.employment_insurance, record.income_tax, record.resident_tax,
+            record.social_insurance, welfare_pension, record.employment_insurance, record.income_tax, record.resident_tax,
             record.other_deductions, record.net_salary, billing_amount,
             company_social_insurance, company_employment_insurance, company_workers_comp,
             total_company_cost, gross_profit, profit_margin

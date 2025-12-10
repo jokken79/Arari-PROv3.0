@@ -1,7 +1,19 @@
 {
   "permissions": {
     "allow": [
-      "Bash(git clone:*)"
+      "Bash(git clone:*)",
+      "Bash(tree:*)",
+      "Bash(python -m uvicorn:*)",
+      "Bash(npm run dev)",
+      "Bash(curl:*)",
+      "Bash(python -c:*)",
+      "Bash(netstat:*)",
+      "Bash(findstr:*)",
+      "Bash(npx tsc:*)",
+      "Bash(taskkill:*)",
+      "Bash(timeout /t)",
+      "Bash(powershell -Command \"Get-Process node -ErrorAction SilentlyContinue | Stop-Process -Force\")",
+      "Bash(git add:*)"
     ],
     "deny": [],
     "ask": []

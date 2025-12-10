@@ -252,7 +252,8 @@ export function EmployeeTable({ employees, onView, onEdit, onDelete }: EmployeeT
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: -10 }}
                         transition={{ delay: index * 0.02 }}
-                        className="border-b last:border-0 hover:bg-muted/50 transition-colors"
+                        className="border-b last:border-0 hover:bg-muted/50 transition-colors cursor-pointer"
+                        onClick={() => onView?.(employee)}
                       >
                         <td className="px-4 py-3 text-sm font-mono">
                           {employee.employeeId}
@@ -288,7 +289,10 @@ export function EmployeeTable({ employees, onView, onEdit, onDelete }: EmployeeT
                               variant="ghost"
                               size="icon"
                               className="h-8 w-8"
-                              onClick={() => onView?.(employee)}
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                onView?.(employee)
+                              }}
                             >
                               <Eye className="h-4 w-4" />
                             </Button>
@@ -296,7 +300,10 @@ export function EmployeeTable({ employees, onView, onEdit, onDelete }: EmployeeT
                               variant="ghost"
                               size="icon"
                               className="h-8 w-8"
-                              onClick={() => onEdit?.(employee)}
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                onEdit?.(employee)
+                              }}
                             >
                               <Edit className="h-4 w-4" />
                             </Button>
@@ -304,7 +311,10 @@ export function EmployeeTable({ employees, onView, onEdit, onDelete }: EmployeeT
                               variant="ghost"
                               size="icon"
                               className="h-8 w-8 text-destructive hover:text-destructive"
-                              onClick={() => onDelete?.(employee)}
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                onDelete?.(employee)
+                              }}
                             >
                               <Trash2 className="h-4 w-4" />
                             </Button>

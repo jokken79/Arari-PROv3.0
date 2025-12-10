@@ -26,6 +26,7 @@ import { FactoryComparisonChart } from '@/components/charts/FactoryComparisonCha
 import { MarginGaugeChart } from '@/components/charts/MarginGaugeChart'
 import { HoursBreakdownChart } from '@/components/charts/HoursBreakdownChart'
 import { OvertimeByFactoryChart } from '@/components/charts/OvertimeByFactoryChart'
+import { PaidLeaveChart } from '@/components/charts/PaidLeaveChart'
 import { RecentPayrolls } from '@/components/dashboard/RecentPayrolls'
 import { useAppStore } from '@/store/appStore'
 import { formatYen, formatPercent, formatNumber } from '@/lib/utils'
@@ -160,6 +161,37 @@ export default function DashboardPage() {
       }
     }
 
+    // Paid leave data by period (all periods)
+    const paidLeaveByPeriod = new Map<string, {
+      totalDays: number
+      totalHours: number
+      totalAmount: number
+      employeeCount: number
+    }>()
+
+    payrollRecords.forEach(r => {
+      if (!paidLeaveByPeriod.has(r.period)) {
+        paidLeaveByPeriod.set(r.period, {
+          totalDays: 0,
+          totalHours: 0,
+          totalAmount: 0,
+          employeeCount: 0,
+        })
+      }
+      const data = paidLeaveByPeriod.get(r.period)!
+      data.totalDays += r.paidLeaveDays || 0
+      data.totalHours += r.paidLeaveHours || 0
+      data.totalAmount += r.paidLeaveAmount || 0
+      if ((r.paidLeaveDays || 0) > 0 || (r.paidLeaveHours || 0) > 0) {
+        data.employeeCount += 1
+      }
+    })
+
+    const paidLeaveData = Array.from(paidLeaveByPeriod.entries()).map(([period, data]) => ({
+      period,
+      ...data,
+    }))
+
     return {
       topPerformers,
       bottomPerformers,
@@ -173,6 +205,7 @@ export default function DashboardPage() {
         holidayHours: totalHolidayHours,
       },
       previousMargin,
+      paidLeaveData,
     }
   }, [dashboardStats, payrollRecords, employees, selectedPeriod, availablePeriods])
 
@@ -359,6 +392,13 @@ export default function DashboardPage() {
               {chartData && chartData.overtimeByFactoryData.length > 0 && (
                 <div className="mb-6">
                   <OvertimeByFactoryChart data={chartData.overtimeByFactoryData} />
+                </div>
+              )}
+
+              {/* Paid Leave Chart - Full Width */}
+              {chartData && chartData.paidLeaveData.length > 0 && (
+                <div className="mb-6">
+                  <PaidLeaveChart data={chartData.paidLeaveData} />
                 </div>
               )}
 

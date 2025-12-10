@@ -285,8 +285,10 @@ export const useAppStore = create<AppState>()(
             overtimeOver60hPay: rec.overtime_over_60h_pay || 0,
             transportAllowance: rec.transport_allowance,
             otherAllowances: rec.other_allowances,
+            nonBillableAllowances: rec.non_billable_allowances || 0,  // 非請求手当
             grossSalary: rec.gross_salary,
             socialInsurance: rec.social_insurance,
+            welfarePension: rec.welfare_pension || 0,  // 厚生年金
             employmentInsurance: rec.employment_insurance,
             incomeTax: rec.income_tax,
             residentTax: rec.resident_tax,

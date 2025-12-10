@@ -35,9 +35,11 @@ export interface PayrollRecord {
   holidayPay: number          // 休日手当（×1.35）
   overtimeOver60hPay: number  // 60H過残業手当（×1.5）
   transportAllowance: number  // 通勤費
-  otherAllowances: number     // その他手当
+  otherAllowances: number     // その他手当（請求可能）
+  nonBillableAllowances: number // 非請求手当（通勤手当（非）、業務手当等）- 会社負担のみ
   grossSalary: number         // 総支給額
   socialInsurance: number     // 社会保険料（本人負担）
+  welfarePension: number      // 厚生年金保険料
   employmentInsurance: number // 雇用保険料
   incomeTax: number           // 所得税
   residentTax: number         // 住民税

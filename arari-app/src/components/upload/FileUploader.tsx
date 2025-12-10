@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useState } from 'react'
+import { useCallback, useState, useEffect } from 'react'
 import { useDropzone } from 'react-dropzone'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
@@ -22,94 +22,94 @@ interface UploadedFileInfo {
   id: string
   name: string
   size: number
-  status: 'uploading' | 'processing' | 'success' | 'error'
+  status: 'pending' | 'uploading' | 'processing' | 'success' | 'error'
   progress: number
   records?: number
   skipped?: number
   errorCount?: number
   error?: string
+  file?: File
 }
 
 export function FileUploader() {
   const [files, setFiles] = useState<UploadedFileInfo[]>([])
   const { refreshFromBackend } = useAppStore()
 
-  const uploadFile = async (file: File, fileId: string) => {
-    // Update to processing status
-    setFiles(prev =>
-      prev.map(f =>
-        f.id === fileId ? { ...f, status: 'processing' as const, progress: 100 } : f
-      )
-    )
+  const [isUploading, setIsUploading] = useState(false)
 
-    // Upload to backend
-    const result = await uploadApi.uploadFile(file)
+  // Process queue effect
+  useEffect(() => {
+    const processQueue = async () => {
+      if (isUploading) return
 
-    if (result.data) {
-      setFiles(prev =>
-        prev.map(f =>
-          f.id === fileId
+      // Find next pending file
+      const nextFile = files.find(f => f.status === 'pending')
+      if (!nextFile) return
+
+      setIsUploading(true)
+      try {
+        await processFile(nextFile)
+      } finally {
+        setIsUploading(false)
+      }
+    }
+    processQueue()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [files, isUploading])
+
+  const processFile = async (fileInfo: UploadedFileInfo) => {
+    if (!fileInfo.file) return
+
+    // Update status to uploading
+    setFiles(prev => prev.map(f => f.id === fileInfo.id ? { ...f, status: 'uploading', progress: 0 } : f))
+
+    try {
+      const result = await uploadApi.uploadFile(fileInfo.file)
+
+      if (result.data) {
+        setFiles(prev => prev.map(f =>
+          f.id === fileInfo.id
             ? {
-                ...f,
-                status: 'success' as const,
-                records: result.data.saved_records,
-                skipped: result.data.skipped_count || 0,
-                errorCount: result.data.error_count || 0,
-              }
+              ...f,
+              status: 'success',
+              progress: 100,
+              records: result.data!.saved_records,
+              skipped: result.data!.skipped_count || 0,
+              errorCount: result.data!.error_count || 0,
+            }
             : f
-        )
-      )
-      // Refresh data from backend after successful upload
-      await refreshFromBackend()
-    } else {
-      setFiles(prev =>
-        prev.map(f =>
-          f.id === fileId
-            ? {
-                ...f,
-                status: 'error' as const,
-                error: result.error || 'アップロードに失敗しました',
-              }
-            : f
-        )
-      )
+        ))
+        await refreshFromBackend()
+      } else {
+        throw new Error(result.error || 'アップロードに失敗しました')
+      }
+    } catch (err) {
+      setFiles(prev => prev.map(f =>
+        f.id === fileInfo.id
+          ? {
+            ...f,
+            status: 'error',
+            progress: 100,
+            error: err instanceof Error ? err.message : 'Unknown error',
+          }
+          : f
+      ))
     }
   }
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
-    acceptedFiles.forEach(file => {
-      const fileId = Math.random().toString(36).substr(2, 9)
-
-      // Add file to list
-      setFiles(prev => [
-        ...prev,
-        {
-          id: fileId,
-          name: file.name,
-          size: file.size,
-          status: 'uploading' as const,
-          progress: 0,
-        },
-      ])
-
-      // Simulate upload progress then actually upload
-      let progress = 0
-      const interval = setInterval(() => {
-        progress += Math.random() * 20
-        if (progress >= 100) {
-          progress = 100
-          clearInterval(interval)
-          // Actually upload the file
-          uploadFile(file, fileId)
-        } else {
-          setFiles(prev =>
-            prev.map(f => (f.id === fileId ? { ...f, progress } : f))
-          )
-        }
-      }, 150)
-    })
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [refreshFromBackend])
+    setFiles(prev => [
+      ...prev,
+      ...acceptedFiles.map(file => ({
+        id: Math.random().toString(36).substr(2, 9),
+        name: file.name,
+        size: file.size,
+        status: 'pending' as const,
+        progress: 0,
+        file: file
+      }))
+    ])
+  }, [])
 
   const removeFile = (fileId: string) => {
     setFiles(prev => prev.filter(f => f.id !== fileId))

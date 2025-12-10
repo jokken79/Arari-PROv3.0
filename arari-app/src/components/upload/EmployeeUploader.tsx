@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { useAppStore } from '@/store/appStore'
+import { uploadApi } from '@/lib/api'
 
 interface UploadResponse {
   status: 'success' | 'error'
@@ -37,8 +38,8 @@ export function EmployeeUploader() {
   const handleUpload = async (file: File) => {
     // Validate file extension
     const ext = file.name.split('.').pop()?.toLowerCase()
-    if (!['xls', 'xlsm'].includes(ext || '')) {
-      setError('Solo se aceptan archivos .xls o .xlsm')
+    if (!['xls', 'xlsm', 'xlsx'].includes(ext || '')) {
+      setError('Solo se aceptan archivos .xls, .xlsx o .xlsm')
       return
     }
 
@@ -53,23 +54,15 @@ export function EmployeeUploader() {
     setResult(null)
 
     try {
-      const formData = new FormData()
-      formData.append('file', file)
+      const { data, error } = await uploadApi.importEmployees(file)
 
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
-      const response = await fetch(`${apiUrl}/api/import-employees`, {
-        method: 'POST',
-        body: formData,
-      })
-
-      const data: UploadResponse = await response.json()
-
-      if (!response.ok) {
-        setError(data.message || 'Error al importar empleados')
+      if (error) {
+        setError(error)
         setResult(null)
-      } else {
-        setResult(data)
-        if (data.employees_added || data.employees_updated) {
+      } else if (data) {
+        const responseData = data as unknown as UploadResponse
+        setResult(responseData)
+        if (responseData.employees_added || responseData.employees_updated) {
           // Refresh employee data from backend
           await refreshFromBackend()
         }
@@ -107,7 +100,7 @@ export function EmployeeUploader() {
           <input
             ref={fileInputRef}
             type="file"
-            accept=".xls,.xlsm"
+            accept=".xls,.xlsm,.xlsx"
             onChange={handleFileSelect}
             disabled={isLoading}
             style={{ display: 'none' }}

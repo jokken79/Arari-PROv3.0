@@ -41,6 +41,10 @@ app = FastAPI(
 allowed_origins = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
+    "http://localhost:3001",
+    "http://127.0.0.1:3001",
+    "http://localhost:3002",
+    "http://127.0.0.1:3002",
     "http://localhost:4321",
     "http://127.0.0.1:4321",
 ]
@@ -322,10 +326,18 @@ async def upload_payroll_file(
         # ---------------------------------------------------------
         if file_ext in ['.xlsm', '.xlsx'] and ('給与' in file.filename or '給料' in file.filename or '明細' in file.filename):
             print(f"[INFO] Detected Payroll File: {file.filename}")
+            print(f"[DEBUG] File size: {len(content)} bytes")
+            print(f"[DEBUG] File extension: {file_ext}")
             # Use specialized SalaryStatementParser
             template_stats = None
             parser = SalaryStatementParser(use_intelligent_mode=True)
-            records = parser.parse(content)
+            
+            # Run CPU-bound parsing in thread pool to avoid blocking async loop
+            from fastapi.concurrency import run_in_threadpool
+            print(f"[DEBUG] About to call parser.parse() in threadpool...")
+            records = await run_in_threadpool(parser.parse, content)
+            print(f"[DEBUG] Parser returned {len(records)} records")
+            
             template_stats = parser.get_parsing_stats()
             
         # ---------------------------------------------------------
@@ -341,7 +353,8 @@ async def upload_payroll_file(
                 
             try:
                 parser = DBGenzaiXParser()
-                employees, stats = parser.parse_employees(tmp_path)
+                from fastapi.concurrency import run_in_threadpool
+                employees, stats = await run_in_threadpool(parser.parse_employees, tmp_path)
                 
                 print(f"[INFO] Parsed {len(employees)} employees. Stats: {stats}")
                 
@@ -391,7 +404,8 @@ async def upload_payroll_file(
             # Use existing ExcelParser for simple CSV/XLSX files
             print(f"[INFO] Detected Generic/Legacy File: {file.filename}")
             parser = ExcelParser()
-            records = parser.parse(content, file_ext)
+            from fastapi.concurrency import run_in_threadpool
+            records = await run_in_threadpool(parser.parse, content, file_ext)
 
         # Save to database with transaction support
         # All records are saved in a single transaction - if any fails, all rollback
@@ -615,7 +629,8 @@ async def import_employees(
         try:
             # Parse employees from Excel
             parser = DBGenzaiXParser()
-            employees, stats = parser.parse_employees(tmp_path)
+            from fastapi.concurrency import run_in_threadpool
+            employees, stats = await run_in_threadpool(parser.parse_employees, tmp_path)
 
             if parser.errors:
                 return JSONResponse(
