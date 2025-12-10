@@ -618,33 +618,61 @@ export function PayrollSlipModal({ isOpen, onClose, record, employee }: PayrollS
                                         </p>
                                     </div>
 
-                                    {/* Cost Breakdown Summary */}
-                                    <div className="p-3 bg-slate-50 dark:bg-slate-700/30 rounded-lg">
-                                        <p className="text-xs font-bold text-slate-600 dark:text-slate-400 mb-2">会社総コスト内訳</p>
+                                    {/* Cost Breakdown Summary - IMPROVED VISIBILITY */}
+                                    <div className="p-4 bg-slate-800 rounded-xl border border-slate-600">
+                                        <p className="text-sm font-bold text-white mb-3 flex items-center gap-2">
+                                            <Calculator className="h-4 w-4 text-blue-400" />
+                                            会社総コスト内訳
+                                        </p>
                                         <div className="space-y-2">
-                                            <div className="flex justify-between items-center">
-                                                <span className="text-xs text-slate-500">総支給額</span>
-                                                <span className="font-mono text-sm">{formatYen(record.grossSalary)}</span>
+                                            {/* 総支給額 - Main cost */}
+                                            <div className="flex justify-between items-center p-2 bg-slate-700/50 rounded">
+                                                <span className="text-sm text-slate-200 font-medium">総支給額</span>
+                                                <span className="font-mono text-base font-bold text-white">{formatYen(record.grossSalary)}</span>
                                             </div>
-                                            {(record.transportAllowance || 0) > 0 && (
-                                                <div className="flex justify-between items-center text-blue-600 dark:text-blue-400">
-                                                    <span className="text-xs">└ 通勤手当 (総支給に含む)</span>
-                                                    <span className="font-mono text-sm">{formatYen(record.transportAllowance)}</span>
-                                                </div>
-                                            )}
-                                            {(record.nonBillableAllowances || 0) > 0 && (
-                                                <div className="flex justify-between items-center text-amber-600 dark:text-amber-400">
-                                                    <span className="text-xs">└ 非請求手当 (総支給に含む)</span>
-                                                    <span className="font-mono text-sm">{formatYen(record.nonBillableAllowances)}</span>
-                                                </div>
-                                            )}
-                                            <div className="flex justify-between items-center">
-                                                <span className="text-xs text-slate-500">法定福利費</span>
-                                                <span className="font-mono text-sm">{formatYen(totalCompanyBenefits)}</span>
+
+                                            {/* Info: What's included in 総支給額 */}
+                                            <div className="ml-2 pl-3 border-l-2 border-slate-600 space-y-1">
+                                                {(record.transportAllowance || 0) > 0 && (
+                                                    <div className="flex justify-between items-center text-xs">
+                                                        <span className="text-blue-300">
+                                                            <span className="text-slate-500">├</span> 通勤手当
+                                                            <span className="text-slate-500 ml-1">(含む)</span>
+                                                        </span>
+                                                        <span className="font-mono text-blue-300">{formatYen(record.transportAllowance)}</span>
+                                                    </div>
+                                                )}
+                                                {(record.nonBillableAllowances || 0) > 0 && (
+                                                    <div className="flex justify-between items-center text-xs">
+                                                        <span className="text-amber-300">
+                                                            <span className="text-slate-500">└</span> 非請求手当
+                                                            <span className="text-slate-500 ml-1">(含む)</span>
+                                                        </span>
+                                                        <span className="font-mono text-amber-300">{formatYen(record.nonBillableAllowances)}</span>
+                                                    </div>
+                                                )}
                                             </div>
-                                            <div className="pt-2 border-t border-slate-200 dark:border-slate-600 flex justify-between items-center font-bold">
-                                                <span className="text-xs text-slate-700 dark:text-slate-300">会社総コスト</span>
-                                                <span className="font-mono">{formatYen(record.totalCompanyCost || (record.grossSalary + totalCompanyBenefits))}</span>
+
+                                            {/* 法定福利費 */}
+                                            <div className="flex justify-between items-center p-2 bg-purple-900/30 rounded border border-purple-700/50">
+                                                <span className="text-sm text-purple-200 font-medium">+ 法定福利費</span>
+                                                <span className="font-mono text-base font-bold text-purple-300">{formatYen(totalCompanyBenefits)}</span>
+                                            </div>
+
+                                            {/* Divider */}
+                                            <div className="border-t-2 border-dashed border-slate-500 my-2" />
+
+                                            {/* Total */}
+                                            <div className="flex justify-between items-center p-3 bg-gradient-to-r from-red-900/50 to-orange-900/50 rounded-lg border border-red-700/50">
+                                                <span className="text-sm text-white font-bold">会社総コスト</span>
+                                                <span className="font-mono text-xl font-bold text-red-300">
+                                                    {formatYen(record.totalCompanyCost || (record.grossSalary + totalCompanyBenefits))}
+                                                </span>
+                                            </div>
+
+                                            {/* Formula explanation */}
+                                            <div className="text-center text-[10px] text-slate-400 mt-2">
+                                                総支給額 + 法定福利費 = 会社総コスト
                                             </div>
                                         </div>
                                     </div>
