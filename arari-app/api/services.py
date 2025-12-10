@@ -256,12 +256,17 @@ class PayrollService:
         # 休日: ×1.35
         holiday_billing = holiday_hours * tanka * self.BILLING_MULTIPLIERS['holiday']
 
+        # Other Allowances (皆勤手当, 深夜残業, etc.) are passed through to billing
+        # EXCLUDING: Transport and Non-Billable (業務手当) which are in separate fields
+        other_allowances_billing = getattr(record, 'other_allowances', 0) or 0
+
         total_billing = (
             base_billing +
             overtime_billing +
             overtime_over_60h_billing +
             night_billing +
-            holiday_billing
+            holiday_billing +
+            other_allowances_billing
         )
 
         return round(total_billing)

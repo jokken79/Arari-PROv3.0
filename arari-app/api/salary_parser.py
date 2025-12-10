@@ -209,6 +209,8 @@ class SalaryStatementParser:
         '交代手当': 'other_allowance',
         '部会賞金': 'other_allowance',
         '半日有給': 'other_allowance',
+        '深夜残業': 'other_allowance',  # Treat as other allowance (Deep Night OT)
+        '前月給与': 'other_allowance',  # Previous month adjustment
 
         # Deductions que pueden aparecer en zona dinámica
         '家賃': 'rent_deduction',  # NUEVO - alquiler
