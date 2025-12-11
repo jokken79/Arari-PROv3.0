@@ -75,11 +75,16 @@ const CustomTooltip = ({ active, payload }: any) => {
   return null
 }
 
+import { useRouter } from 'next/navigation'
+
+
+
 export function EmployeeRankingChart({
   topPerformers,
   bottomPerformers,
   averageProfit
 }: EmployeeRankingChartProps) {
+  const router = useRouter()
   // Sort by profit for display
   const topData = [...topPerformers].sort((a, b) => b.profit - a.profit).slice(0, 5)
   const bottomData = [...bottomPerformers].sort((a, b) => a.profit - b.profit).slice(0, 5)
@@ -92,7 +97,10 @@ export function EmployeeRankingChart({
         animate={{ opacity: 1, x: 0 }}
         transition={{ delay: 0.3, duration: 0.5 }}
       >
-        <Card className="overflow-hidden border-emerald-500/20 bg-gradient-to-br from-emerald-500/5 to-transparent">
+        <Card
+          className="overflow-hidden border-emerald-500/20 bg-gradient-to-br from-emerald-500/5 to-transparent cursor-pointer hover:bg-emerald-500/10 transition-colors"
+          onClick={() => router.push('/employees?sort=profit&order=desc')}
+        >
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2 text-emerald-500">
               <Award className="h-5 w-5" />
@@ -171,7 +179,10 @@ export function EmployeeRankingChart({
         animate={{ opacity: 1, x: 0 }}
         transition={{ delay: 0.4, duration: 0.5 }}
       >
-        <Card className="overflow-hidden border-amber-500/20 bg-gradient-to-br from-amber-500/5 to-transparent">
+        <Card
+          className="overflow-hidden border-amber-500/20 bg-gradient-to-br from-amber-500/5 to-transparent cursor-pointer hover:bg-amber-500/10 transition-colors"
+          onClick={() => router.push('/employees?sort=profit&order=asc')}
+        >
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2 text-amber-500">
               <AlertTriangle className="h-5 w-5" />

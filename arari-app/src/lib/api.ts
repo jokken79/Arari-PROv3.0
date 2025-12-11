@@ -252,6 +252,11 @@ export interface PayrollRecord {
   employment_insurance: number
   income_tax: number
   resident_tax: number
+  rent_deduction?: number
+  utilities_deduction?: number
+  meal_deduction?: number
+  advance_payment?: number
+  year_end_adjustment?: number
   other_deductions: number
   net_salary: number
   billing_amount: number

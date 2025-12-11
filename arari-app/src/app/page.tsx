@@ -45,11 +45,31 @@ export default function DashboardPage() {
     refreshFromBackend
   } = useAppStore()
 
+  const [targetMargin, setTargetMargin] = useState(15)
+
   useEffect(() => {
     if (employees.length === 0) {
       loadSampleData()
     }
   }, [employees.length, loadSampleData])
+
+  // Fetch target margin setting
+  useEffect(() => {
+    const fetchSettings = async () => {
+      try {
+        const response = await fetch('http://localhost:8765/api/settings/target_margin')
+        if (response.ok) {
+          const data = await response.json()
+          if (data.value) {
+            setTargetMargin(Number(data.value))
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching target margin:', error)
+      }
+    }
+    fetchSettings()
+  }, [])
 
   const handleRefresh = async () => {
     setIsRefreshing(true)
@@ -315,8 +335,8 @@ export default function DashboardPage() {
                   title="平均マージン率"
                   value={formatPercent(dashboardStats.averageMargin)}
                   icon={Percent}
-                  subtitle={dashboardStats.averageMargin >= 15 ? '目標達成' : '目標: 15%'}
-                  variant={dashboardStats.averageMargin >= 15 ? 'success' : 'warning'}
+                  subtitle={dashboardStats.averageMargin >= targetMargin ? '目標達成' : `目標: ${targetMargin}%`}
+                  variant={dashboardStats.averageMargin >= targetMargin ? 'success' : 'warning'}
                   delay={2}
                 />
                 <StatsCard
@@ -361,7 +381,7 @@ export default function DashboardPage() {
               <div className="grid gap-6 lg:grid-cols-3 mb-6">
                 <MarginGaugeChart
                   currentMargin={dashboardStats.averageMargin}
-                  targetMargin={15}
+                  targetMargin={targetMargin}
                   previousMargin={chartData?.previousMargin}
                 />
                 {chartData && (

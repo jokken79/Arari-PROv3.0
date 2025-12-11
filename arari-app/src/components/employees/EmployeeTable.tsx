@@ -24,15 +24,24 @@ interface EmployeeTableProps {
   onView?: (employee: Employee) => void
   onEdit?: (employee: Employee) => void
   onDelete?: (employee: Employee) => void
+  defaultSortField?: SortField
+  defaultSortDirection?: SortDirection
 }
 
 type SortField = 'employeeId' | 'name' | 'dispatchCompany' | 'hourlyRate' | 'billingRate' | 'profit' | 'margin'
 type SortDirection = 'asc' | 'desc'
 
-export function EmployeeTable({ employees, onView, onEdit, onDelete }: EmployeeTableProps) {
+export function EmployeeTable({
+  employees,
+  onView,
+  onEdit,
+  onDelete,
+  defaultSortField = 'employeeId',
+  defaultSortDirection = 'asc'
+}: EmployeeTableProps) {
   const [search, setSearch] = useState('')
-  const [sortField, setSortField] = useState<SortField>('employeeId')
-  const [sortDirection, setSortDirection] = useState<SortDirection>('asc')
+  const [sortField, setSortField] = useState<SortField>(defaultSortField)
+  const [sortDirection, setSortDirection] = useState<SortDirection>(defaultSortDirection)
   const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set())
   const [employeeTypeFilter, setEmployeeTypeFilter] = useState<'haken' | 'ukeoi' | 'all'>('haken')
   const [showActiveOnly, setShowActiveOnly] = useState(true)

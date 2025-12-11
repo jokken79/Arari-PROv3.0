@@ -333,7 +333,7 @@ class PayrollService:
 
         # NOTE: paid_leave_amount is already in gross_salary - DO NOT add again
         # NOTE: transport_allowance is already included in gross_salary (総支給額)
-        total_company_cost = record.total_company_cost or (
+        total_company_cost = record.total_company_cost or round(
             record.gross_salary +
             company_social_insurance +
             company_employment_insurance +
@@ -341,9 +341,9 @@ class PayrollService:
         )
 
         # Calculate profit
-        gross_profit = record.gross_profit or (billing_amount - total_company_cost)
+        gross_profit = record.gross_profit or round(billing_amount - total_company_cost)
         profit_margin = record.profit_margin or (
-            (gross_profit / billing_amount * 100) if billing_amount > 0 else 0
+            round((gross_profit / billing_amount * 100), 1) if billing_amount > 0 else 0
         )
 
         cursor = self.db.cursor()
@@ -360,9 +360,10 @@ class PayrollService:
                 base_salary, overtime_pay, night_pay, holiday_pay, overtime_over_60h_pay,
                 transport_allowance, other_allowances, non_billable_allowances, gross_salary,
                 social_insurance, welfare_pension, employment_insurance, income_tax, resident_tax,
+                rent_deduction, utilities_deduction, meal_deduction, advance_payment, year_end_adjustment,
                 other_deductions, net_salary, billing_amount, company_social_insurance,
                 company_employment_insurance, company_workers_comp, total_company_cost, gross_profit, profit_margin
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             record.employee_id, record.period, record.work_days, record.work_hours,
             record.overtime_hours, night_hours, holiday_hours, overtime_over_60h,
@@ -370,6 +371,7 @@ class PayrollService:
             record.base_salary, record.overtime_pay, night_pay, holiday_pay, overtime_over_60h_pay,
             record.transport_allowance, record.other_allowances, non_billable_allowances, record.gross_salary,
             record.social_insurance, welfare_pension, record.employment_insurance, record.income_tax, record.resident_tax,
+            record.rent_deduction, record.utilities_deduction, record.meal_deduction, record.advance_payment, record.year_end_adjustment,
             record.other_deductions, record.net_salary, billing_amount,
             company_social_insurance, company_employment_insurance, company_workers_comp,
             total_company_cost, gross_profit, profit_margin
@@ -509,11 +511,10 @@ class PayrollService:
         cursor = self.db.cursor()
 
         ranges = [
-            ("~¥30,000", -999999999, 30000),
-            ("¥30,000~50,000", 30000, 50000),
-            ("¥50,000~70,000", 50000, 70000),
-            ("¥70,000~100,000", 70000, 100000),
-            ("¥100,000~", 100000, 999999999),
+            ("<5%", -999999999, 5),
+            ("5-10%", 5, 10),
+            ("10-15%", 10, 15),
+            (">15%", 15, 999999999),
         ]
 
         cursor.execute("SELECT COUNT(*) FROM payroll_records WHERE period = ?", (period,))
@@ -523,7 +524,7 @@ class PayrollService:
         for range_name, min_val, max_val in ranges:
             cursor.execute("""
                 SELECT COUNT(*) FROM payroll_records
-                WHERE period = ? AND gross_profit >= ? AND gross_profit < ?
+                WHERE period = ? AND profit_margin >= ? AND profit_margin < ?
             """, (period, min_val, max_val))
             count = cursor.fetchone()[0]
             percentage = (count / total * 100) if total > 0 else 0
@@ -747,6 +748,10 @@ class ExcelParser:
         if not mapped.get('employee_id') or not mapped.get('period'):
             return None
 
+        # Filter out invalid employee IDs (0, 000000)
+        if hasattr(mapped.get('employee_id'), 'isdigit') and mapped['employee_id'].isdigit() and int(mapped['employee_id']) == 0:
+            return None
+
         # Set defaults for missing fields
         defaults = {
             'work_days': 0,
@@ -770,6 +775,11 @@ class ExcelParser:
             'employment_insurance': 0,
             'income_tax': 0,
             'resident_tax': 0,
+            'rent_deduction': 0,
+            'utilities_deduction': 0,
+            'meal_deduction': 0,
+            'advance_payment': 0,
+            'year_end_adjustment': 0,
             'other_deductions': 0,
             'net_salary': 0,
             'billing_amount': 0,

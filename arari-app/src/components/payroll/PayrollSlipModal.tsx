@@ -389,6 +389,21 @@ export function PayrollSlipModal({ isOpen, onClose, record, employee }: PayrollS
                                             {(record.residentTax || 0) > 0 && (
                                                 <DeductionRow label="住民税" value={record.residentTax} />
                                             )}
+                                            {(record.rentDeduction || 0) > 0 && (
+                                                <DeductionRow label="寮費・家賃" value={record.rentDeduction} />
+                                            )}
+                                            {(record.utilitiesDeduction || 0) > 0 && (
+                                                <DeductionRow label="光熱費" value={record.utilitiesDeduction} />
+                                            )}
+                                            {(record.mealDeduction || 0) > 0 && (
+                                                <DeductionRow label="食事代・弁当" value={record.mealDeduction} />
+                                            )}
+                                            {(record.advancePayment || 0) > 0 && (
+                                                <DeductionRow label="前借金返済" value={record.advancePayment} />
+                                            )}
+                                            {(record.yearEndAdjustment || 0) !== 0 && (
+                                                <DeductionRow label="年末調整" value={record.yearEndAdjustment} />
+                                            )}
                                             {(record.otherDeductions || 0) > 0 && (
                                                 <DeductionRow label="その他控除" value={record.otherDeductions} />
                                             )}

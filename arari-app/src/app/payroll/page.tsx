@@ -8,6 +8,7 @@ import { useAppStore } from '@/store/appStore'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { FileText, Users, Calendar, TrendingUp } from 'lucide-react'
+import { comparePeriods } from '@/lib/utils'
 
 export default function PayrollVerificationPage() {
     const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -28,7 +29,7 @@ export default function PayrollVerificationPage() {
         totalProfit: payrollRecords
             .filter(r => r.period === period)
             .reduce((sum, r) => sum + r.grossProfit, 0),
-    }))
+    })).sort((a, b) => comparePeriods(b.period, a.period))
 
     const totalRecords = payrollRecords.length
     const uniqueEmployeesWithPayroll = new Set(payrollRecords.map(r => r.employeeId)).size

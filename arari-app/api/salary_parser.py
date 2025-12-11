@@ -732,6 +732,10 @@ class SalaryStatementParser:
             if not employee_id or not employee_id.isdigit():
                 return None
 
+            # Filter out invalid employee IDs (0, 000000)
+            if int(employee_id) == 0:
+                return None
+
             # Extract all standard fields
             # work_days usa columna 'days' (offset 5), no 'value'
             work_days_row = self.detected_fields.get('work_days') or self.FALLBACK_ROW_POSITIONS.get('work_days', 11)
@@ -840,6 +844,11 @@ class SalaryStatementParser:
                 'employment_insurance': employment_insurance,
                 'income_tax': income_tax,
                 'resident_tax': resident_tax,
+                'rent_deduction': dynamic_data.get('rent_deduction', 0),
+                'utilities_deduction': dynamic_data.get('utilities', 0),
+                'meal_deduction': dynamic_data.get('meal_deduction', 0),
+                'advance_payment': dynamic_data.get('advance_payment', 0),
+                'year_end_adjustment': dynamic_data.get('year_end_adjustment', 0),
                 'other_deductions': 0,
                 'net_salary': net_salary,
 

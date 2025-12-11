@@ -14,6 +14,8 @@ export default function EmployeesPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const companyFilter = searchParams.get('company')
+  const sortParam = searchParams.get('sort')
+  const orderParam = searchParams.get('order')
 
   const { employees, useBackend, loadDataFromBackend, loadSampleData } = useAppStore()
 
@@ -64,6 +66,8 @@ export default function EmployeesPage() {
           <EmployeeTable
             employees={filteredEmployees}
             onView={(employee) => router.push(`/employees/${employee.employeeId}`)}
+            defaultSortField={(sortParam as any) || 'employeeId'}
+            defaultSortDirection={(orderParam as any) || 'asc'}
           />
         </div>
       </main>

@@ -124,12 +124,31 @@ export default function EmployeeDetailPage({ params }: { params: { id: string } 
                                                     </div>
                                                 </div>
 
-                                                <div className="flex items-center gap-8">
+                                                <div className="flex items-center gap-6">
+                                                    {(record.paidLeaveAmount || 0) > 0 && (
+                                                        <div className="text-right hidden xl:block">
+                                                            <p className="text-xs text-muted-foreground">有給</p>
+                                                            <p className="font-mono">
+                                                                <span className="text-sm mr-2">{Number(record.paidLeaveDays)}日</span>
+                                                                {formatYen(record.paidLeaveAmount)}
+                                                            </p>
+                                                        </div>
+                                                    )}
+                                                    <div className="text-right hidden lg:block">
+                                                        <p className="text-xs text-muted-foreground">請求金額</p>
+                                                        <p className="font-mono">{formatYen(record.billingAmount)}</p>
+                                                    </div>
+                                                    <div className="text-right hidden lg:block">
+                                                        <p className="text-xs text-muted-foreground">粗利</p>
+                                                        <p className={`font-mono font-medium ${(record.grossProfit || 0) < 0 ? 'text-red-500' : 'text-green-600'}`}>
+                                                            {formatYen(record.grossProfit)}
+                                                        </p>
+                                                    </div>
                                                     <div className="text-right hidden sm:block">
                                                         <p className="text-xs text-muted-foreground">総支給額</p>
                                                         <p className="font-mono font-medium">{formatYen(record.grossSalary)}</p>
                                                     </div>
-                                                    <div className="text-right hidden sm:block">
+                                                    <div className="text-right">
                                                         <p className="text-xs text-muted-foreground">差引支給額</p>
                                                         <p className="font-mono font-bold text-blue-600">{formatYen(record.netSalary)}</p>
                                                     </div>

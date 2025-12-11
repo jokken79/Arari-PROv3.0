@@ -93,11 +93,10 @@ function generateDashboardStats(employees: Employee[], payrollRecords: PayrollRe
 
   // Calculate profit distribution
   const marginRanges = [
-    { range: '0-10%', min: 0, max: 10 },
-    { range: '10-20%', min: 10, max: 20 },
-    { range: '20-30%', min: 20, max: 30 },
-    { range: '30-40%', min: 30, max: 40 },
-    { range: '40%+', min: 40, max: 100 },
+    { range: '<5%', min: -999, max: 5 },
+    { range: '5-10%', min: 5, max: 10 },
+    { range: '10-15%', min: 10, max: 15 },
+    { range: '>15%', min: 15, max: 999 },
   ]
 
   const profitDistribution = marginRanges.map(range => {
@@ -292,6 +291,11 @@ export const useAppStore = create<AppState>()(
             employmentInsurance: rec.employment_insurance,
             incomeTax: rec.income_tax,
             residentTax: rec.resident_tax,
+            rentDeduction: rec.rent_deduction || 0,
+            utilitiesDeduction: rec.utilities_deduction || 0,
+            mealDeduction: rec.meal_deduction || 0,
+            advancePayment: rec.advance_payment || 0,
+            yearEndAdjustment: rec.year_end_adjustment || 0,
             otherDeductions: rec.other_deductions,
             netSalary: rec.net_salary,
             billingAmount: rec.billing_amount,

@@ -43,6 +43,11 @@ export interface PayrollRecord {
   employmentInsurance: number // 雇用保険料
   incomeTax: number           // 所得税
   residentTax: number         // 住民税
+  rentDeduction: number       // 家賃
+  utilitiesDeduction: number  // 光熱費
+  mealDeduction: number       // 弁当代
+  advancePayment: number      // 前借
+  yearEndAdjustment: number   // 年末調整
   otherDeductions: number     // その他控除
   netSalary: number           // 差引支給額
   // Billing info
