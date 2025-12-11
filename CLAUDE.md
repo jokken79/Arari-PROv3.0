@@ -1107,15 +1107,91 @@ import { EmployeeTooltipContent } from '@/components/charts/ChartTooltip'
 
 #### 7. Mejoras Pendientes (Recomendadas)
 
-| Tarea | Prioridad | Esfuerzo |
-|-------|-----------|----------|
-| Dividir PayrollSlipModal (904 líneas) | Alta | 4-6h |
-| Agregar useMemo a cálculos de charts | Media | 2h |
-| Migrar a Server Components | Media | 8-10h |
-| Agregar TanStack Query | Media | 6-8h |
-| Completar aria-labels en todas las páginas | Alta | 2h |
+| Tarea | Prioridad | Esfuerzo | Estado |
+|-------|-----------|----------|--------|
+| ~~Dividir PayrollSlipModal (904 líneas)~~ | Alta | 4-6h | ✅ COMPLETADO |
+| ~~Agregar useMemo a cálculos de charts~~ | Media | 2h | ✅ COMPLETADO |
+| Migrar a Server Components | Media | 8-10h | Pendiente |
+| Agregar TanStack Query | Media | 6-8h | Pendiente |
+| Completar aria-labels en todas las páginas | Alta | 2h | Pendiente |
 
 ---
 
-**Última actualización**: 2025-12-11 (UI/UX Phase 2)
-**Estado**: Sistema con mejoras de accesibilidad (skip link, aria-labels, role=dialog), error boundaries, toast notifications, y ChartTooltip compartido
+### 2025-12-11: REFACTORIZACIÓN Y OPTIMIZACIÓN (Fase 3)
+
+#### 1. División de PayrollSlipModal (904 → ~200 líneas por archivo)
+
+El componente monolítico de 904 líneas fue dividido en sub-componentes mantenibles:
+
+| Archivo | Descripción | Líneas |
+|---------|-------------|--------|
+| `PayrollSlipModal.tsx` | Modal principal (refactorizado) | ~200 |
+| `SalaryDetailsColumn.tsx` | Column 1: 給与支給明細 | ~300 |
+| `BillingCalculationColumn.tsx` | Column 2: 請求金額計算 | ~200 |
+| `ProfitAnalysisColumn.tsx` | Column 3: 粗利分析 | ~250 |
+| `PayrollSlipHelpers.tsx` | Helpers: DetailRow, DeductionRow, BillingRow | ~150 |
+| `index.ts` | Exports centralizados | ~25 |
+
+**Ubicación**: `arari-app/src/components/payroll/`
+
+**Beneficios**:
+- Mejor organización del código
+- Componentes reutilizables
+- Más fácil de mantener y testear
+- Separación de responsabilidades
+
+**Uso**:
+```tsx
+import { PayrollSlipModal } from '@/components/payroll'
+// O importar helpers individuales:
+import { DetailRow, DeductionRow, getMarginColors } from '@/components/payroll'
+```
+
+---
+
+#### 2. Optimización con useMemo en Charts
+
+Se agregaron optimizaciones de rendimiento usando `useMemo` para prevenir re-cálculos innecesarios:
+
+| Componente | Optimización |
+|------------|--------------|
+| `EmployeeRankingChart.tsx` | Memoización de `topData` y `bottomData` sorting |
+| `MonthlyTrendChart.tsx` | Memoización de sorting cronológico, totals, y chartData |
+| `FactoryComparisonChart.tsx` | Memoización de sorting por profit y cálculos de totales |
+| `MonthlySummaryTable.tsx` | Memoización de sorting, month-over-month changes, y totales |
+| `BillingCalculationColumn.tsx` | Memoización de cálculos de billing |
+| `ProfitAnalysisColumn.tsx` | Memoización de cálculos de profit y margins |
+
+**Ejemplo de cambio**:
+```tsx
+// ANTES (recalcula en cada render)
+const sortedData = [...data].sort((a, b) => b.profit - a.profit)
+
+// DESPUÉS (solo recalcula cuando data cambia)
+const sortedData = useMemo(() =>
+  [...data].sort((a, b) => b.profit - a.profit),
+  [data]
+)
+```
+
+---
+
+#### 3. Archivos Creados/Modificados
+
+| Archivo | Tipo | Cambio |
+|---------|------|--------|
+| `PayrollSlipModal.tsx` | REFACTORIZADO | Reducido a ~200 líneas |
+| `SalaryDetailsColumn.tsx` | NUEVO | Column 1 extraído |
+| `BillingCalculationColumn.tsx` | NUEVO | Column 2 extraído |
+| `ProfitAnalysisColumn.tsx` | NUEVO | Column 3 extraído |
+| `PayrollSlipHelpers.tsx` | NUEVO | Helpers compartidos |
+| `index.ts` | NUEVO | Exports module |
+| `EmployeeRankingChart.tsx` | MODIFICADO | useMemo agregado |
+| `MonthlyTrendChart.tsx` | MODIFICADO | useMemo agregado |
+| `FactoryComparisonChart.tsx` | MODIFICADO | useMemo agregado |
+| `MonthlySummaryTable.tsx` | MODIFICADO | useMemo agregado |
+
+---
+
+**Última actualización**: 2025-12-11 (Refactorización Phase 3)
+**Estado**: Sistema optimizado con PayrollSlipModal dividido en sub-componentes y charts con useMemo para mejor rendimiento

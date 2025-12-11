@@ -1,5 +1,6 @@
 'use client'
 
+import { useMemo } from 'react'
 import { motion } from 'framer-motion'
 import {
   BarChart,
@@ -87,9 +88,17 @@ export function EmployeeRankingChart({
   averageProfit
 }: EmployeeRankingChartProps) {
   const router = useRouter()
-  // Sort by profit for display
-  const topData = [...topPerformers].sort((a, b) => b.profit - a.profit).slice(0, 5)
-  const bottomData = [...bottomPerformers].sort((a, b) => a.profit - b.profit).slice(0, 5)
+
+  // Memoize sorted data to prevent recalculation on every render
+  const topData = useMemo(() =>
+    [...topPerformers].sort((a, b) => b.profit - a.profit).slice(0, 5),
+    [topPerformers]
+  )
+
+  const bottomData = useMemo(() =>
+    [...bottomPerformers].sort((a, b) => a.profit - b.profit).slice(0, 5),
+    [bottomPerformers]
+  )
 
   return (
     <div className="grid gap-6 lg:grid-cols-2">

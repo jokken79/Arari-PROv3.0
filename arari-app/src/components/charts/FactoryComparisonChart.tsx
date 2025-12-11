@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   BarChart,
@@ -126,16 +126,21 @@ export function FactoryComparisonChart({ data }: FactoryComparisonChartProps) {
 
   const [isExpanded, setIsExpanded] = useState(false)
 
-  // Sort by profit for better visualization
-  const sortedData = [...data].sort((a, b) => b.profit - a.profit)
+  // Memoize sorted data and calculations
+  const { sortedData, totalRevenue, totalCost, totalProfit, avgMargin } = useMemo(() => {
+    // Sort by profit for better visualization
+    const sortedData = [...data].sort((a, b) => b.profit - a.profit)
 
-  // Calculate totals
-  const totalRevenue = data.reduce((sum, d) => sum + d.revenue, 0)
-  const totalCost = data.reduce((sum, d) => sum + d.cost, 0)
-  const totalProfit = data.reduce((sum, d) => sum + d.profit, 0)
-  const avgMargin = data.length > 0
-    ? data.reduce((sum, d) => sum + d.margin, 0) / data.length
-    : 0
+    // Calculate totals
+    const totalRevenue = data.reduce((sum, d) => sum + d.revenue, 0)
+    const totalCost = data.reduce((sum, d) => sum + d.cost, 0)
+    const totalProfit = data.reduce((sum, d) => sum + d.profit, 0)
+    const avgMargin = data.length > 0
+      ? data.reduce((sum, d) => sum + d.margin, 0) / data.length
+      : 0
+
+    return { sortedData, totalRevenue, totalCost, totalProfit, avgMargin }
+  }, [data])
 
   const ChartContent = ({ height = "100%" }: { height?: string | number }) => (
     <div style={{ height }} className="w-full">
