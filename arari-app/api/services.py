@@ -117,8 +117,10 @@ class PayrollService:
         """Create a new employee"""
         cursor = self.db.cursor()
         cursor.execute("""
-            INSERT INTO employees (employee_id, name, name_kana, dispatch_company, department, hourly_rate, billing_rate, status, hire_date)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO employees (employee_id, name, name_kana, dispatch_company, department,
+                                   hourly_rate, billing_rate, status, hire_date,
+                                   employee_type, gender, birth_date)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             employee.employee_id,
             employee.name,
@@ -128,7 +130,10 @@ class PayrollService:
             employee.hourly_rate,
             employee.billing_rate,
             employee.status,
-            employee.hire_date
+            employee.hire_date,
+            getattr(employee, 'employee_type', 'haken'),
+            getattr(employee, 'gender', None),
+            getattr(employee, 'birth_date', None),
         ))
         self.db.commit()
         return self.get_employee(employee.employee_id)
@@ -140,6 +145,7 @@ class PayrollService:
             UPDATE employees
             SET name = ?, name_kana = ?, dispatch_company = ?, department = ?,
                 hourly_rate = ?, billing_rate = ?, status = ?, hire_date = ?,
+                employee_type = ?, gender = ?, birth_date = ?,
                 updated_at = CURRENT_TIMESTAMP
             WHERE employee_id = ?
         """, (
@@ -151,6 +157,9 @@ class PayrollService:
             employee.billing_rate,
             employee.status,
             employee.hire_date,
+            getattr(employee, 'employee_type', 'haken'),
+            getattr(employee, 'gender', None),
+            getattr(employee, 'birth_date', None),
             employee_id
         ))
         self.db.commit()

@@ -122,6 +122,22 @@ def init_db():
         except sqlite3.OperationalError:
             pass  # Column already exists
 
+    # ================================================================
+    # NEW COLUMNS FOR EMPLOYEES TABLE - 2025-12-11
+    # Add gender and birth_date fields
+    # ================================================================
+    employee_new_columns = [
+        ("gender", "TEXT"),              # 性別: M/F
+        ("birth_date", "TEXT"),          # 生年月日: YYYY-MM-DD
+        ("employee_type", "TEXT DEFAULT 'haken'"),  # 従業員タイプ: haken/ukeoi
+    ]
+
+    for col_name, col_type in employee_new_columns:
+        try:
+            cursor.execute(f"ALTER TABLE employees ADD COLUMN {col_name} {col_type}")
+        except sqlite3.OperationalError:
+            pass  # Column already exists
+
     # Create indexes for performance
     cursor.execute("""
         CREATE INDEX IF NOT EXISTS idx_payroll_period

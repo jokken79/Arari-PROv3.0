@@ -20,6 +20,9 @@ class EmployeeBase(BaseModel):
     status: str = Field("active", description="ステータス")
     hire_date: Optional[str] = Field(None, description="入社日")
     employee_type: str = Field("haken", description="従業員タイプ (haken=派遣社員, ukeoi=請負社員)")
+    # NEW FIELDS - 2025-12-11
+    gender: Optional[str] = Field(None, description="性別 (M=男性, F=女性)")
+    birth_date: Optional[str] = Field(None, description="生年月日 (YYYY-MM-DD)")
 
 class EmployeeCreate(EmployeeBase):
     pass

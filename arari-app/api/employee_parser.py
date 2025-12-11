@@ -23,17 +23,19 @@ class EmployeeRecord:
     hire_date: Optional[str] = None
     department: Optional[str] = None
     employee_type: str = 'haken'
+    # NEW FIELDS - 2025-12-11
+    gender: Optional[str] = None          # 性別: 男/女 or M/F
+    birth_date: Optional[str] = None      # 生年月日: Date of birth
 
 
 class DBGenzaiXParser:
     """Parser for DBGenzaiX sheet containing employee master data"""
 
     # Column name mappings (case-insensitive, supports multiple names)
-    # Column name mappings (case-insensitive, supports multiple names)
     COLUMN_MAPPINGS = {
         'employee_id': [
-            'employee_id', 'emp_id', '社員id', '社員ID', '社員番号', 'empid', '社員№', 
-            '社員no', '社員ｎｏ', '従業員id', '従業員番号', 'id', 'no', 'no.', 'code', 
+            'employee_id', 'emp_id', '社員id', '社員ID', '社員番号', 'empid', '社員№',
+            '社員no', '社員ｎｏ', '従業員id', '従業員番号', 'id', 'no', 'no.', 'code',
             '社員コード', '従業員コード'
         ],
         'name': ['name', '氏名', '名前', '社員名', '従業員名'],
@@ -44,6 +46,9 @@ class DBGenzaiXParser:
         'status': ['status', 'ステータス', '状態', '稼働状態', '現在', '在籍状況'],
         'hire_date': ['hire_date', '入社日', 'hire', '雇用日', '採用日'],
         'department': ['department', '部署', '所属', '部門', '配属先'],
+        # NEW FIELDS - 2025-12-11
+        'gender': ['gender', '性別', 'sex', '男女', '男/女'],
+        'birth_date': ['birth_date', '生年月日', 'birthday', '誕生日', '生日', 'dob', 'date_of_birth'],
     }
 
     # Active statuses (mapped to 'active')
@@ -155,9 +160,12 @@ class DBGenzaiXParser:
                         billing_rate=self._to_float(row_data.get('billing_rate')),
                         dispatch_company=self._clean_value(row_data.get('dispatch_company')),
                         status=self._map_status(row_data.get('status')),
-                        hire_date=self._clean_value(row_data.get('hire_date')),
+                        hire_date=self._format_date(row_data.get('hire_date')),
                         department=self._clean_value(row_data.get('department')),
                         employee_type=self._detect_employee_type(row_data.get('billing_rate')),
+                        # NEW FIELDS
+                        gender=self._map_gender(row_data.get('gender')),
+                        birth_date=self._format_date(row_data.get('birth_date')),
                     )
 
                     employees.append(emp)
@@ -275,3 +283,66 @@ class DBGenzaiXParser:
             return None
         cleaned = str(value).strip()
         return cleaned if cleaned else None
+
+    def _map_gender(self, value) -> Optional[str]:
+        """Map gender value to standardized format (M/F)"""
+        if value is None or value == '' or str(value).lower() == 'none':
+            return None
+
+        gender_str = str(value).strip().upper()
+
+        # Japanese mappings
+        if gender_str in ['男', '男性', 'M', 'MALE', '♂']:
+            return 'M'
+        elif gender_str in ['女', '女性', 'F', 'FEMALE', '♀']:
+            return 'F'
+
+        return None
+
+    def _format_date(self, value) -> Optional[str]:
+        """Format date value to YYYY-MM-DD string"""
+        if value is None or value == '' or str(value).lower() == 'none':
+            return None
+
+        from datetime import datetime
+
+        # If already a datetime object (from Excel)
+        if isinstance(value, datetime):
+            return value.strftime('%Y-%m-%d')
+
+        # Try to parse string formats
+        date_str = str(value).strip()
+
+        # Common Japanese formats: 1990/01/15, 1990-01-15, 1990年1月15日
+        patterns = [
+            (r'(\d{4})/(\d{1,2})/(\d{1,2})', '%Y/%m/%d'),
+            (r'(\d{4})-(\d{1,2})-(\d{1,2})', '%Y-%m-%d'),
+            (r'(\d{4})年(\d{1,2})月(\d{1,2})日', None),  # Special handling
+        ]
+
+        for pattern, fmt in patterns:
+            match = re.match(pattern, date_str)
+            if match:
+                if fmt:
+                    try:
+                        parsed = datetime.strptime(date_str, fmt)
+                        return parsed.strftime('%Y-%m-%d')
+                    except ValueError:
+                        pass
+                else:
+                    # Handle Japanese format 1990年1月15日
+                    year, month, day = match.groups()
+                    return f"{year}-{int(month):02d}-{int(day):02d}"
+
+        # Try Excel serial date (days since 1900-01-01)
+        try:
+            serial = float(date_str)
+            if 1 < serial < 100000:  # Reasonable range for dates
+                from datetime import timedelta
+                base = datetime(1899, 12, 30)  # Excel's epoch
+                result = base + timedelta(days=serial)
+                return result.strftime('%Y-%m-%d')
+        except ValueError:
+            pass
+
+        return None
