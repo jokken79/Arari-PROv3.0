@@ -43,8 +43,9 @@ export function Header({ onMenuClick }: HeaderProps) {
               size="icon"
               className="md:hidden"
               onClick={onMenuClick}
+              aria-label="メニューを開く"
             >
-              <Menu className="h-5 w-5 text-muted-foreground" />
+              <Menu className="h-5 w-5 text-muted-foreground" aria-hidden="true" />
             </Button>
 
             <motion.div
@@ -89,10 +90,15 @@ export function Header({ onMenuClick }: HeaderProps) {
             {/* Notifications */}
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon" className="relative text-muted-foreground hover:text-foreground hover:bg-muted">
-                  <Bell className="h-5 w-5" />
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="relative text-muted-foreground hover:text-foreground hover:bg-muted"
+                  aria-label={notificationCount > 0 ? `${notificationCount}件の通知` : '通知なし'}
+                >
+                  <Bell className="h-5 w-5" aria-hidden="true" />
                   {notificationCount > 0 && (
-                    <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] text-white font-bold shadow-lg shadow-red-500/50">
+                    <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] text-white font-bold shadow-lg shadow-red-500/50" aria-hidden="true">
                       {notificationCount > 99 ? '99+' : notificationCount}
                     </span>
                   )}
@@ -106,16 +112,22 @@ export function Header({ onMenuClick }: HeaderProps) {
             {/* Theme Toggle */}
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon" onClick={toggleTheme} className="text-muted-foreground hover:text-foreground hover:bg-muted">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={toggleTheme}
+                  className="text-muted-foreground hover:text-foreground hover:bg-muted"
+                  aria-label={resolvedTheme === 'dark' ? 'ライトモードに切り替え' : 'ダークモードに切り替え'}
+                >
                   <motion.div
                     initial={false}
                     animate={{ rotate: resolvedTheme === 'dark' ? 0 : 180 }}
                     transition={{ duration: 0.3, type: 'spring' }}
                   >
                     {resolvedTheme === 'dark' ? (
-                      <Moon className="h-5 w-5" />
+                      <Moon className="h-5 w-5" aria-hidden="true" />
                     ) : (
-                      <Sun className="h-5 w-5" />
+                      <Sun className="h-5 w-5" aria-hidden="true" />
                     )}
                   </motion.div>
                 </Button>
@@ -128,8 +140,13 @@ export function Header({ onMenuClick }: HeaderProps) {
             {/* Settings */}
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground hover:bg-muted">
-                  <Settings className="h-5 w-5" />
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="text-muted-foreground hover:text-foreground hover:bg-muted"
+                  aria-label="設定を開く"
+                >
+                  <Settings className="h-5 w-5" aria-hidden="true" />
                 </Button>
               </TooltipTrigger>
               <TooltipContent>設定</TooltipContent>

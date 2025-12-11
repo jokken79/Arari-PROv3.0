@@ -48,7 +48,13 @@ export function EmployeeDetailModal({ employee, isOpen, onClose }: EmployeeDetai
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md overflow-hidden">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md overflow-hidden"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="employee-modal-title"
+          onKeyDown={(e) => e.key === 'Escape' && onClose()}
+        >
           <motion.div
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -63,7 +69,7 @@ export function EmployeeDetailModal({ employee, isOpen, onClose }: EmployeeDetai
                   <User className="h-6 w-6 text-cyan-400" />
                 </div>
                 <div>
-                  <h2 className="text-2xl font-bold text-white tracking-tight">{employee.name}</h2>
+                  <h2 id="employee-modal-title" className="text-2xl font-bold text-white tracking-tight">{employee.name}</h2>
                   <p className="text-sm text-slate-400 font-mono tracking-wide">{employee.nameKana}</p>
                 </div>
               </div>
@@ -76,8 +82,9 @@ export function EmployeeDetailModal({ employee, isOpen, onClose }: EmployeeDetai
                   size="icon"
                   onClick={onClose}
                   className="rounded-full hover:bg-white/10 text-slate-400 hover:text-white transition-colors"
+                  aria-label="閉じる"
                 >
-                  <X className="h-6 w-6" />
+                  <X className="h-6 w-6" aria-hidden="true" />
                 </Button>
               </div>
             </div>
@@ -141,18 +148,18 @@ export function EmployeeDetailModal({ employee, isOpen, onClose }: EmployeeDetai
                       給料明細データがありません
                     </div>
                   ) : (
-                    <table className="w-full text-sm">
+                    <table className="w-full text-sm" role="table" aria-label="給与明細履歴">
                       <thead className="bg-white/5 sticky top-0 backdrop-blur-md z-10">
                         <tr className="border-b border-white/10 text-slate-400 text-xs uppercase tracking-wider">
-                          <th className="text-left py-3 px-4 font-medium">期間</th>
-                          <th className="text-right py-3 px-4 font-medium">勤務日数</th>
-                          <th className="text-right py-3 px-4 font-medium">労働時間</th>
-                          <th className="text-right py-3 px-4 font-medium">残業</th>
-                          <th className="text-right py-3 px-4 font-medium">有給日数</th>
-                          <th className="text-right py-3 px-4 font-medium">総支給額</th>
-                          <th className="text-right py-3 px-4 font-medium">請求金額</th>
-                          <th className="text-right py-3 px-4 font-medium">粗利</th>
-                          <th className="text-right py-3 px-4 font-medium">率</th>
+                          <th scope="col" className="text-left py-3 px-4 font-medium">期間</th>
+                          <th scope="col" className="text-right py-3 px-4 font-medium">勤務日数</th>
+                          <th scope="col" className="text-right py-3 px-4 font-medium">労働時間</th>
+                          <th scope="col" className="text-right py-3 px-4 font-medium">残業</th>
+                          <th scope="col" className="text-right py-3 px-4 font-medium">有給日数</th>
+                          <th scope="col" className="text-right py-3 px-4 font-medium">総支給額</th>
+                          <th scope="col" className="text-right py-3 px-4 font-medium">請求金額</th>
+                          <th scope="col" className="text-right py-3 px-4 font-medium">粗利</th>
+                          <th scope="col" className="text-right py-3 px-4 font-medium">率</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-white/5">

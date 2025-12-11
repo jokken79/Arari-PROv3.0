@@ -122,7 +122,8 @@ export function Sidebar({ isOpen = true, onClose }: SidebarProps) {
   useEffect(() => {
     const fetchProfitStats = async () => {
       try {
-        const response = await fetch('http://localhost:8000/api/statistics')
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+        const response = await fetch(`${apiUrl}/api/statistics`)
         if (response.ok) {
           const data = await response.json()
 
@@ -169,7 +170,7 @@ export function Sidebar({ isOpen = true, onClose }: SidebarProps) {
       >
         <div className="flex flex-1 flex-col gap-2 p-4">
           {/* Navigation Items */}
-          <nav className="flex flex-1 flex-col gap-1">
+          <nav className="flex flex-1 flex-col gap-1" aria-label="メインナビゲーション">
             {navigation.map((item, index) => {
               const isActive = pathname === item.href
               const Icon = item.icon
@@ -325,12 +326,14 @@ export function Sidebar({ isOpen = true, onClose }: SidebarProps) {
               size="sm"
               className="w-full mt-2 justify-center text-muted-foreground hover:text-foreground hover:bg-muted"
               onClick={() => setCollapsed(!collapsed)}
+              aria-label={collapsed ? 'サイドバーを展開' : 'サイドバーを折りたたむ'}
+              aria-expanded={!collapsed}
             >
               {collapsed ? (
-                <ChevronRight className="h-4 w-4" />
+                <ChevronRight className="h-4 w-4" aria-hidden="true" />
               ) : (
                 <>
-                  <ChevronLeft className="h-4 w-4 mr-2" />
+                  <ChevronLeft className="h-4 w-4 mr-2" aria-hidden="true" />
                   <span>折りたたむ</span>
                 </>
               )}

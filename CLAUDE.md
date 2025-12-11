@@ -944,5 +944,178 @@ ranges = [
 
 ---
 
-**Última actualización**: 2025-12-11
-**Estado**: Sistema con seguridad mejorada, nuevas páginas (/alerts, /budgets, /login preparado), campos de empleado ampliados (gender, birth_date, termination_date)
+---
+
+### 2025-12-11: MEJORAS UI/UX/ACCESIBILIDAD (Fase 2)
+
+#### Análisis de Agentes Especializados
+
+Se ejecutaron 3 agentes expertos para analizar el frontend:
+
+| Agente | Área | Score | Hallazgos Clave |
+|--------|------|-------|-----------------|
+| **UI Expert** | Diseño Visual | 6.8/10 | Glassmorphism bueno, PayrollSlipModal muy largo |
+| **UX Expert** | Experiencia | 6.8/10 | Nielsen 6.8/10, accesibilidad 2.5/10 |
+| **Frontend Trends** | Modernización | 6.4/10 | Falta Server Components, TanStack Query |
+
+#### 1. Configuración de Entorno (.env.local)
+
+**Archivo creado**: `arari-app/.env.local`
+```env
+NEXT_PUBLIC_API_URL=http://localhost:8000
+NEXT_PUBLIC_ENVIRONMENT=development
+NEXT_PUBLIC_ENABLE_AUTH=false
+NEXT_PUBLIC_ENABLE_NOTIFICATIONS=true
+```
+
+**Beneficio**: Centraliza configuración de API, permite diferentes entornos (dev/staging/prod)
+
+---
+
+#### 2. Mejoras de Accesibilidad (WCAG 2.1 AA)
+
+##### Skip-to-Main Link
+**Archivo**: `arari-app/src/app/layout.tsx`
+```tsx
+<a
+  href="#main-content"
+  className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4..."
+>
+  メインコンテンツへスキップ
+</a>
+```
+
+##### Aria Labels en Header
+**Archivo**: `arari-app/src/components/layout/Header.tsx`
+- Botón menú: `aria-label="メニューを開く"`
+- Botón notificaciones: `aria-label={notificationCount件の通知}`
+- Botón tema: `aria-label="ライトモードに切り替え"`
+- Botón settings: `aria-label="設定を開く"`
+- Iconos: `aria-hidden="true"`
+
+##### Aria Labels en Sidebar
+**Archivo**: `arari-app/src/components/layout/Sidebar.tsx`
+- Nav: `aria-label="メインナビゲーション"`
+- Botón colapsar: `aria-label="サイドバーを折りたたむ"` + `aria-expanded`
+
+##### Modal Accesible
+**Archivo**: `arari-app/src/components/employees/EmployeeDetailModal.tsx`
+```tsx
+<div
+  role="dialog"
+  aria-modal="true"
+  aria-labelledby="employee-modal-title"
+  onKeyDown={(e) => e.key === 'Escape' && onClose()}
+>
+```
+
+##### Tabla Accesible
+```tsx
+<table role="table" aria-label="給与明細履歴">
+  <th scope="col">期間</th>
+  <th scope="col">勤務日数</th>
+  ...
+</table>
+```
+
+---
+
+#### 3. Error Boundaries y Loading States
+
+##### Error Boundary Global
+**Archivo**: `arari-app/src/app/error.tsx`
+- Captura errores no manejados
+- Muestra mensaje en japonés: "エラーが発生しました"
+- Botón "もう一度試す" para retry
+- Muestra error ID para debugging
+
+##### Loading State Global
+**Archivo**: `arari-app/src/app/loading.tsx`
+- Spinner animado con Framer Motion
+- Mensaje: "読み込み中..."
+- Skeleton placeholders
+- `aria-live="polite"` para screen readers
+
+---
+
+#### 4. Sistema de Toast Notifications
+
+**Paquete**: `react-hot-toast` v2.4.1
+
+**Provider**: `arari-app/src/components/ui/toast-provider.tsx`
+
+**Uso**:
+```tsx
+import toast from 'react-hot-toast'
+
+// Success
+toast.success('保存しました')
+
+// Error
+toast.error('エラーが発生しました')
+
+// Loading
+toast.loading('処理中...')
+```
+
+**Configuración**:
+- Posición: top-right (debajo del header)
+- Duración: 4s default, 3s success, 5s error
+- Estilos: Consistentes con tema dark/light
+
+---
+
+#### 5. ChartTooltip Compartido
+
+**Archivo**: `arari-app/src/components/charts/ChartTooltip.tsx`
+
+**Componentes exportados**:
+- `ChartTooltip` - Tooltip base reutilizable
+- `EmployeeTooltipContent` - Para ranking de empleados
+- `MonthlyTrendTooltipContent` - Para tendencias mensuales
+- `FactoryTooltipContent` - Para comparación de fábricas
+
+**Helpers**:
+- `getMarginColor(margin)` - Color según % margen (15% target)
+- `getProfitColor(profit)` - Verde si positivo, rojo si negativo
+
+**Uso**:
+```tsx
+import { EmployeeTooltipContent } from '@/components/charts/ChartTooltip'
+
+<Tooltip content={<EmployeeTooltipContent />} />
+```
+
+---
+
+#### 6. Archivos Creados/Modificados
+
+| Archivo | Tipo | Cambio |
+|---------|------|--------|
+| `.env.local` | NUEVO | Configuración de entorno |
+| `error.tsx` | NUEVO | Error boundary global |
+| `loading.tsx` | NUEVO | Loading state global |
+| `toast-provider.tsx` | NUEVO | Provider de toasts |
+| `ChartTooltip.tsx` | NUEVO | Tooltip compartido para charts |
+| `layout.tsx` | MODIFICADO | Skip link + ToastProvider |
+| `Header.tsx` | MODIFICADO | Aria labels en botones |
+| `Sidebar.tsx` | MODIFICADO | Aria labels + env variable API |
+| `EmployeeDetailModal.tsx` | MODIFICADO | role=dialog, aria-modal, scope=col |
+| `package.json` | MODIFICADO | Agregado react-hot-toast |
+
+---
+
+#### 7. Mejoras Pendientes (Recomendadas)
+
+| Tarea | Prioridad | Esfuerzo |
+|-------|-----------|----------|
+| Dividir PayrollSlipModal (904 líneas) | Alta | 4-6h |
+| Agregar useMemo a cálculos de charts | Media | 2h |
+| Migrar a Server Components | Media | 8-10h |
+| Agregar TanStack Query | Media | 6-8h |
+| Completar aria-labels en todas las páginas | Alta | 2h |
+
+---
+
+**Última actualización**: 2025-12-11 (UI/UX Phase 2)
+**Estado**: Sistema con mejoras de accesibilidad (skip link, aria-labels, role=dialog), error boundaries, toast notifications, y ChartTooltip compartido
