@@ -685,5 +685,264 @@ Después de subir el Excel, los valores esperados para el empleado 240321 son:
 - **Total 法定福利費**: ¥56,695
 
 ---
-**Última actualización**: 2025-12-10
-**Estado**: Sistema operativo con parser v4.0 (correcciones de 厚生年金, 有給日数, y 会社総コスト)
+
+### 2025-12-11: MEJORAS MAYORES - Seguridad, Nuevas Páginas, Campos de Empleado
+
+#### 1. Nuevos Campos de Empleado (社員台帳 Parser)
+
+**Campos agregados al parser de empleados:**
+
+| Campo | Descripción | Labels detectados |
+|-------|-------------|-------------------|
+| `gender` | 性別 (Sexo) | gender, 性別, sex, 男女, 男/女 |
+| `birth_date` | 生年月日 (Fecha nacimiento) | birth_date, 生年月日, birthday, 誕生日, 生日, dob |
+| `termination_date` | 退社日 (Fecha baja) | termination_date, 退社日, 退職日, resignation_date, end_date |
+
+**Archivos modificados:**
+```python
+# employee_parser.py - EmployeeRecord dataclass
+@dataclass
+class EmployeeRecord:
+    employee_id: str
+    name: str
+    # ... campos existentes ...
+    gender: Optional[str] = None          # 性別: 男/女 or M/F
+    birth_date: Optional[str] = None      # 生年月日
+    termination_date: Optional[str] = None  # 退社日
+
+# Nuevos métodos helper:
+def _map_gender(self, value: str) -> str:
+    """Normaliza género a M/F"""
+
+def _format_date(self, value: Any) -> Optional[str]:
+    """Convierte fecha a YYYY-MM-DD"""
+```
+
+**Base de datos - nuevas columnas:**
+```sql
+ALTER TABLE employees ADD COLUMN gender TEXT;
+ALTER TABLE employees ADD COLUMN birth_date TEXT;
+ALTER TABLE employees ADD COLUMN termination_date TEXT;
+```
+
+**Auto-detección de estado:**
+- Si `termination_date` tiene valor → `status` = 'inactive'
+
+---
+
+#### 2. Nuevos Campos de Nómina (Deducciones)
+
+**Campos agregados a payroll_records:**
+
+| Campo | Descripción |
+|-------|-------------|
+| `rent_deduction` | 家賃/寮費 (Alquiler/Dormitorio) |
+| `utilities_deduction` | 水道光熱費 (Servicios) |
+| `meal_deduction` | 弁当代/食事代 (Comidas) |
+| `advance_payment` | 前貸/前借 (Adelantos) |
+| `year_end_adjustment` | 年末調整 (Ajuste fin de año) |
+| `absence_days` | 欠勤日数 (Días de ausencia) |
+
+**Base de datos:**
+```sql
+ALTER TABLE payroll_records ADD COLUMN rent_deduction REAL DEFAULT 0;
+ALTER TABLE payroll_records ADD COLUMN utilities_deduction REAL DEFAULT 0;
+ALTER TABLE payroll_records ADD COLUMN meal_deduction REAL DEFAULT 0;
+ALTER TABLE payroll_records ADD COLUMN advance_payment REAL DEFAULT 0;
+ALTER TABLE payroll_records ADD COLUMN year_end_adjustment REAL DEFAULT 0;
+ALTER TABLE payroll_records ADD COLUMN absence_days INTEGER DEFAULT 0;
+```
+
+---
+
+#### 3. Correcciones de Seguridad (CRÍTICAS)
+
+##### SQL Injection en search.py (CORREGIDO)
+**Problema**: LIMIT y OFFSET se concatenaban sin sanitizar
+```python
+# ANTES (vulnerable):
+sql += f" LIMIT {page_size} OFFSET {offset}"
+
+# DESPUÉS (seguro):
+page = max(1, min(page, 10000))      # Cap page at 10000
+page_size = max(1, min(page_size, 500))  # Cap page_size at 500
+offset = (page - 1) * page_size
+sql += " LIMIT ? OFFSET ?"
+params.extend([page_size, offset])
+```
+
+##### Path Traversal en backup.py (CORREGIDO)
+**Problema**: Nombres de archivo no se validaban
+```python
+# Nueva función de validación
+def validate_backup_filename(filename: str, backup_dir: Path) -> Optional[Path]:
+    """Previene ataques de path traversal"""
+    if '/' in filename or '\\' in filename or '..' in filename:
+        return None
+    if not filename.endswith('.db'):
+        return None
+    if not re.match(r'^[a-zA-Z0-9_\-\.]+$', filename):
+        return None
+    backup_path = backup_dir / filename
+    resolved_path = backup_path.resolve()
+    resolved_backup_dir = backup_dir.resolve()
+    if not str(resolved_path).startswith(str(resolved_backup_dir)):
+        return None
+    return backup_path
+```
+
+##### Path Hardcodeado Removido
+**Archivo**: `salary_parser.py`
+**Problema**: Línea 506 tenía path de Windows hardcodeado para debug
+**Solución**: Eliminado completamente
+
+---
+
+#### 4. Nuevas Páginas Frontend
+
+##### /alerts - Gestión de Alertas
+**Archivo**: `arari-app/src/app/alerts/page.tsx`
+
+**Características:**
+- Dashboard con estadísticas (críticas, warnings, resueltas)
+- Filtros por estado (activo/resuelto) y severidad
+- Botón para escanear nuevas alertas
+- Resolución individual de alertas
+- Integración con API `/api/alerts`
+
+**Tipos de alertas soportadas:**
+| Tipo | Descripción |
+|------|-------------|
+| LOW_MARGIN | Margen bajo (<15%) |
+| NEGATIVE_MARGIN | Margen negativo (pérdida) |
+| EXCESSIVE_HOURS | Horas excesivas |
+| MISSING_DATA | Datos incompletos |
+| RATE_MISMATCH | Discrepancia de tarifas |
+| OVERTIME_THRESHOLD | Overtime > 60h |
+
+##### /budgets - Control de Presupuestos
+**Archivo**: `arari-app/src/app/budgets/page.tsx`
+
+**Características:**
+- Crear presupuestos por período/派遣先
+- Comparación Budget vs Actual
+- Indicadores visuales de desviación
+- Tracking de estado (en progreso, completado, excedido)
+
+##### /login - Página de Login (PREPARADA, NO ACTIVA)
+**Archivo**: `arari-app/src/app/login/page.tsx`
+
+**Estado**: Creada pero NO conectada a navegación
+**Para activar en el futuro:**
+1. Agregar middleware de protección de rutas
+2. Conectar con auth context/store
+3. Agregar link en Header o redirect
+
+**Backend endpoints existentes (auth.py):**
+- `POST /api/auth/login` - Login
+- `POST /api/auth/logout` - Logout
+- `GET /api/auth/me` - Usuario actual
+- `POST /api/auth/register` - Registro (admin only)
+
+**Credenciales por defecto (CAMBIAR EN PRODUCCIÓN):**
+- Usuario: `admin`
+- Password: `admin123`
+
+---
+
+#### 5. Fixes de Navegación
+
+**Sidebar.tsx actualizado:**
+- Agregado enlace a /alerts (アラート管理)
+- Agregado enlace a /budgets (予算管理)
+- Corregido fetch de /api/statistics para usar puerto 8000
+
+---
+
+#### 6. Correcciones de profit_distribution
+
+**Archivo**: `services.py`
+**Problema**: Rangos de margen estaban configurados para 25% (oficina) en lugar de 15% (製造派遣)
+
+```python
+# ANTES (incorrecto para 製造派遣):
+ranges = [
+    ("<15%", ..., 15),
+    ("15-20%", 15, 20),
+    ("20-25%", 20, 25),
+    (">25%", 25, ...),
+]
+
+# DESPUÉS (correcto para 製造派遣):
+ranges = [
+    ("<10%", -999999999, 10),   # Critical
+    ("10-15%", 10, 15),         # Below target
+    ("15-18%", 15, 18),         # On target
+    (">18%", 18, 999999999),    # Excellent
+]
+```
+
+---
+
+#### 7. API Port Unificado
+
+**Problema**: Algunos archivos frontend usaban puerto 8765 o relativo
+**Solución**: Todos los archivos ahora usan `http://localhost:8000`
+
+**Archivos corregidos:**
+- `templates/page.tsx`
+- `settings/page.tsx`
+- `dashboard/page.tsx`
+- `page.tsx`
+- `reports/page.tsx` (también implementado descarga real)
+
+---
+
+#### 8. Análisis de Conexión Frontend-Backend (2025-12-11)
+
+**Resultado de tests:**
+- ❌ Backend NO estaba corriendo (puerto 8000 sin proceso)
+- ✅ Todos los puertos de API en frontend son correctos (8000)
+- ⚠️ 9 archivos con API_URL hardcodeado (funcional pero no ideal)
+- ⚠️ No existe archivo .env para configuración
+
+**Archivos con API hardcodeada (no usan api.ts centralizado):**
+| Archivo | Línea |
+|---------|-------|
+| `page.tsx` | 60 |
+| `dashboard/page.tsx` | 60 |
+| `Sidebar.tsx` | 125 |
+| `settings/page.tsx` | 33 |
+| `login/page.tsx` | 38 |
+| `alerts/page.tsx` | 25 |
+| `reports/page.tsx` | 25 |
+| `budgets/page.tsx` | 28 |
+| `templates/page.tsx` | 29 |
+
+**Recomendación futura**: Crear `.env.local` con `NEXT_PUBLIC_API_URL` y centralizar configuración.
+
+---
+
+### Resumen de Archivos Modificados (2025-12-11)
+
+| Archivo | Cambio |
+|---------|--------|
+| `employee_parser.py` | Agregar gender, birth_date, termination_date |
+| `database.py` | Nuevas columnas employees y payroll_records |
+| `models.py` | EmployeeBase con campos nuevos |
+| `services.py` | create/update employee, profit_distribution ranges |
+| `main.py` | Actualizar imports de employee |
+| `search.py` | Fix SQL injection (LIMIT/OFFSET parametrizados) |
+| `backup.py` | Fix path traversal (validate_backup_filename) |
+| `salary_parser.py` | Remover path hardcodeado |
+| `Sidebar.tsx` | Navegación a /alerts y /budgets |
+| `alerts/page.tsx` | NUEVA - Gestión de alertas |
+| `budgets/page.tsx` | NUEVA - Control de presupuestos |
+| `login/page.tsx` | NUEVA - Login (no activa) |
+| `reports/page.tsx` | Descarga real implementada |
+| Varios frontend | Port 8765 → 8000 |
+
+---
+
+**Última actualización**: 2025-12-11
+**Estado**: Sistema con seguridad mejorada, nuevas páginas (/alerts, /budgets, /login preparado), campos de empleado ampliados (gender, birth_date, termination_date)
