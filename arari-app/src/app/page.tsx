@@ -212,10 +212,23 @@ export default function DashboardPage() {
         })
       }
       const data = paidLeaveByPeriod.get(r.period)!
-      data.totalDays += r.paidLeaveDays || 0
+
+      // Calculate paid leave days effectively
+      let days = r.paidLeaveDays || 0
+      if ((r.paidLeaveAmount || 0) > 0) {
+        const employee = employees.find(e => e.employeeId === r.employeeId)
+        if (employee && employee.hourlyRate > 0) {
+          const dailyHrs = (r.workDays && r.workHours) ? r.workHours / r.workDays : 8
+          const leaveHrs = r.paidLeaveAmount / employee.hourlyRate
+          const rawDays = dailyHrs > 0 ? leaveHrs / dailyHrs : 0
+          days = Math.round(rawDays * 2) / 2
+        }
+      }
+
+      data.totalDays += days
       data.totalHours += r.paidLeaveHours || 0
       data.totalAmount += r.paidLeaveAmount || 0
-      if ((r.paidLeaveDays || 0) > 0 || (r.paidLeaveHours || 0) > 0) {
+      if (days > 0 || (r.paidLeaveAmount || 0) > 0) {
         data.employeeCount += 1
       }
     })

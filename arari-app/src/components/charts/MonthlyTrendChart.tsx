@@ -111,6 +111,16 @@ const CustomLegend = () => {
 
 export function MonthlyTrendChart({ data }: MonthlyTrendChartProps) {
   // Calculate overall stats
+  // Sort data chronologically (Oldest -> Newest) for the chart
+  const sortedData = [...data].sort((a, b) => {
+    // Parse period string "YYYY年M月" -> YYYY, M
+    const [aYear, aMonth] = a.period.replace('年', '-').replace('月', '').split('-').map(Number)
+    const [bYear, bMonth] = b.period.replace('年', '-').replace('月', '').split('-').map(Number)
+
+    if (aYear !== bYear) return aYear - bYear
+    return aMonth - bMonth
+  })
+
   const totalRevenue = data.reduce((sum, d) => sum + d.revenue, 0)
   const totalCost = data.reduce((sum, d) => sum + d.cost, 0)
   const totalProfit = data.reduce((sum, d) => sum + d.profit, 0)
@@ -119,7 +129,7 @@ export function MonthlyTrendChart({ data }: MonthlyTrendChartProps) {
     : 0
 
   // Format period for display (2025年1月 -> 1月)
-  const chartData = data.map(d => ({
+  const chartData = sortedData.map(d => ({
     ...d,
     displayPeriod: d.period.replace(/\d{4}年/, ''),
   }))

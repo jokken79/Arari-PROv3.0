@@ -13,6 +13,7 @@ import type {
 } from '@/types'
 // Sample data removed - always use backend
 import { employeeApi, payrollApi, statisticsApi } from '@/lib/api'
+import { sortPeriodsAscending, sortPeriodsDescending } from '@/lib/utils'
 
 // Generate dashboard stats from local data (fallback)
 function generateDashboardStats(employees: Employee[], payrollRecords: PayrollRecord[]): DashboardStats {
@@ -34,7 +35,7 @@ function generateDashboardStats(employees: Employee[], payrollRecords: PayrollRe
   }
 
   // Get latest period
-  const periods = Array.from(new Set(payrollRecords.map(r => r.period))).sort().reverse()
+  const periods = sortPeriodsDescending(Array.from(new Set(payrollRecords.map(r => r.period))))
   const latestPeriod = periods[0]
   const latestRecords = payrollRecords.filter(r => r.period === latestPeriod)
 
@@ -307,8 +308,8 @@ export const useAppStore = create<AppState>()(
             profitMargin: rec.profit_margin,
           }))
 
-          const periods = periodsResponse.data || []
-          const selectedPeriod = periods[0] || '2025年1月'
+          const periods = sortPeriodsAscending(periodsResponse.data || [])
+          const selectedPeriod = periods[periods.length - 1] || '2025年1月' // Default to latest
 
           // Transform dashboard stats
           const stats = statsResponse.data
@@ -372,7 +373,7 @@ export const useAppStore = create<AppState>()(
       addPayrollRecords: (records) => {
         const currentRecords = get().payrollRecords
         const newRecords = [...currentRecords, ...records]
-        const periods = Array.from(new Set(newRecords.map(r => r.period))).sort().reverse()
+        const periods = sortPeriodsAscending(Array.from(new Set(newRecords.map(r => r.period))))
 
         set({
           payrollRecords: newRecords,

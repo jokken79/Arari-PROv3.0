@@ -36,11 +36,13 @@ const CustomTooltip = ({ active, payload, label }: any) => {
     if (!factoryData) return null
 
     const isPositiveProfit = factoryData.profit >= 0
-    const marginColor = factoryData.margin >= 15
+    const marginColor = factoryData.margin >= 10
       ? 'text-emerald-500'
-      : factoryData.margin >= 10
-        ? 'text-amber-500'
-        : 'text-red-500'
+      : factoryData.margin >= 7
+        ? 'text-green-500'
+        : factoryData.margin >= 3
+          ? 'text-amber-500'
+          : 'text-red-500'
 
     return (
       <div className="rounded-xl border bg-background/95 backdrop-blur-sm p-4 shadow-2xl min-w-[260px]">
@@ -160,7 +162,7 @@ export function FactoryComparisonChart({ data }: FactoryComparisonChartProps) {
                 <p className="text-xs text-muted-foreground">平均マージン</p>
                 <p className={cn(
                   "text-lg font-bold",
-                  avgMargin >= 15 ? "text-emerald-500" : avgMargin >= 10 ? "text-amber-500" : "text-red-500"
+                  avgMargin >= 10 ? "text-emerald-500" : avgMargin >= 7 ? "text-green-500" : avgMargin >= 3 ? "text-amber-500" : "text-red-500"
                 )}>
                   {formatPercent(avgMargin)}
                 </p>

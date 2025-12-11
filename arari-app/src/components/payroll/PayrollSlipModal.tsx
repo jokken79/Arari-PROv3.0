@@ -20,12 +20,11 @@ export function PayrollSlipModal({ isOpen, onClose, record, employee }: PayrollS
         ? (record.grossProfit / record.billingAmount) * 100
         : 0
 
-    // Get margin color based on 製造派遣 standards (target 15%)
+    // Get margin color based on Manufacturing dispatch standards (target 10-15%)
     const getMarginColor = (margin: number) => {
-        if (margin >= 18) return { text: 'text-emerald-500', bg: 'bg-emerald-500', border: 'border-emerald-500', light: 'bg-emerald-50 dark:bg-emerald-900/20' }
-        if (margin >= 15) return { text: 'text-green-500', bg: 'bg-green-500', border: 'border-green-500', light: 'bg-green-50 dark:bg-green-900/20' }
-        if (margin >= 12) return { text: 'text-amber-500', bg: 'bg-amber-500', border: 'border-amber-500', light: 'bg-amber-50 dark:bg-amber-900/20' }
-        if (margin >= 10) return { text: 'text-orange-500', bg: 'bg-orange-500', border: 'border-orange-500', light: 'bg-orange-50 dark:bg-orange-900/20' }
+        if (margin >= 10) return { text: 'text-emerald-500', bg: 'bg-emerald-500', border: 'border-emerald-500', light: 'bg-emerald-50 dark:bg-emerald-900/20' }
+        if (margin >= 7) return { text: 'text-green-500', bg: 'bg-green-500', border: 'border-green-500', light: 'bg-green-50 dark:bg-green-900/20' }
+        if (margin >= 3) return { text: 'text-amber-500', bg: 'bg-amber-500', border: 'border-amber-500', light: 'bg-amber-50 dark:bg-amber-900/20' }
         return { text: 'text-red-500', bg: 'bg-red-500', border: 'border-red-500', light: 'bg-red-50 dark:bg-red-900/20' }
     }
 
@@ -378,39 +377,19 @@ export function PayrollSlipModal({ isOpen, onClose, record, employee }: PayrollS
                                             <span className="text-xs font-bold text-red-600 dark:text-red-400">控除の部 (本人負担)</span>
                                         </div>
                                         <div className="space-y-1.5 text-sm">
-                                            {(record.socialInsurance || 0) > 0 && (
-                                                <DeductionRow label="健康保険" value={record.socialInsurance} />
-                                            )}
-                                            {(record.welfarePension || 0) > 0 && (
-                                                <DeductionRow label="厚生年金" value={record.welfarePension} />
-                                            )}
-                                            {(record.employmentInsurance || 0) > 0 && (
-                                                <DeductionRow label="雇用保険" value={record.employmentInsurance} />
-                                            )}
-                                            {(record.incomeTax || 0) > 0 && (
-                                                <DeductionRow label="所得税" value={record.incomeTax} />
-                                            )}
-                                            {(record.residentTax || 0) > 0 && (
-                                                <DeductionRow label="住民税" value={record.residentTax} />
-                                            )}
-                                            {(record.rentDeduction || 0) > 0 && (
-                                                <DeductionRow label="寮費・家賃" value={record.rentDeduction} />
-                                            )}
-                                            {(record.utilitiesDeduction || 0) > 0 && (
-                                                <DeductionRow label="光熱費" value={record.utilitiesDeduction} />
-                                            )}
-                                            {(record.mealDeduction || 0) > 0 && (
-                                                <DeductionRow label="食事代・弁当" value={record.mealDeduction} />
-                                            )}
-                                            {(record.advancePayment || 0) > 0 && (
-                                                <DeductionRow label="前借金返済" value={record.advancePayment} />
-                                            )}
+                                            <DeductionRow label="健康保険" value={record.socialInsurance} />
+                                            <DeductionRow label="厚生年金" value={record.welfarePension} />
+                                            <DeductionRow label="雇用保険" value={record.employmentInsurance} />
+                                            <DeductionRow label="所得税" value={record.incomeTax} />
+                                            <DeductionRow label="住民税" value={record.residentTax} />
+                                            <DeductionRow label="寮費・家賃" value={record.rentDeduction} />
+                                            <DeductionRow label="光熱費" value={record.utilitiesDeduction} />
+                                            <DeductionRow label="食事代・弁当" value={record.mealDeduction} />
+                                            <DeductionRow label="前借金返済" value={record.advancePayment} />
                                             {(record.yearEndAdjustment || 0) !== 0 && (
                                                 <DeductionRow label="年末調整" value={record.yearEndAdjustment} />
                                             )}
-                                            {(record.otherDeductions || 0) > 0 && (
-                                                <DeductionRow label="その他控除" value={record.otherDeductions} />
-                                            )}
+                                            <DeductionRow label="その他控除" value={record.otherDeductions} />
                                             <div className="pt-2 border-t border-red-200 dark:border-red-800 flex justify-between font-bold">
                                                 <span className="text-red-600 dark:text-red-400">控除合計</span>
                                                 <span className="text-red-600 dark:text-red-400">-{formatYen(totalDeductions)}</span>
@@ -703,8 +682,8 @@ export function PayrollSlipModal({ isOpen, onClose, record, employee }: PayrollS
                                         <div className="space-y-1">
                                             <div className="flex justify-between text-xs text-slate-600 dark:text-slate-300">
                                                 <span>0%</span>
-                                                <span className="text-emerald-600 dark:text-emerald-400 font-bold">目標: 15%</span>
-                                                <span>30%</span>
+                                                <span className="text-emerald-600 dark:text-emerald-400 font-bold">目標: 10%</span>
+                                                <span>20%</span>
                                             </div>
                                             <div className="h-3 bg-slate-300 dark:bg-slate-600 rounded-full overflow-hidden relative">
                                                 {/* Target line */}
@@ -712,14 +691,14 @@ export function PayrollSlipModal({ isOpen, onClose, record, employee }: PayrollS
                                                 {/* Current value */}
                                                 <div
                                                     className={`h-full ${marginColor.bg} transition-all duration-500`}
-                                                    style={{ width: `${Math.min(marginRate / 30 * 100, 100)}%` }}
+                                                    style={{ width: `${Math.min(marginRate / 20 * 100, 100)}%` }}
                                                 />
                                             </div>
                                         </div>
                                         <p className="text-center text-xs mt-2 text-slate-600 dark:text-slate-300">
-                                            {marginRate >= 15
+                                            {marginRate >= 10
                                                 ? <span className="text-emerald-600 dark:text-emerald-400 font-semibold">目標達成 ✓</span>
-                                                : <span className="text-amber-600 dark:text-amber-400 font-semibold">目標まで: {(15 - marginRate).toFixed(1)}%</span>
+                                                : <span className="text-amber-600 dark:text-amber-400 font-semibold">目標まで: {(10 - marginRate).toFixed(1)}%</span>
                                             }
                                         </p>
                                     </div>

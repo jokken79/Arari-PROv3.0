@@ -73,6 +73,11 @@ export function sortPeriodsDescending(periods: string[]): string[] {
   return [...periods].sort((a, b) => comparePeriods(b, a))
 }
 
+// Sort periods ascending (oldest first): 2025年1月, 2025年2月...
+export function sortPeriodsAscending(periods: string[]): string[] {
+  return [...periods].sort((a, b) => comparePeriods(a, b))
+}
+
 // Get color class based on profit margin
 export function getProfitColor(margin: number): string {
   if (margin >= 10) return 'text-emerald-500'
