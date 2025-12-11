@@ -512,6 +512,59 @@ async def export_payroll(
     service = PayrollService(db)
     return service.get_payroll_records(period=period)
 
+@app.get("/api/export/all")
+async def export_all_data(
+    format: str = "excel",
+    db: sqlite3.Connection = Depends(get_db)
+):
+    """Export all data (employees + payroll) as Excel"""
+    service = PayrollService(db)
+    employees = service.get_employees()
+    payroll = service.get_payroll_records()
+
+    if format == "excel":
+        import openpyxl
+        from io import BytesIO
+
+        wb = openpyxl.Workbook()
+
+        # Employees sheet
+        ws_emp = wb.active
+        ws_emp.title = "従業員一覧"
+        if employees:
+            # Headers
+            headers = list(employees[0].keys())
+            for col, header in enumerate(headers, 1):
+                ws_emp.cell(row=1, column=col, value=header)
+            # Data
+            for row, emp in enumerate(employees, 2):
+                for col, key in enumerate(headers, 1):
+                    ws_emp.cell(row=row, column=col, value=emp.get(key))
+
+        # Payroll sheet
+        ws_pay = wb.create_sheet("給与明細")
+        if payroll:
+            headers = list(payroll[0].keys())
+            for col, header in enumerate(headers, 1):
+                ws_pay.cell(row=1, column=col, value=header)
+            for row, record in enumerate(payroll, 2):
+                for col, key in enumerate(headers, 1):
+                    ws_pay.cell(row=row, column=col, value=record.get(key))
+
+        # Save to bytes
+        output = BytesIO()
+        wb.save(output)
+        output.seek(0)
+
+        filename = f"arari_pro_export_{datetime.now().strftime('%Y%m%d')}.xlsx"
+        return Response(
+            content=output.getvalue(),
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers={"Content-Disposition": f"attachment; filename={filename}"}
+        )
+
+    return {"employees": employees, "payroll": payroll}
+
 @app.post("/api/sync-from-folder")
 async def sync_from_folder(
     payload: dict,

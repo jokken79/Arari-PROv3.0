@@ -57,7 +57,7 @@ export default function DashboardPage() {
   useEffect(() => {
     const fetchSettings = async () => {
       try {
-        const response = await fetch('http://localhost:8765/api/settings/target_margin')
+        const response = await fetch('http://localhost:8000/api/settings/target_margin')
         if (response.ok) {
           const data = await response.json()
           if (data.value) {

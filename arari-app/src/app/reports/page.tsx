@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import {
   FileText,
@@ -11,12 +11,18 @@ import {
   Calendar,
   Users,
   Building2,
+  AlertCircle,
+  CheckCircle,
 } from 'lucide-react'
 import { Header } from '@/components/layout/Header'
 import { Sidebar } from '@/components/layout/Sidebar'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { useAppStore } from '@/store/appStore'
+
+// API base URL - FastAPI backend
+const API_URL = 'http://localhost:8000'
 
 const reports = [
   {
@@ -72,13 +78,111 @@ const reports = [
 export default function ReportsPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [generating, setGenerating] = useState<string | null>(null)
+  const [downloadStatus, setDownloadStatus] = useState<{success?: boolean, message?: string} | null>(null)
+  const { availablePeriods, selectedPeriod } = useAppStore()
 
   const handleGenerate = async (reportId: string) => {
     setGenerating(reportId)
-    // Simulate report generation
-    await new Promise(resolve => setTimeout(resolve, 2000))
-    setGenerating(null)
-    // In real app, trigger download here
+    setDownloadStatus(null)
+
+    try {
+      // Map report IDs to API report types
+      const reportTypeMap: Record<string, string> = {
+        'monthly-profit': 'monthly',
+        'employee-detail': 'employee',
+        'company-analysis': 'company',
+        'cost-breakdown': 'monthly',  // Uses monthly data with cost focus
+        'period-comparison': 'monthly',
+        'summary-report': 'monthly',
+      }
+
+      const reportType = reportTypeMap[reportId] || 'monthly'
+      const period = selectedPeriod || availablePeriods[0]
+
+      if (!period) {
+        setDownloadStatus({ success: false, message: 'データがありません。給与明細をアップロードしてください。' })
+        setGenerating(null)
+        return
+      }
+
+      // Build API URL
+      let url = `${API_URL}/api/reports/download/${reportType}?format=excel`
+      if (reportType === 'monthly') {
+        url += `&period=${encodeURIComponent(period)}`
+      }
+
+      // Fetch the report
+      const response = await fetch(url)
+
+      if (!response.ok) {
+        throw new Error(`レポート生成に失敗しました: ${response.status}`)
+      }
+
+      // Get the blob and trigger download
+      const blob = await response.blob()
+      const downloadUrl = window.URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = downloadUrl
+
+      // Extract filename from Content-Disposition header or create one
+      const contentDisposition = response.headers.get('Content-Disposition')
+      let filename = `report_${reportId}_${new Date().toISOString().split('T')[0]}.xlsx`
+      if (contentDisposition) {
+        const filenameMatch = contentDisposition.match(/filename=(.+)/)
+        if (filenameMatch) {
+          filename = filenameMatch[1]
+        }
+      }
+
+      link.download = filename
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      window.URL.revokeObjectURL(downloadUrl)
+
+      setDownloadStatus({ success: true, message: 'レポートをダウンロードしました' })
+    } catch (error) {
+      console.error('Report generation error:', error)
+      setDownloadStatus({
+        success: false,
+        message: error instanceof Error ? error.message : 'レポート生成に失敗しました'
+      })
+    } finally {
+      setGenerating(null)
+    }
+  }
+
+  const handleExportAll = async () => {
+    setGenerating('export-all')
+    setDownloadStatus(null)
+
+    try {
+      const response = await fetch(`${API_URL}/api/export/all?format=excel`)
+
+      if (!response.ok) {
+        throw new Error(`エクスポートに失敗しました: ${response.status}`)
+      }
+
+      const blob = await response.blob()
+      const downloadUrl = window.URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = downloadUrl
+      link.download = `arari_pro_export_${new Date().toISOString().split('T')[0]}.xlsx`
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      window.URL.revokeObjectURL(downloadUrl)
+
+      setDownloadStatus({ success: true, message: '全データをエクスポートしました' })
+    } catch (error) {
+      console.error('Export error:', error)
+      setDownloadStatus({
+        success: false,
+        message: error instanceof Error ? error.message : 'エクスポートに失敗しました'
+      })
+    } finally {
+      setGenerating(null)
+    }
   }
 
   return (
@@ -173,14 +277,52 @@ export default function ReportsPage() {
                       </p>
                     </div>
                   </div>
-                  <Button variant="gradient" size="lg">
-                    <Download className="h-5 w-5 mr-2" />
-                    全データをエクスポート
+                  <Button
+                    variant="gradient"
+                    size="lg"
+                    onClick={handleExportAll}
+                    disabled={generating === 'export-all'}
+                  >
+                    {generating === 'export-all' ? (
+                      <>
+                        <div className="h-5 w-5 animate-spin rounded-full border-2 border-current border-t-transparent mr-2" />
+                        エクスポート中...
+                      </>
+                    ) : (
+                      <>
+                        <Download className="h-5 w-5 mr-2" />
+                        全データをエクスポート
+                      </>
+                    )}
                   </Button>
                 </div>
               </CardContent>
             </Card>
           </motion.div>
+
+          {/* Download Status Message */}
+          {downloadStatus && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mt-4"
+            >
+              <div
+                className={`flex items-center gap-3 p-4 rounded-lg ${
+                  downloadStatus.success
+                    ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300'
+                    : 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300'
+                }`}
+              >
+                {downloadStatus.success ? (
+                  <CheckCircle className="h-5 w-5" />
+                ) : (
+                  <AlertCircle className="h-5 w-5" />
+                )}
+                <span>{downloadStatus.message}</span>
+              </div>
+            </motion.div>
+          )}
         </div>
       </main>
     </div>

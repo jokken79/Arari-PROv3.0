@@ -104,6 +104,16 @@ def init_db():
         ("overtime_over_60h_pay", "REAL DEFAULT 0"),
         ("non_billable_allowances", "REAL DEFAULT 0"),  # 通勤手当（非）、業務手当等 - 会社負担のみ
         ("welfare_pension", "REAL DEFAULT 0"),
+        # ================================================================
+        # NEW COLUMNS - 2025-12-11: Deduction fields from Excel dynamic zone
+        # These fields are extracted by salary_parser.py but were not being saved
+        # ================================================================
+        ("rent_deduction", "REAL DEFAULT 0"),           # 家賃、寮費 - Housing/dormitory rent
+        ("utilities_deduction", "REAL DEFAULT 0"),      # 水道光熱、光熱費、電気代 - Utilities
+        ("meal_deduction", "REAL DEFAULT 0"),           # 弁当、弁当代、食事代 - Meal deductions
+        ("advance_payment", "REAL DEFAULT 0"),          # 前貸、前借 - Salary advances
+        ("year_end_adjustment", "REAL DEFAULT 0"),      # 年調過不足、年末調整 - Year-end tax adjustment
+        ("absence_days", "INTEGER DEFAULT 0"),          # 欠勤日数 - Absence days
     ]
 
     for col_name, col_type in new_columns:

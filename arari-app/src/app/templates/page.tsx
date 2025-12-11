@@ -25,8 +25,8 @@ import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
 
-// API base URL
-const API_URL = 'http://localhost:8765'
+// API base URL - FastAPI backend
+const API_URL = 'http://localhost:8000'
 
 interface Template {
   id: number

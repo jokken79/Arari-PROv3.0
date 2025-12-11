@@ -509,14 +509,21 @@ class PayrollService:
         }
 
     def _calculate_profit_distribution(self, period: str) -> List[Dict]:
-        """Calculate profit distribution for a period"""
+        """Calculate profit distribution for a period
+
+        Ranges are based on 製造派遣 target margin of 15%:
+        - <10%: Critical (赤字リスク)
+        - 10-15%: Below target (要改善)
+        - 15-18%: On target (目標達成)
+        - >18%: Excellent (優良)
+        """
         cursor = self.db.cursor()
 
         ranges = [
-            ("<3%", -999999999, 3),
-            ("3-7%", 3, 7),
-            ("7-10%", 7, 10),
-            (">10%", 10, 999999999),
+            ("<10%", -999999999, 10),    # Critical - below break-even risk
+            ("10-15%", 10, 15),          # Below target - needs improvement
+            ("15-18%", 15, 18),          # On target - good
+            (">18%", 18, 999999999),     # Excellent - very profitable
         ]
 
         cursor.execute("SELECT COUNT(*) FROM payroll_records WHERE period = ?", (period,))

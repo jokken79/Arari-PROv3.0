@@ -28,10 +28,9 @@ import { useTheme } from '@/components/ui/theme-provider'
 import { cn } from '@/lib/utils'
 import { syncApi } from '@/lib/api'
 
-// API base URL
+// API base URL - FastAPI backend (port 8000)
 import { useAppStore } from '@/store/appStore'
-// API base URL - Force localhost:8765 for this environment
-const API_URL = 'http://localhost:8765'
+const API_URL = 'http://localhost:8000'
 
 interface InsuranceSettings {
   employment_insurance_rate: string
