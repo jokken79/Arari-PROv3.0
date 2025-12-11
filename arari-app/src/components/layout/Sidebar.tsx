@@ -164,7 +164,7 @@ export function Sidebar({ isOpen = true, onClose }: SidebarProps) {
         animate={{ width: collapsed ? 80 : 280 }}
         transition={{ duration: 0.3, type: 'spring', stiffness: 300, damping: 30 }}
         className={cn(
-          'fixed left-0 top-16 z-40 h-[calc(100vh-4rem)] border-r border-border glass',
+          'fixed left-0 top-16 z-40 h-[calc(100vh-4rem)] border-r border-black/5 dark:border-white/10 glass bg-white/70 dark:bg-black/40 backdrop-blur-xl',
           'hidden md:flex flex-col',
         )}
       >
@@ -189,8 +189,8 @@ export function Sidebar({ isOpen = true, onClose }: SidebarProps) {
                         className={cn(
                           'group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-300',
                           isActive
-                            ? 'bg-primary/10 text-primary border border-primary/20 shadow-[0_0_15px_rgba(var(--primary),0.1)]'
-                            : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+                            ? 'bg-neon-blue/10 text-neon-blue border border-neon-blue/20 shadow-[0_0_15px_rgba(0,242,234,0.1)]'
+                            : 'text-muted-foreground hover:bg-black/5 dark:hover:bg-white/5 hover:text-foreground dark:hover:text-white',
                         )}
                       >
                         <Icon
@@ -219,7 +219,7 @@ export function Sidebar({ isOpen = true, onClose }: SidebarProps) {
                         {isActive && !collapsed && (
                           <motion.div
                             layoutId="activeIndicator"
-                            className="ml-auto h-1.5 w-1.5 rounded-full bg-primary shadow-[0_0_10px_hsl(var(--primary)/0.8)]"
+                            className="ml-auto h-1.5 w-1.5 rounded-full bg-neon-blue shadow-[0_0_10px_#00f2ea]"
                           />
                         )}
                       </Link>
@@ -248,8 +248,8 @@ export function Sidebar({ isOpen = true, onClose }: SidebarProps) {
                   exit={{ opacity: 0, height: 0 }}
                   className="mt-4 overflow-hidden"
                 >
-                  <div className="rounded-xl bg-muted/50 p-4 border border-border relative overflow-hidden group">
-                    <div className="absolute inset-0 bg-cyan-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                  <div className="rounded-xl bg-black/5 dark:bg-white/5 p-4 border border-black/5 dark:border-white/10 relative overflow-hidden group hover:border-neon-purple/30 transition-colors">
+                    <div className="absolute inset-0 bg-neon-purple/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
                     <div className="flex items-center gap-2 mb-3 relative">
                       {profitStats && profitStats.changePercent >= 0 ? (
                         <TrendingUp className="h-4 w-4 text-emerald-400" />

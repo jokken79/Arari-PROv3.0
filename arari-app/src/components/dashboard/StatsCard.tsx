@@ -3,7 +3,7 @@
 import { motion } from 'framer-motion'
 import { LucideIcon, TrendingUp, TrendingDown, Minus } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { Card } from '@/components/ui/card'
+import { GlassCard } from '@/components/ui/GlassCard'
 
 interface StatsCardProps {
   title: string
@@ -65,7 +65,8 @@ export function StatsCard({
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: delay * 0.1, duration: 0.5, type: 'spring' }}
     >
-      <Card
+      <GlassCard
+        variant={variant === 'gradient' ? 'neo' : 'default'}
         className={cn(
           'relative overflow-hidden p-6 transition-all duration-300 hover:shadow-lg hover:-translate-y-1',
           variantStyles[variant]
@@ -130,7 +131,7 @@ export function StatsCard({
             transition={{ delay: delay * 0.1 + 0.3, duration: 1 }}
           />
         )}
-      </Card>
+      </GlassCard>
     </motion.div>
   )
 }

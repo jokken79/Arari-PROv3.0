@@ -87,7 +87,37 @@ export default function EmployeeDetailPage({ params }: { params: { id: string } 
                         </div>
                     </motion.div>
 
+
+                    {/* Actions Grid */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+                        {/* Wage Ledger Card */}
+                        <motion.div
+                            initial={{ opacity: 0, x: -20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ delay: 0.1 }}
+                        >
+                            <Card
+                                className="group hover:shadow-lg transition-all cursor-pointer border-l-4 border-l-purple-500 bg-gradient-to-r from-purple-500/5 to-transparent"
+                                onClick={() => router.push(`/employees/${params.id}/wage-ledger`)}
+                            >
+                                <CardContent className="p-6 flex items-center justify-between">
+                                    <div className="flex items-center gap-4">
+                                        <div className="p-3 rounded-full bg-purple-100 text-purple-600 group-hover:bg-purple-600 group-hover:text-white transition-colors">
+                                            <FileText className="h-6 w-6" />
+                                        </div>
+                                        <div>
+                                            <h3 className="text-lg font-bold text-gray-800">賃金台帳 (Wage Ledger)</h3>
+                                            <p className="text-sm text-gray-500">View annual ledger & export Excel</p>
+                                        </div>
+                                    </div>
+                                    <ChevronRight className="h-6 w-6 text-gray-300 group-hover:text-purple-500 transition-colors" />
+                                </CardContent>
+                            </Card>
+                        </motion.div>
+                    </div>
+
                     {/* Payroll History List */}
+
                     <div className="grid gap-4">
                         <h2 className="text-xl font-semibold flex items-center gap-2">
                             <Calendar className="h-5 w-5 text-blue-500" />

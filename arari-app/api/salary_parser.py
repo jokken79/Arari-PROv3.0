@@ -228,7 +228,7 @@ class SalaryStatementParser:
         '年末調整': 'year_end_adjustment',
     }
 
-    def __init__(self, use_intelligent_mode: bool = True, template_manager: Optional[TemplateManager] = None):
+    def __init__(self, use_intelligent_mode: bool = True, template_manager: Optional[TemplateManager] = None, employee_name_map: Dict[str, str] = None):
         """
         Initialize parser with template support.
 
@@ -237,9 +237,11 @@ class SalaryStatementParser:
                                  DEFAULT TRUE - now uses template system
             template_manager: Optional TemplateManager instance for template storage
                             If None, creates one automatically
+            employee_name_map: Optional map of employee names to IDs for lookup in vertical sheets.
         """
         self.use_intelligent_mode = use_intelligent_mode
         self.template_manager = template_manager or TemplateManager()
+        self.employee_name_map = employee_name_map or {} # map[name] -> employee_id
         self.template_generator = TemplateGenerator()
 
         # Current parsing state
@@ -276,9 +278,11 @@ class SalaryStatementParser:
         
         # Process all sheets except the summary sheet (集計) and Contract (請負)
         for sheet_name in wb.sheetnames:
-            if sheet_name in ['集計', 'Summary', '目次', 'Index', '請負']:
+            # Skip only summary and index sheets. '請負' (Ukeoi) is now ALLOWED.
+            if sheet_name in ['集計', 'Summary', '目次', 'Index']:
                 print(f"[DEBUG] Skipping sheet: {sheet_name}")
-                continue  # Skip summary/index/contract sheets
+                continue
+
 
             try:
                 print(f"[DEBUG] Processing sheet: {sheet_name}")
@@ -312,33 +316,66 @@ class SalaryStatementParser:
 
     def get_parsing_stats(self) -> Dict[str, Any]:
         """
-        Get statistics about the parsing operation.
-
-        Returns:
-            Dict with parsing statistics
+        Return statistics about the parsing process.
         """
         return {
-            'templates_used': self.templates_used.copy(),
-            'templates_generated': self.templates_generated.copy(),
-            'validation_warnings': len(self.validation_warnings),
-            'fields_detected': len(self.detected_fields),
-            'allowances_detected': len(self.detected_allowances),
+            "templates_used": self.templates_used,
+            "templates_generated": self.templates_generated,
+            "validation_warnings": self.validation_warnings
         }
+
+    def _detect_layout_type(self, ws) -> str:
+        """
+        Detect whether the sheet uses Standard (horizontal) or Vertical layout.
+
+        Standard:
+        - Employee IDs in a single row (e.g., row 6)
+        - Repeats every 14 columns
+        - Headers are within the 14-col block
+
+        Vertical (Format B):
+        - Headers in Column A (Row 1-20)
+        - Month columns (e.g. 4月, 5月) in a header row
+        - Values are in the intersection of Header Row (e.g. Basic Salary) and Month Column
+        """
+        # Check for vertical layout indicators (Labels in Column A)
+        vertical_indicators = ['基本給', '残業手当', '総支給額', '差引支給額', '労働日数', '労働時間', '時間外労働']
+        col_a_values = []
+        for r in range(1, 60):
+            val = ws.cell(row=r, column=1).value
+            if val:
+                col_a_values.append(str(val).strip().replace(' ', '').replace('　', ''))
+
+        matches = sum(1 for ind in vertical_indicators if any(ind in val for val in col_a_values))
+
+        # Check for standard layout indicators (Employee IDs in row 6)
+        # We'll assume if it looks like Vertical, it is Vertical.
+        if matches >= 3:
+             return 'vertical'
+
+        return 'standard'
 
     def _parse_sheet(self, ws, sheet_name: str) -> List[PayrollRecordCreate]:
         """
-        Parse a single company sheet using templates or intelligent detection.
+        Parse a single company sheet, dispatching to correct parser.
+        """
+        # 1. Detect layout type
+        layout_type = self._detect_layout_type(ws)
+        print(f"[DEBUG] Sheet '{sheet_name}' detected layout: {layout_type}")
 
-        Flow:
-        1. Try to load existing template for this factory
-        2. If template exists and is valid → Use it
-        3. If no template → Use intelligent detection
-        4. If intelligent detection succeeds → Save template for future use
-        5. If both fail → Use hardcoded fallback positions
+        if layout_type == 'vertical':
+            return self._parse_vertical_sheet(ws, sheet_name)
+        else:
+            return self._parse_standard_sheet(ws, sheet_name)
+
+    def _parse_standard_sheet(self, ws, sheet_name: str) -> List[PayrollRecordCreate]:
+        """
+        Legacy/Standard parser logic (Moved from _parse_sheet)
         """
         records = []
         self.using_template = False
 
+        # ... (rest of the original _parse_sheet logic mostly unchanged)
         # ================================================================
         # STEP 1: Try to load existing template
         # ================================================================
@@ -358,15 +395,12 @@ class SalaryStatementParser:
             if self.use_intelligent_mode:
                 self._detect_field_positions(ws)
 
-                # Check if detection was successful (found enough fields)
+                # Check if detection was successful
                 required_fields = ['gross_salary', 'base_salary', 'work_hours']
                 found_required = sum(1 for f in required_fields if f in self.detected_fields)
                 detection_confidence = found_required / len(required_fields)
 
                 if detection_confidence >= 0.6:
-                    # ================================================================
-                    # STEP 3: Detection successful - save template
-                    # ================================================================
                     self._save_detected_template(ws, sheet_name, detection_confidence)
                     self.templates_generated.append(sheet_name)
                     print(f"  [Sheet '{sheet_name}'] Generated new template "
@@ -375,13 +409,10 @@ class SalaryStatementParser:
                     print(f"  [Sheet '{sheet_name}'] Low detection confidence "
                           f"({detection_confidence:.2f}), using fallback")
 
-            # Use default column offsets if not set by template
             if not self.current_column_offsets:
                 self.current_column_offsets = self.COLUMN_OFFSETS.copy()
 
-        # ================================================================
         # STEP 4: Detect employee column positions
-        # ================================================================
         employee_cols = self._detect_employee_columns(ws)
 
         if not employee_cols:
@@ -394,13 +425,211 @@ class SalaryStatementParser:
               f"{len(self.detected_allowances)} allowances, "
               f"mode={mode}")
 
-        # ================================================================
         # STEP 5: Extract data for each employee
-        # ================================================================
         for col_idx in employee_cols:
             record = self._extract_employee_data(ws, col_idx, sheet_name)
             if record:
                 records.append(record)
+
+        return records
+
+    def _parse_vertical_sheet(self, ws, sheet_name: str) -> List[PayrollRecordCreate]:
+        import re
+        """
+        Parse Vertical Layout (Format B) sheet.
+        """
+        print(f"[VerticalParser] Parsing sheet '{sheet_name}' using Vertical Logic")
+        records = []
+
+        # 1. Map Rows (Labels in Column A/B)
+        row_map = {}
+        header_vals = {} # To store global sheet headers like ID, Name if they are fixed
+        
+        # Scan first 60 rows for row labels
+        for r in range(1, 60):
+            # Combine Col 1 and 2 for label matching (sometimes split)
+            val1 = str(ws.cell(row=r, column=1).value or "").strip()
+            val2 = str(ws.cell(row=r, column=2).value or "").strip()
+            label = (val1 + val2).replace(' ', '').replace('　', '')
+            
+            # Map standard fields
+            for field, patterns in self.FIELD_PATTERNS.items():
+                if field in row_map: continue
+                # Match patterns
+                for p in patterns:
+                    p_norm = p.replace(' ', '').replace('　', '')
+                    if p_norm in label or label == p_norm:
+                        row_map[field] = r
+                        break
+        
+        # 2. Find Month Columns
+        # Look for cells like "4月", "5月"
+        month_cols = {}
+        month_row = None
+        
+        # Scan first 10 rows for header row
+        for r in range(1, 15):
+            months_found = 0
+            temp_month_cols = {}
+            for c in range(1, 30):
+                val = str(ws.cell(row=r, column=c).value or "").strip()
+                # row_values.append(val)
+                
+                # Regex to search for month (handles full-width numbers １-１２ and optional suffixes like 分)
+                match = re.search(r'([0-9０-９]+)月', val)
+                if match:
+                    try:
+                        # Normalize full-width to half-width
+                        m_str = match.group(1).translate(str.maketrans('０１２３４５６７８９', '0123456789'))
+                        m = int(m_str)
+                        if 1 <= m <= 12:
+                            temp_month_cols[m] = c
+                            months_found += 1
+                    except: pass
+            
+            # print(f"[DEBUG] Row {r} scan... Found {months_found} months")
+            
+            if months_found >= 3: # Found the header row
+                month_row = r
+                month_cols = temp_month_cols
+                break
+        
+        if not month_cols:
+            print(f"[VerticalParser] Could not find Month header row in '{sheet_name}'")
+            return []
+
+        # 3. Find Employee Info (Name, ID)
+        emp_name = "Unknown"
+        emp_id = "000000"
+        name_found = False
+        id_found = False
+        
+        for r in range(1, 15):
+            for c in range(1, 20):
+                val = str(ws.cell(row=r, column=c).value or "").strip()
+                if not val: continue
+                
+                # Name Detection
+                if val in ['氏名', '氏　名', '名前']:
+                    # Name is likely in next column or 2 columns over
+                    possible_name = str(ws.cell(row=r, column=c+1).value or "").strip()
+                    if not possible_name and c+2 <= 20: 
+                        possible_name = str(ws.cell(row=r, column=c+2).value or "").strip()
+                    
+                    if possible_name:
+                        emp_name = possible_name
+                        name_found = True
+                        
+                # ID Detection
+                if val in ['社員No', '社員No.', '社員番号', 'NO.', 'No.']:
+                     possible_id = str(ws.cell(row=r, column=c+1).value or "").strip()
+                     # If C+1 is empty, try C+2
+                     if not possible_id:
+                         possible_id = str(ws.cell(row=r, column=c+2).value or "").strip()
+
+                     if possible_id:
+                         emp_id = possible_id
+                         id_found = True
+
+        # 3.2 Try to find ID via Name Lookup if missing
+        if (emp_id == "000000" or not id_found) and name_found and self.employee_name_map:
+            # Try exact match
+            if emp_name in self.employee_name_map:
+                emp_id = self.employee_name_map[emp_name]
+                print(f"[VerticalParser] Resolved ID {emp_id} for name '{emp_name}' via lookup")
+            else:
+                # Try fuzzy/normalized match (remove spaces, lower case)
+                norm_name = emp_name.lower().replace(' ', '').replace('　', '')
+                for name_key, id_val in self.employee_name_map.items():
+                     if name_key.lower().replace(' ', '').replace('　', '') == norm_name:
+                         emp_id = id_val
+                         print(f"[VerticalParser] Resolved ID {emp_id} for name '{emp_name}' via fuzzy lookup")
+                         break
+
+        print(f"[VerticalParser] Found Employee: {emp_name} ({emp_id}) - detected {len(month_cols)} months")
+
+        # 4. Extract data for each month
+        for month, col in month_cols.items():
+            try:
+                # Basic check: if "Basic Salary" cell in this column is empty/zero, skip
+                if 'base_salary' in row_map:
+                    check_val = self._get_numeric(ws, row_map['base_salary'], col)
+                    # if check_val == 0: continue 
+
+                # Construct Record
+                # Year resolution: Need to know year. Use file mod time or assume current?
+                # For now assume 2024 or extract from sheet?
+                # Let's try to find Year in header
+                year = 2025 # Default updated to current/next year
+                
+                # Check for year in first few rows
+                for r in range(1, 15):
+                     for c in range(1, 40):
+                          val = str(ws.cell(row=r, column=c).value or "")
+                          if "年度" in val or ("年" in val and "月" not in val and c < 5):
+                               # import re
+                               ym = re.search(r'(\d{4})', val)
+                               if ym: year = int(ym.group(1))
+
+                # Adjust year for Jan-Mar if it's Fiscal Year
+                # Usually Jan-Mar is Year+1 of Fiscal Year start.
+                # But let's keep it simple for now using extracted year.
+                
+                period_str = f"{year}年{month}月"
+                
+                # Extract values using row_map
+                def get_val(field):
+                    if field in row_map:
+                         return self._get_numeric(ws, row_map[field], col)
+                    return 0.0
+
+                def get_hours(field):
+                    if field in row_map:
+                        # Vertical layout typically uses decimal hours in the same cell
+                        return self._get_numeric(ws, row_map[field], col)
+                    return 0.0
+
+                record = PayrollRecordCreate(
+                    employee_id=emp_id,
+                    employee_name=emp_name,
+                    period=period_str,
+                    work_days=get_val('work_days'),
+                    paid_leave_days=get_val('paid_leave_days'),
+                    absence_days=get_val('absence_days'),
+                    work_hours=get_hours('work_hours'),
+                    overtime_hours=get_hours('overtime_hours'),
+                    night_hours=get_hours('night_hours'),
+                    holiday_hours=get_hours('holiday_hours'),
+                    base_salary=get_val('base_salary'),
+                    overtime_pay=get_val('overtime_pay'),
+                    night_pay=get_val('night_pay'),
+                    holiday_pay=get_val('holiday_pay'),
+                    overtime_over_60h_pay=get_val('overtime_over_60h_pay'),
+                    transport_allowance=get_val('transport_allowance'),
+                    paid_leave_amount=get_val('paid_leave_amount'),
+                    social_insurance=get_val('social_insurance'),
+                    welfare_pension=get_val('welfare_pension'),
+                    employment_insurance=get_val('employment_insurance'),
+                    income_tax=get_val('income_tax'),
+                    resident_tax=get_val('resident_tax'),
+                    gross_salary=get_val('gross_salary'),
+                    net_salary=get_val('net_salary'),
+                    
+                    # Extra fields (need to calculate totals)
+                    non_billable_total=0.0, # Implement if needed
+                    other_allowances_total=0.0,
+                    deductions_total=get_val('deduction_total') or (get_val('social_insurance')+get_val('income_tax')), # Approx
+                    
+                    source_sheet=sheet_name
+                )
+                
+                # Filter empty records (no work days, no gross salary)
+                if record.gross_salary > 0 or record.work_days > 0:
+                     records.append(record)
+            
+            except Exception as e:
+                print(f"[VerticalParser] Error parsing month {month}: {e}")
+                continue
 
         return records
 

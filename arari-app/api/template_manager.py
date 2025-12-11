@@ -62,12 +62,20 @@ class TemplateManager:
                 detection_confidence REAL DEFAULT 0.0,
                 sample_employee_id TEXT,
                 sample_period TEXT,
+                layout_type TEXT DEFAULT 'standard',
                 is_active INTEGER DEFAULT 1,
                 created_at TEXT DEFAULT CURRENT_TIMESTAMP,
                 updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
                 notes TEXT
             )
         """)
+
+        # Migration: Add layout_type column if it doesn't exist
+        try:
+            cursor.execute("SELECT layout_type FROM factory_templates LIMIT 1")
+        except sqlite3.OperationalError:
+            print("[TemplateManager] Migrating database: Adding layout_type column")
+            cursor.execute("ALTER TABLE factory_templates ADD COLUMN layout_type TEXT DEFAULT 'standard'")
 
         # Create index for faster lookups
         cursor.execute("""
@@ -89,6 +97,7 @@ class TemplateManager:
         detection_confidence: float = 0.0,
         sample_employee_id: Optional[str] = None,
         sample_period: Optional[str] = None,
+        layout_type: str = 'standard',
         template_name: Optional[str] = None,
         notes: Optional[str] = None
     ) -> bool:
@@ -119,9 +128,9 @@ class TemplateManager:
                 INSERT INTO factory_templates (
                     factory_identifier, template_name, field_positions, column_offsets,
                     detected_allowances, non_billable_allowances, employee_column_width,
-                    detection_confidence, sample_employee_id, sample_period, notes,
+                    detection_confidence, sample_employee_id, sample_period, layout_type, notes,
                     updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(factory_identifier) DO UPDATE SET
                     template_name = excluded.template_name,
                     field_positions = excluded.field_positions,
@@ -132,6 +141,7 @@ class TemplateManager:
                     detection_confidence = excluded.detection_confidence,
                     sample_employee_id = excluded.sample_employee_id,
                     sample_period = excluded.sample_period,
+                    layout_type = excluded.layout_type,
                     notes = excluded.notes,
                     updated_at = excluded.updated_at
             """, (
@@ -145,6 +155,7 @@ class TemplateManager:
                 detection_confidence,
                 sample_employee_id,
                 sample_period,
+                layout_type,
                 notes,
                 datetime.now().isoformat()
             ))
@@ -197,6 +208,7 @@ class TemplateManager:
                 'detection_confidence': row['detection_confidence'],
                 'sample_employee_id': row['sample_employee_id'],
                 'sample_period': row['sample_period'],
+                'layout_type': row['layout_type'] if 'layout_type' in row.keys() else 'standard',
                 'created_at': row['created_at'],
                 'updated_at': row['updated_at'],
                 'notes': row['notes'],
@@ -531,6 +543,7 @@ class TemplateGenerator:
             'detection_confidence': self.confidence_score,
             'sample_employee_id': sample_emp_id,
             'sample_period': sample_period,
+            'layout_type': 'standard',  # Default for auto-generation
         }
 
         print(f"[TemplateGen] Generated template for '{sheet_name}': "
@@ -682,7 +695,9 @@ def create_template_from_excel(file_content: bytes, template_manager: TemplateMa
                     employee_column_width=template['employee_column_width'],
                     detection_confidence=template['detection_confidence'],
                     sample_employee_id=template.get('sample_employee_id'),
+
                     sample_period=template.get('sample_period'),
+                    layout_type=template.get('layout_type', 'standard'),
                 )
 
                 if success:

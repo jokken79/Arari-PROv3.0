@@ -1,0 +1,10 @@
+[DEBUG] Starting SalaryStatementParser. Sheets: ['サンプル']
+[DEBUG] Processing sheet: サンプル
+[DEBUG] Layout Detection: 5 matches found in Col A. Values sample: ['●●年賃金台帳', '賃金計算期間', '労働日数', '労働時間数', '時間外労働']
+[DEBUG] Sheet 'サンプル' detected layout: vertical
+[VerticalParser] Parsing sheet 'サンプル' using Vertical Logic
+[VerticalParser] Found Employee: Unknown (000000) - detected 12 months
+[DEBUG] Sheet 'サンプル' yielded 0 records
+[OK] Parsed 0 employee records from Excel
+Parsed 0 records.
+Sheets in file: ['サンプル']
