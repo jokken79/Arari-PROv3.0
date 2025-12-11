@@ -215,7 +215,9 @@ export default function DashboardPage() {
 
       // Calculate paid leave days effectively
       let days = r.paidLeaveDays || 0
-      if ((r.paidLeaveAmount || 0) > 0) {
+
+      // Only calculate if days is missing but amount exists (fallback)
+      if (days === 0 && (r.paidLeaveAmount || 0) > 0) {
         const employee = employees.find(e => e.employeeId === r.employeeId)
         if (employee && employee.hourlyRate > 0) {
           const dailyHrs = (r.workDays && r.workHours) ? r.workHours / r.workDays : 8
