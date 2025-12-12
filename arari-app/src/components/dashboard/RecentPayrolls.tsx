@@ -5,10 +5,11 @@ import { TrendingUp, TrendingDown, User, Calendar, AlertCircle } from 'lucide-re
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { formatYen, formatPercent } from '@/lib/utils'
-import type { PayrollRecord, Employee } from '@/types'
+import type { PayrollRecord as APIPayrollRecord } from '@/lib/api'
+import type { Employee } from '@/types'
 
 interface RecentPayrollsProps {
-  payrolls: PayrollRecord[]
+  payrolls: APIPayrollRecord[]
   employees: Employee[]
 }
 
@@ -42,18 +43,18 @@ export function RecentPayrolls({ payrolls, employees }: RecentPayrollsProps) {
         <CardContent>
           <div className="space-y-4">
             {payrolls.slice(0, 6).map((payroll, index) => {
-              const employee = getEmployee(payroll.employeeId)
-              const isPositive = payroll.grossProfit > 0
+              const employee = getEmployee(payroll.employee_id)
+              const isPositive = payroll.gross_profit > 0
 
               // Check if there's significant 有給休暇
-              const hasPaidLeave = payroll.paidLeaveDays > 0 || payroll.paidLeaveAmount > 0
-              const paidLeaveAmount = payroll.paidLeaveAmount > 0
-                ? payroll.paidLeaveAmount
-                : payroll.paidLeaveHours * (employee?.hourlyRate || 0)
+              const hasPaidLeave = (payroll.paid_leave_days || 0) > 0 || (payroll.paid_leave_amount || 0) > 0
+              const paidLeaveAmount = (payroll.paid_leave_amount || 0) > 0
+                ? (payroll.paid_leave_amount || 0)
+                : (payroll.paid_leave_hours || 0) * (employee?.hourlyRate || 0)
 
               // Calculate ratio: grossSalary vs billingAmount
-              const salaryToBillingRatio = payroll.billingAmount > 0
-                ? (payroll.grossSalary / payroll.billingAmount)
+              const salaryToBillingRatio = payroll.billing_amount > 0
+                ? (payroll.gross_salary / payroll.billing_amount)
                 : 0
               // If salary > billing by more than 50%, likely due to 有給
               const hasHighPaidLeave = salaryToBillingRatio > 1.5 && hasPaidLeave
@@ -71,7 +72,7 @@ export function RecentPayrolls({ payrolls, employees }: RecentPayrollsProps) {
                       <User className="h-5 w-5 text-white" />
                     </div>
                     <div>
-                      <p className="font-medium">{employee?.name || payroll.employeeId}</p>
+                      <p className="font-medium">{employee?.name || payroll.employee_id}</p>
                       <p className="text-sm text-muted-foreground">
                         {employee?.dispatchCompany}
                       </p>
@@ -80,7 +81,7 @@ export function RecentPayrolls({ payrolls, employees }: RecentPayrollsProps) {
                         <p className="text-xs text-amber-500 flex items-center gap-1 mt-0.5">
                           <Calendar className="h-3 w-3" />
                           {(() => {
-                            let days = payroll.paidLeaveDays
+                            let days = payroll.paid_leave_days
                             // If days are 0 but amount exists, estimate days (Amount / Hourly / 8h)
                             if (days === 0 && paidLeaveAmount > 0) {
                               const hourlyRate = employee?.hourlyRate || 0
@@ -103,11 +104,11 @@ export function RecentPayrolls({ payrolls, employees }: RecentPayrollsProps) {
                   <div className="flex items-center gap-4">
                     <div className="text-right">
                       <p className={`font-semibold ${isPositive ? 'text-emerald-500' : 'text-red-500'}`}>
-                        {formatYen(payroll.grossProfit)}
+                        {formatYen(payroll.gross_profit)}
                       </p>
                       <div className="text-sm text-muted-foreground space-y-0.5">
-                        <p>請求: {formatYen(payroll.billingAmount)}</p>
-                        <p className="text-xs">支給: {formatYen(payroll.grossSalary)}</p>
+                        <p>請求: {formatYen(payroll.billing_amount)}</p>
+                        <p className="text-xs">支給: {formatYen(payroll.gross_salary)}</p>
                       </div>
                       {/* Explanation when billing << salary */}
                       {hasHighPaidLeave && (
@@ -118,13 +119,13 @@ export function RecentPayrolls({ payrolls, employees }: RecentPayrollsProps) {
                       )}
                     </div>
 
-                    <Badge variant={getBadgeVariant(payroll.profitMargin)}>
+                    <Badge variant={getBadgeVariant(payroll.profit_margin)}>
                       {isPositive ? (
                         <TrendingUp className="w-3 h-3 mr-1" />
                       ) : (
                         <TrendingDown className="w-3 h-3 mr-1" />
                       )}
-                      {formatPercent(payroll.profitMargin)}
+                      {formatPercent(payroll.profit_margin)}
                     </Badge>
                   </div>
                 </motion.div>

@@ -85,15 +85,15 @@ def init_auth_tables(conn: sqlite3.Connection):
     """)
 
     # Create default admin user if not exists
-    cursor.execute("SELECT COUNT(*) FROM users WHERE username = 'admin'")
+    cursor.execute("SELECT COUNT(*) FROM users WHERE username = 'Admin'")
     if cursor.fetchone()[0] == 0:
-        default_password = "admin123"  # Change in production!
+        default_password = "Admin123"  # Change in production!
         password_hash = hash_password(default_password)
         cursor.execute("""
             INSERT INTO users (username, password_hash, full_name, role, email)
             VALUES (?, ?, ?, ?, ?)
-        """, ("admin", password_hash, "Administrator", "admin", "admin@arari-pro.local"))
-        print("[AUTH] Created default admin user (password: admin123)")
+        """, ("Admin", password_hash, "Administrator", "admin", "admin@arari-pro.local"))
+        print("[AUTH] Created default admin user (username: Admin, password: Admin123)")
 
     conn.commit()
 

@@ -1,13 +1,13 @@
 'use client'
 
 /**
- * LOGIN PAGE - READY BUT NOT ACTIVATED
- * =====================================
- * This page is fully functional but NOT connected to the navigation.
- * To activate:
- * 1. Add route protection middleware
- * 2. Add login link to Header or redirect from protected pages
- * 3. Integrate with auth context/store
+ * LOGIN PAGE - ACTIVATED
+ * ======================
+ * This page is now fully activated and integrated with the navigation.
+ * - Auth hook integrated (useAuth)
+ * - Route protection via AuthGuard
+ * - Login link in Header when not authenticated
+ * - Logout functionality in user dropdown menu
  *
  * Backend endpoints (already exist in auth.py):
  * - POST /api/auth/login - Login with username/password
@@ -21,6 +21,7 @@
  */
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import {
   Lock,
@@ -34,22 +35,11 @@ import {
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-
-const API_URL = 'http://localhost:8000'
-
-interface LoginResponse {
-  access_token: string
-  token_type: string
-  user: {
-    id: number
-    username: string
-    full_name: string
-    role: string
-    email: string
-  }
-}
+import { useAuth } from '@/hooks'
 
 export default function LoginPage() {
+  const router = useRouter()
+  const { login } = useAuth()
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -62,27 +52,14 @@ export default function LoginPage() {
     setError(null)
 
     try {
-      const response = await fetch(`${API_URL}/api/auth/login`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ username, password }),
-      })
+      const result = await login({ username, password })
 
-      if (!response.ok) {
-        const data = await response.json()
-        throw new Error(data.detail || 'ログインに失敗しました')
+      if (result.success) {
+        // Redirect to dashboard
+        router.push('/')
+      } else {
+        setError(result.error || 'ログインに失敗しました')
       }
-
-      const data: LoginResponse = await response.json()
-
-      // Store token in localStorage (or use a more secure method in production)
-      localStorage.setItem('auth_token', data.access_token)
-      localStorage.setItem('user', JSON.stringify(data.user))
-
-      // Redirect to dashboard
-      window.location.href = '/'
     } catch (err) {
       setError(err instanceof Error ? err.message : 'ログインに失敗しました')
     } finally {
@@ -208,9 +185,11 @@ export default function LoginPage() {
 
             {/* Info Note */}
             <div className="mt-6 p-3 rounded-lg bg-blue-50 dark:bg-blue-900/20 text-sm text-blue-700 dark:text-blue-300">
-              <p className="font-medium mb-1">開発環境</p>
+              <p className="font-medium mb-1">デフォルト認証情報</p>
               <p className="text-xs opacity-80">
-                このログインページは準備済みですが、まだ有効化されていません。
+                ユーザー名: <strong>admin</strong> / パスワード: <strong>admin123</strong>
+              </p>
+              <p className="text-xs opacity-80 mt-1">
                 本番環境で使用する前にデフォルトパスワードを変更してください。
               </p>
             </div>

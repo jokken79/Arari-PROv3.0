@@ -30,7 +30,7 @@ import { syncApi } from '@/lib/api'
 
 // API base URL - FastAPI backend (port 8000)
 import { useAppStore } from '@/store/appStore'
-const API_URL = 'http://localhost:8000'
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 
 interface InsuranceSettings {
   employment_insurance_rate: string

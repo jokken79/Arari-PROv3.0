@@ -1,16 +1,26 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import { Moon, Sun, TrendingUp, Bell, Settings, User, Menu } from 'lucide-react'
+import { Moon, Sun, TrendingUp, Bell, Settings, User, Menu, LogOut, UserCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useTheme } from '@/components/ui/theme-provider'
 import { useAppStore } from '@/store/appStore'
+import { useAuth } from '@/hooks'
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import Link from 'next/link'
 
 interface HeaderProps {
   onMenuClick?: () => void
@@ -19,12 +29,20 @@ interface HeaderProps {
 export function Header({ onMenuClick }: HeaderProps) {
   const { theme, setTheme, resolvedTheme } = useTheme()
   const { payrollRecords } = useAppStore()
+  const { user, logout, isAuthenticated } = useAuth()
+
+  // Check if auth is enabled
+  const isAuthEnabled = process.env.NEXT_PUBLIC_ENABLE_AUTH === 'true'
 
   // Count unread/pending notifications - 0 if no payroll records
   const notificationCount = payrollRecords.length > 0 ? 0 : 0
 
   const toggleTheme = () => {
     setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')
+  }
+
+  const handleLogout = async () => {
+    await logout()
   }
 
   return (
@@ -140,28 +158,91 @@ export function Header({ onMenuClick }: HeaderProps) {
             {/* Settings */}
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="text-muted-foreground hover:text-foreground hover:bg-muted"
-                  aria-label="設定を開く"
-                >
-                  <Settings className="h-5 w-5" aria-hidden="true" />
-                </Button>
+                <Link href="/settings">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="text-muted-foreground hover:text-foreground hover:bg-muted"
+                    aria-label="設定を開く"
+                  >
+                    <Settings className="h-5 w-5" aria-hidden="true" />
+                  </Button>
+                </Link>
               </TooltipTrigger>
               <TooltipContent>設定</TooltipContent>
             </Tooltip>
 
-            {/* User */}
-            <div className="hidden md:flex items-center gap-3 pl-3 ml-2 border-l border-border">
-              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-primary to-blue-600 shadow-md shadow-primary/20">
-                <User className="h-5 w-5 text-white" />
+            {/* User Menu - Only show if auth is enabled */}
+            {isAuthEnabled && (
+              <>
+                {isAuthenticated && user ? (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        className="hidden md:flex items-center gap-3 pl-3 ml-2 border-l border-border hover:bg-muted"
+                        aria-label="ユーザーメニュー"
+                      >
+                        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-primary to-blue-600 shadow-md shadow-primary/20">
+                          <User className="h-5 w-5 text-white" aria-hidden="true" />
+                        </div>
+                        <div className="hidden lg:block text-left">
+                          <p className="text-sm font-medium text-foreground">{user.full_name}</p>
+                          <p className="text-xs text-muted-foreground">{user.email}</p>
+                        </div>
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-56">
+                      <DropdownMenuLabel>
+                        <div className="flex flex-col space-y-1">
+                          <p className="text-sm font-medium leading-none">{user.full_name}</p>
+                          <p className="text-xs leading-none text-muted-foreground">{user.email}</p>
+                          <p className="text-xs leading-none text-muted-foreground mt-1">
+                            役割: {user.role === 'admin' ? '管理者' : user.role}
+                          </p>
+                        </div>
+                      </DropdownMenuLabel>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem asChild>
+                        <Link href="/settings" className="flex items-center cursor-pointer">
+                          <UserCircle className="mr-2 h-4 w-4" />
+                          <span>プロフィール設定</span>
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={handleLogout} className="flex items-center cursor-pointer text-red-600 dark:text-red-400">
+                        <LogOut className="mr-2 h-4 w-4" />
+                        <span>ログアウト</span>
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                ) : (
+                  <Link href="/login">
+                    <Button
+                      variant="ghost"
+                      className="hidden md:flex items-center gap-2 text-muted-foreground hover:text-foreground hover:bg-muted"
+                      aria-label="ログイン"
+                    >
+                      <User className="h-5 w-5" aria-hidden="true" />
+                      <span className="hidden lg:inline">ログイン</span>
+                    </Button>
+                  </Link>
+                )}
+              </>
+            )}
+
+            {/* Default User Display - Show when auth is disabled */}
+            {!isAuthEnabled && (
+              <div className="hidden md:flex items-center gap-3 pl-3 ml-2 border-l border-border">
+                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-primary to-blue-600 shadow-md shadow-primary/20">
+                  <User className="h-5 w-5 text-white" />
+                </div>
+                <div className="hidden lg:block">
+                  <p className="text-sm font-medium text-foreground">管理者</p>
+                  <p className="text-xs text-muted-foreground">admin@arari.jp</p>
+                </div>
               </div>
-              <div className="hidden lg:block">
-                <p className="text-sm font-medium text-foreground">管理者</p>
-                <p className="text-xs text-muted-foreground">admin@arari.jp</p>
-              </div>
-            </div>
+            )}
           </div>
         </div>
       </motion.header>

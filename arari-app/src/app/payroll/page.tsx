@@ -1,10 +1,10 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { Header } from '@/components/layout/Header'
 import { Sidebar } from '@/components/layout/Sidebar'
-import { useAppStore } from '@/store/appStore'
+import { useEmployees, usePayrollRecords, usePayrollPeriods } from '@/hooks'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { FileText, Users, Calendar, TrendingUp } from 'lucide-react'
@@ -12,27 +12,27 @@ import { comparePeriods } from '@/lib/utils'
 
 export default function PayrollVerificationPage() {
     const [sidebarOpen, setSidebarOpen] = useState(false)
-    const { payrollRecords, employees, availablePeriods, loadDataFromBackend } = useAppStore()
 
-    useEffect(() => {
-        loadDataFromBackend()
-    }, [loadDataFromBackend])
+    // Fetch data using TanStack Query
+    const { data: employees = [] } = useEmployees()
+    const { data: payrollRecords = [] } = usePayrollRecords()
+    const { data: availablePeriods = [] } = usePayrollPeriods()
 
     // Group records by period
     const recordsByPeriod = availablePeriods.map(period => ({
         period,
         count: payrollRecords.filter(r => r.period === period).length,
-        employees: new Set(payrollRecords.filter(r => r.period === period).map(r => r.employeeId)).size,
+        employees: new Set(payrollRecords.filter(r => r.period === period).map(r => r.employee_id)).size,
         totalBilling: payrollRecords
             .filter(r => r.period === period)
-            .reduce((sum, r) => sum + r.billingAmount, 0),
+            .reduce((sum, r) => sum + r.billing_amount, 0),
         totalProfit: payrollRecords
             .filter(r => r.period === period)
-            .reduce((sum, r) => sum + r.grossProfit, 0),
+            .reduce((sum, r) => sum + r.gross_profit, 0),
     })).sort((a, b) => comparePeriods(b.period, a.period))
 
     const totalRecords = payrollRecords.length
-    const uniqueEmployeesWithPayroll = new Set(payrollRecords.map(r => r.employeeId)).size
+    const uniqueEmployeesWithPayroll = new Set(payrollRecords.map(r => r.employee_id)).size
 
     return (
         <div className="min-h-screen bg-background">

@@ -3,6 +3,7 @@ import './globals.css'
 import { ThemeProvider } from '@/components/ui/theme-provider'
 import { ToastProvider } from '@/components/ui/toast-provider'
 import { QueryProvider } from '@/providers/QueryProvider'
+import { AuthGuard } from '@/components/auth/AuthGuard'
 
 export const metadata: Metadata = {
   title: '粗利 PRO v2.0 - 利益管理システム',
@@ -27,7 +28,9 @@ export default function RootLayout({
         </a>
         <ThemeProvider defaultTheme="dark" storageKey="arari-pro-theme">
           <QueryProvider>
-            {children}
+            <AuthGuard>
+              {children}
+            </AuthGuard>
             <ToastProvider />
           </QueryProvider>
         </ThemeProvider>

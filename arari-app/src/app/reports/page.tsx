@@ -22,7 +22,7 @@ import { Badge } from '@/components/ui/badge'
 import { useAppStore } from '@/store/appStore'
 
 // API base URL - FastAPI backend
-const API_URL = 'http://localhost:8000'
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 
 const reports = [
   {

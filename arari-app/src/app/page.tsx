@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useMemo } from 'react'
+import { useState, useMemo } from 'react'
 import { motion } from 'framer-motion'
 import {
   Users,
@@ -29,56 +29,56 @@ import { OvertimeByFactoryChart } from '@/components/charts/OvertimeByFactoryCha
 import { PaidLeaveChart } from '@/components/charts/PaidLeaveChart'
 import { RecentPayrolls } from '@/components/dashboard/RecentPayrolls'
 import { useAppStore } from '@/store/appStore'
+import { useDashboardStats } from '@/hooks'
+import { useQuery } from '@tanstack/react-query'
 import { formatYen, formatPercent, formatNumber } from '@/lib/utils'
 import { cn } from '@/lib/utils'
 
 export default function DashboardPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const [isRefreshing, setIsRefreshing] = useState(false)
   const {
-    dashboardStats,
     employees,
     payrollRecords,
     selectedPeriod,
     availablePeriods,
-    loadSampleData,
-    refreshFromBackend
   } = useAppStore()
 
-  const [targetMargin, setTargetMargin] = useState(15)
+  // Fetch dashboard stats using TanStack Query
+  const { data: dashboardStats, isLoading, error, refetch } = useDashboardStats(selectedPeriod)
 
-  useEffect(() => {
-    if (employees.length === 0) {
-      loadSampleData()
-    }
-  }, [employees.length, loadSampleData])
+  // Fetch target margin setting using TanStack Query
+  const { data: targetMarginData } = useQuery({
+    queryKey: ['settings', 'target_margin'],
+    queryFn: async () => {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+      const response = await fetch(`${apiUrl}/api/settings/target_margin`)
+      if (!response.ok) throw new Error('Failed to fetch target margin')
+      const data = await response.json()
+      return data.value ? Number(data.value) : 15
+    },
+    initialData: 15,
+  })
 
-  // Fetch target margin setting
-  useEffect(() => {
-    const fetchSettings = async () => {
-      try {
-        const response = await fetch('http://localhost:8000/api/settings/target_margin')
-        if (response.ok) {
-          const data = await response.json()
-          if (data.value) {
-            setTargetMargin(Number(data.value))
-          }
-        }
-      } catch (error) {
-        console.error('Error fetching target margin:', error)
-      }
-    }
-    fetchSettings()
-  }, [])
+  const targetMargin = targetMarginData || 15
 
   const handleRefresh = async () => {
-    setIsRefreshing(true)
-    try {
-      await refreshFromBackend()
-    } finally {
-      setIsRefreshing(false)
-    }
+    await refetch()
   }
+
+  // Transform API data (snake_case) to component data (camelCase)
+  const companySummaries = useMemo(() => {
+    if (!dashboardStats?.top_companies) return []
+    return dashboardStats.top_companies.map(company => ({
+      companyName: company.company_name,
+      employeeCount: company.employee_count,
+      averageHourlyRate: company.average_hourly_rate,
+      averageBillingRate: company.average_billing_rate,
+      averageProfit: company.average_profit,
+      averageMargin: company.average_margin,
+      totalMonthlyProfit: company.total_monthly_profit,
+      employees: [],
+    }))
+  }, [dashboardStats])
 
   // Calculate derived data for new charts
   const chartData = useMemo(() => {
@@ -257,12 +257,32 @@ export default function DashboardPage() {
     }
   }, [dashboardStats, payrollRecords, employees, selectedPeriod, availablePeriods])
 
-  if (!dashboardStats) {
+  if (isLoading) {
     return (
       <div className="flex h-screen items-center justify-center bg-background">
         <div className="text-center">
           <div className="h-16 w-16 animate-spin rounded-full border-4 border-primary border-t-transparent mx-auto mb-4" />
           <p className="text-muted-foreground">データを読み込み中...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-background">
+        <div className="text-center text-red-500">
+          <p>エラーが発生しました: {error.message}</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (!dashboardStats) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-background">
+        <div className="text-center">
+          <p className="text-muted-foreground">ダッシュボードデータがありません</p>
         </div>
       </div>
     )
@@ -307,15 +327,15 @@ export default function DashboardPage() {
             </div>
             <button
               onClick={handleRefresh}
-              disabled={isRefreshing}
+              disabled={isLoading}
               aria-label="ダッシュボードデータを更新"
               className={cn(
                 "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300",
                 "bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 border border-cyan-500/20 hover:border-cyan-500/40 hover:shadow-[0_0_15px_rgba(6,182,212,0.2)]",
-                isRefreshing && "opacity-50 cursor-not-allowed"
+                isLoading && "opacity-50 cursor-not-allowed"
               )}
             >
-              <RefreshCw className={cn("h-4 w-4", isRefreshing && "animate-spin")} aria-hidden="true" />
+              <RefreshCw className={cn("h-4 w-4", isLoading && "animate-spin")} aria-hidden="true" />
               データ更新
             </button>
           </motion.div>
@@ -349,11 +369,11 @@ export default function DashboardPage() {
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-8">
                 <StatsCard
                   title="月間粗利"
-                  value={formatYen(dashboardStats.totalMonthlyProfit)}
+                  value={formatYen(dashboardStats.total_monthly_profit)}
                   icon={TrendingUp}
                   trend={{
                     value: chartData?.previousMargin
-                      ? dashboardStats.averageMargin - chartData.previousMargin
+                      ? dashboardStats.average_margin - chartData.previousMargin
                       : 0,
                     label: '前月比'
                   }}
@@ -362,7 +382,7 @@ export default function DashboardPage() {
                 />
                 <StatsCard
                   title="月間売上"
-                  value={formatYen(dashboardStats.totalMonthlyRevenue)}
+                  value={formatYen(dashboardStats.total_monthly_revenue)}
                   icon={DollarSign}
                   subtitle={`${payrollRecords.filter(r => r.period === selectedPeriod).length}名分`}
                   variant="success"
@@ -370,15 +390,15 @@ export default function DashboardPage() {
                 />
                 <StatsCard
                   title="平均マージン率"
-                  value={formatPercent(dashboardStats.averageMargin)}
+                  value={formatPercent(dashboardStats.average_margin)}
                   icon={Percent}
-                  subtitle={dashboardStats.averageMargin >= targetMargin ? '目標達成' : `目標: ${targetMargin}%`}
-                  variant={dashboardStats.averageMargin >= targetMargin ? 'success' : 'warning'}
+                  subtitle={dashboardStats.average_margin >= targetMargin ? '目標達成' : `目標: ${targetMargin}%`}
+                  variant={dashboardStats.average_margin >= targetMargin ? 'success' : 'warning'}
                   delay={2}
                 />
                 <StatsCard
                   title="会社負担コスト"
-                  value={formatYen(dashboardStats.totalMonthlyCost)}
+                  value={formatYen(dashboardStats.total_monthly_cost)}
                   icon={Wallet}
                   subtitle="社保・雇用保険・労災含む"
                   variant="default"
@@ -396,13 +416,13 @@ export default function DashboardPage() {
                 />
                 <StatsCard
                   title="派遣先企業数"
-                  value={`${dashboardStats.totalCompanies}社`}
+                  value={`${dashboardStats.total_companies}社`}
                   icon={Building2}
                   delay={5}
                 />
                 <StatsCard
                   title="平均粗利/人"
-                  value={formatYen(dashboardStats.averageProfit)}
+                  value={formatYen(dashboardStats.average_profit)}
                   icon={BadgeJapaneseYen}
                   delay={6}
                 />
@@ -417,14 +437,14 @@ export default function DashboardPage() {
               {/* Margin Gauge + Hours Breakdown Row */}
               <div className="grid gap-6 lg:grid-cols-3 mb-6">
                 <MarginGaugeChart
-                  currentMargin={dashboardStats.averageMargin}
+                  currentMargin={dashboardStats.average_margin}
                   targetMargin={targetMargin}
                   previousMargin={chartData?.previousMargin}
                 />
                 {chartData && (
                   <HoursBreakdownChart data={chartData.hoursData} />
                 )}
-                <ProfitDistributionChart data={dashboardStats.profitDistribution} />
+                <ProfitDistributionChart data={dashboardStats.profit_distribution} />
               </div>
 
               {/* Employee Ranking - Full Width */}
@@ -433,7 +453,7 @@ export default function DashboardPage() {
                   <EmployeeRankingChart
                     topPerformers={chartData.topPerformers}
                     bottomPerformers={chartData.bottomPerformers}
-                    averageProfit={dashboardStats.averageProfit}
+                    averageProfit={dashboardStats.average_profit}
                   />
                 </div>
               )}
@@ -461,13 +481,13 @@ export default function DashboardPage() {
 
               {/* Profit Trend + Company Profit */}
               <div className="grid gap-6 lg:grid-cols-2 mb-6">
-                <ProfitTrendChart data={dashboardStats.profitTrend} />
-                <CompanyProfitChart data={dashboardStats.topCompanies} />
+                <ProfitTrendChart data={dashboardStats.profit_trend} />
+                <CompanyProfitChart data={companySummaries} />
               </div>
 
               {/* Recent Payrolls */}
               <RecentPayrolls
-                payrolls={dashboardStats.recentPayrolls}
+                payrolls={dashboardStats.recent_payrolls}
                 employees={employees}
               />
             </>

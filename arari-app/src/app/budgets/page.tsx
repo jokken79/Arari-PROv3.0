@@ -25,7 +25,7 @@ import { Input } from '@/components/ui/input'
 import { formatYen, formatPercent } from '@/lib/utils'
 import { useAppStore } from '@/store/appStore'
 
-const API_URL = 'http://localhost:8000'
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 
 interface Budget {
   id: number

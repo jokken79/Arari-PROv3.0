@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useMemo } from 'react'
+import { useState, useMemo } from 'react'
 import { motion } from 'framer-motion'
 import { Building2, Users, TrendingUp, Percent } from 'lucide-react'
 import { Header } from '@/components/layout/Header'
@@ -8,25 +8,17 @@ import { Sidebar } from '@/components/layout/Sidebar'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
-import { useAppStore } from '@/store/appStore'
+import { useEmployees, usePayrollRecords } from '@/hooks'
 import { formatYen, formatPercent, getProfitBgColor } from '@/lib/utils'
 
 export default function CompaniesPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const [isLoading, setIsLoading] = useState(true)
-  const { employees, payrollRecords, refreshFromBackend } = useAppStore()
 
-  useEffect(() => {
-    const loadData = async () => {
-      setIsLoading(true)
-      try {
-        await refreshFromBackend()
-      } finally {
-        setIsLoading(false)
-      }
-    }
-    loadData()
-  }, [refreshFromBackend])
+  // Fetch data using TanStack Query
+  const { data: employees = [], isLoading: employeesLoading } = useEmployees()
+  const { data: payrollRecords = [], isLoading: payrollLoading } = usePayrollRecords()
+
+  const isLoading = employeesLoading || payrollLoading
 
   const companySummaries = useMemo(() => {
     const companyMap = new Map<string, {
@@ -37,12 +29,12 @@ export default function CompaniesPage() {
     }>()
 
     employees.forEach(emp => {
-      const existing = companyMap.get(emp.dispatchCompany)
+      const existing = companyMap.get(emp.dispatch_company)
       if (existing) {
         existing.employees.push(emp)
       } else {
-        companyMap.set(emp.dispatchCompany, {
-          name: emp.dispatchCompany,
+        companyMap.set(emp.dispatch_company, {
+          name: emp.dispatch_company,
           employees: [emp],
           totalProfit: 0,
           totalRevenue: 0,
@@ -58,10 +50,10 @@ export default function CompaniesPage() {
     // Calculate totals for each company
     companyMap.forEach((company, key) => {
       const companyRecords = latestRecords.filter(r =>
-        company.employees.some(e => e.employeeId === r.employeeId)
+        company.employees.some(e => e.employee_id === r.employee_id)
       )
-      company.totalProfit = companyRecords.reduce((sum, r) => sum + r.grossProfit, 0)
-      company.totalRevenue = companyRecords.reduce((sum, r) => sum + r.billingAmount, 0)
+      company.totalProfit = companyRecords.reduce((sum, r) => sum + r.gross_profit, 0)
+      company.totalRevenue = companyRecords.reduce((sum, r) => sum + r.billing_amount, 0)
     })
 
     return Array.from(companyMap.values())
@@ -69,13 +61,13 @@ export default function CompaniesPage() {
         // Only count employees that have payroll records in the latest period
         const activeEmployeeIds = new Set(
           latestRecords
-            .filter(r => company.employees.some(e => e.employeeId === r.employeeId))
-            .map(r => r.employeeId)
+            .filter(r => company.employees.some(e => e.employee_id === r.employee_id))
+            .map(r => r.employee_id)
         )
         const activeEmployeeCount = activeEmployeeIds.size
 
-        const avgHourlyRate = company.employees.reduce((sum, e) => sum + e.hourlyRate, 0) / company.employees.length
-        const avgBillingRate = company.employees.reduce((sum, e) => sum + e.billingRate, 0) / company.employees.length
+        const avgHourlyRate = company.employees.reduce((sum, e) => sum + e.hourly_rate, 0) / company.employees.length
+        const avgBillingRate = company.employees.reduce((sum, e) => sum + e.billing_rate, 0) / company.employees.length
         const avgProfit = avgBillingRate - avgHourlyRate
         const avgMargin = avgBillingRate > 0 ? (avgProfit / avgBillingRate) * 100 : 0
 

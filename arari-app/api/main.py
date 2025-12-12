@@ -3,6 +3,10 @@
 FastAPI + SQLite backend for profit management system
 """
 
+# Load environment variables from .env file
+from dotenv import load_dotenv
+load_dotenv()
+
 from fastapi import FastAPI, UploadFile, File, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -19,6 +23,10 @@ from employee_parser import DBGenzaiXParser
 from template_manager import TemplateManager, create_template_from_excel
 from typing import List, Optional
 import sqlite3
+from datetime import datetime
+from io import BytesIO
+from pathlib import Path
+from fastapi.responses import Response
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -667,112 +675,7 @@ async def sync_from_folder(
     })
 
 
-# ============== EMPLOYEE IMPORT ==============
-
-@app.post("/api/import-employees")
-async def import_employees(
-    file: UploadFile = File(...),
-    db: sqlite3.Connection = Depends(get_db)
-):
-    """Import employees from Excel file with DBGenzaiX sheet"""
-
-    try:
-        # Validate file extension
-        filename = file.filename or ""
-        ext = filename.split('.')[-1].lower()
-        if ext not in ['xls', 'xlsm']:
-            raise HTTPException(status_code=400, detail="Solo se aceptan archivos .xls o .xlsm")
-
-        # Save file temporarily
-        with tempfile.NamedTemporaryFile(suffix=f".{ext}", delete=False) as tmp:
-            contents = await file.read()
-            tmp.write(contents)
-            tmp_path = tmp.name
-
-        try:
-            # Parse employees from Excel
-            parser = DBGenzaiXParser()
-            from fastapi.concurrency import run_in_threadpool
-            employees, stats = await run_in_threadpool(parser.parse_employees, tmp_path)
-
-            if parser.errors:
-                return JSONResponse(
-                    status_code=400,
-                    content={
-                        "status": "error",
-                        "message": parser.errors[0],
-                        "errors": parser.errors
-                    }
-                )
-
-            # Insert/update employees in database
-            cursor = db.cursor()
-            added = 0
-            updated = 0
-
-            for emp in employees:
-                try:
-                    # Check if employee already exists
-                    cursor.execute(
-                        "SELECT id FROM employees WHERE employee_id = ?",
-                        (emp.employee_id,)
-                    )
-                    existing = cursor.fetchone()
-
-                    # Insert or replace
-                    cursor.execute("""
-                        INSERT OR REPLACE INTO employees
-                        (employee_id, name, name_kana, dispatch_company, department,
-                         hourly_rate, billing_rate, status, hire_date, employee_type,
-                         gender, birth_date, termination_date, created_at, updated_at)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
-                    """, (
-                        emp.employee_id, emp.name, emp.name_kana, emp.dispatch_company, emp.department,
-                        emp.hourly_rate, emp.billing_rate, emp.status, emp.hire_date, emp.employee_type,
-                        emp.gender, emp.birth_date, emp.termination_date
-                    ))
-
-                    if existing:
-                        updated += 1
-                    else:
-                        added += 1
-                except Exception as e:
-                    print(f"Error inserting employee {emp.employee_id}: {e}")
-
-            db.commit()
-
-            # Get total employees count
-            cursor.execute("SELECT COUNT(*) FROM employees")
-            total_count = cursor.fetchone()[0]
-
-            return JSONResponse(
-                status_code=200,
-                content={
-                    "status": "success",
-                    "employees_added": added,
-                    "employees_updated": updated,
-                    "employees_skipped": stats['rows_skipped'],
-                    "total_employees": total_count,
-                    "message": f"Importación completada: {added} nuevos, {updated} actualizados"
-                }
-            )
-
-        finally:
-            # Clean up temporary file
-            if os.path.exists(tmp_path):
-                os.remove(tmp_path)
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        return JSONResponse(
-            status_code=500,
-            content={
-                "status": "error",
-                "message": f"Error al importar empleados: {str(e)}",
-                "errors": [str(e)]
-            }
-        )
+# NOTE: Duplicate endpoint removed - using /api/import-employees defined at line ~216
 
 # ============== SETTINGS ==============
 
