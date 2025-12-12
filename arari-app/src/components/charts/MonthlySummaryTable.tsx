@@ -1,5 +1,6 @@
 'use client'
 
+import { useMemo } from 'react'
 import { motion } from 'framer-motion'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { formatYen, formatPercent, cn } from '@/lib/utils'
@@ -21,30 +22,45 @@ interface MonthlySummaryTableProps {
 
 export function MonthlySummaryTable({ data }: MonthlySummaryTableProps) {
   const { settings } = useAppStore()
-  // Sort data descending by date (YYYY年M月 -> YYYYMM)
-  // This fixes the issue where "2025年10月" appears after "2025年1月" in string sort
-  const sortedData = [...data].sort((a, b) => {
-    const getNumericValue = (period: string) => {
-      const match = period.match(/(\d{4})年(\d{1,2})月/);
-      if (!match) return 0;
-      const year = parseInt(match[1]);
-      const month = parseInt(match[2]);
-      return year * 100 + month;
-    };
-    return getNumericValue(b.period) - getNumericValue(a.period);
-  });
 
-  // Calculate month-over-month changes
-  const dataWithChanges = sortedData.map((item, index) => {
-    const prevItem = sortedData[index + 1] // Previous month (older)
-    return {
-      ...item,
-      revenueChange: prevItem ? ((item.revenue - prevItem.revenue) / prevItem.revenue) * 100 : null,
-      costChange: prevItem ? ((item.cost - prevItem.cost) / prevItem.cost) * 100 : null,
-      profitChange: prevItem ? ((item.profit - prevItem.profit) / prevItem.profit) * 100 : null,
-      marginChange: prevItem ? item.margin - prevItem.margin : null,
+  // Memoize sorted data and month-over-month changes
+  const { dataWithChanges, totals } = useMemo(() => {
+    // Sort data descending by date (YYYY年M月 -> YYYYMM)
+    // This fixes the issue where "2025年10月" appears after "2025年1月" in string sort
+    const sortedData = [...data].sort((a, b) => {
+      const getNumericValue = (period: string) => {
+        const match = period.match(/(\d{4})年(\d{1,2})月/);
+        if (!match) return 0;
+        const year = parseInt(match[1]);
+        const month = parseInt(match[2]);
+        return year * 100 + month;
+      };
+      return getNumericValue(b.period) - getNumericValue(a.period);
+    });
+
+    // Calculate month-over-month changes
+    const dataWithChanges = sortedData.map((item, index) => {
+      const prevItem = sortedData[index + 1] // Previous month (older)
+      return {
+        ...item,
+        revenueChange: prevItem ? ((item.revenue - prevItem.revenue) / prevItem.revenue) * 100 : null,
+        costChange: prevItem ? ((item.cost - prevItem.cost) / prevItem.cost) * 100 : null,
+        profitChange: prevItem ? ((item.profit - prevItem.profit) / prevItem.profit) * 100 : null,
+        marginChange: prevItem ? item.margin - prevItem.margin : null,
+      }
+    })
+
+    // Calculate totals/averages
+    const totals = {
+      revenue: data.reduce((sum, d) => sum + d.revenue, 0),
+      cost: data.reduce((sum, d) => sum + d.cost, 0),
+      profit: data.reduce((sum, d) => sum + d.profit, 0),
+      avgMargin: data.length > 0 ? data.reduce((sum, d) => sum + d.margin, 0) / data.length : 0,
+      avgEmployees: data.length > 0 ? Math.round(data.reduce((sum, d) => sum + d.employeeCount, 0) / data.length) : 0
     }
-  })
+
+    return { dataWithChanges, totals }
+  }, [data])
 
   const ChangeIndicator = ({ value, type = 'positive' }: { value: number | null, type?: 'positive' | 'negative' }) => {
     if (value === null) return <span className="text-muted-foreground text-xs">-</span>
@@ -184,27 +200,22 @@ export function MonthlySummaryTable({ data }: MonthlySummaryTableProps) {
                 <tr className="bg-muted/30 font-bold">
                   <td className="py-3 px-2">合計/平均</td>
                   <td className="text-right py-3 px-2 font-mono text-blue-500">
-                    {formatYen(data.reduce((sum, d) => sum + d.revenue, 0))}
+                    {formatYen(totals.revenue)}
                   </td>
                   <td></td>
                   <td className="text-right py-3 px-2 font-mono text-orange-500">
-                    {formatYen(data.reduce((sum, d) => sum + d.cost, 0))}
+                    {formatYen(totals.cost)}
                   </td>
                   <td></td>
                   <td className="text-right py-3 px-2 font-mono text-emerald-500">
-                    {formatYen(data.reduce((sum, d) => sum + d.profit, 0))}
+                    {formatYen(totals.profit)}
                   </td>
                   <td></td>
                   <td className="text-center py-3 px-2">
-                    <MarginBadge margin={data.length > 0
-                      ? data.reduce((sum, d) => sum + d.margin, 0) / data.length
-                      : 0
-                    } />
+                    <MarginBadge margin={totals.avgMargin} />
                   </td>
                   <td className="text-right py-3 px-2 text-muted-foreground">
-                    {data.length > 0
-                      ? Math.round(data.reduce((sum, d) => sum + d.employeeCount, 0) / data.length)
-                      : 0}名
+                    {totals.avgEmployees}名
                   </td>
                 </tr>
               </tfoot>

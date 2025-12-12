@@ -25,8 +25,8 @@ import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
 
-// API base URL
-const API_URL = 'http://localhost:8765'
+// API base URL - FastAPI backend
+const API_URL = 'http://localhost:8000'
 
 interface Template {
   id: number
@@ -241,8 +241,8 @@ export default function TemplatesPage() {
                 </p>
               </div>
               <div className="flex gap-2">
-                <Button variant="outline" onClick={fetchTemplates} disabled={isLoading}>
-                  <RefreshCw className={cn("h-4 w-4 mr-2", isLoading && "animate-spin")} />
+                <Button variant="outline" onClick={fetchTemplates} disabled={isLoading} aria-label="テンプレート一覧を更新">
+                  <RefreshCw className={cn("h-4 w-4 mr-2", isLoading && "animate-spin")} aria-hidden="true" />
                   更新
                 </Button>
                 <label>
@@ -252,6 +252,7 @@ export default function TemplatesPage() {
                     onChange={handleAnalyzeFile}
                     className="hidden"
                     disabled={isAnalyzing}
+                    aria-label="Excelファイルを選択してテンプレートを生成"
                   />
                   <Button asChild disabled={isAnalyzing}>
                     <span>
@@ -426,8 +427,9 @@ export default function TemplatesPage() {
                               e.stopPropagation()
                               handleDelete(template.factory_identifier)
                             }}
+                            aria-label={`${template.template_name}テンプレートを削除`}
                           >
-                            <Trash2 className="h-4 w-4 text-red-500" />
+                            <Trash2 className="h-4 w-4 text-red-500" aria-hidden="true" />
                           </Button>
                         </div>
                       </div>
@@ -547,8 +549,9 @@ export default function TemplatesPage() {
                                         navigator.clipboard.writeText(JSON.stringify(detail, null, 2))
                                         alert('JSONをコピーしました')
                                       }}
+                                      aria-label="テンプレートJSONをクリップボードにコピー"
                                     >
-                                      <Copy className="h-4 w-4 mr-2" />
+                                      <Copy className="h-4 w-4 mr-2" aria-hidden="true" />
                                       JSONをコピー
                                     </Button>
                                   </div>

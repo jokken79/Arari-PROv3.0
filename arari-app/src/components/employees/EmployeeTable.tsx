@@ -186,6 +186,7 @@ export function EmployeeTable({
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="pl-9 w-64"
+                aria-label="従業員を検索"
               />
             </div>
 
@@ -196,6 +197,7 @@ export function EmployeeTable({
                 setSelectedCompany('all')
               }}
               className="px-3 py-2 rounded-md border border-input bg-background text-sm"
+              aria-label="従業員タイプでフィルター"
             >
               <option value="haken">派遣社員のみ</option>
               <option value="ukeoi">請負社員のみ</option>
@@ -207,6 +209,7 @@ export function EmployeeTable({
                 value={selectedCompany}
                 onChange={(e) => setSelectedCompany(e.target.value)}
                 className="px-3 py-2 rounded-md border border-input bg-background text-sm"
+                aria-label="派遣先企業でフィルター"
               >
                 <option value="all">全企業</option>
                 {availableCompanies.map((company) => (
@@ -233,14 +236,16 @@ export function EmployeeTable({
       <CardContent>
         <div className="rounded-lg border overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full">
+            <table className="w-full" role="table" aria-label="従業員一覧">
               <thead>
                 <tr className="border-b bg-muted/50">
                   {columns.map((col) => (
                     <th
                       key={col.key}
+                      scope="col"
                       className={`${col.width} px-4 py-3 text-left text-sm font-medium text-muted-foreground cursor-pointer hover:bg-muted transition-colors`}
                       onClick={() => handleSort(col.key)}
+                      aria-label={`${col.label}でソート`}
                     >
                       <div className="flex items-center gap-1">
                         {col.label}
@@ -248,7 +253,7 @@ export function EmployeeTable({
                       </div>
                     </th>
                   ))}
-                  <th className="w-20 px-4 py-3 text-right text-sm font-medium text-muted-foreground">
+                  <th scope="col" className="w-20 px-4 py-3 text-right text-sm font-medium text-muted-foreground">
                     操作
                   </th>
                 </tr>
@@ -307,8 +312,9 @@ export function EmployeeTable({
                                 e.stopPropagation()
                                 onView?.(employee)
                               }}
+                              aria-label={`${employee.name}の詳細を表示`}
                             >
-                              <Eye className="h-4 w-4" />
+                              <Eye className="h-4 w-4" aria-hidden="true" />
                             </Button>
                             <Button
                               variant="ghost"
@@ -318,8 +324,9 @@ export function EmployeeTable({
                                 e.stopPropagation()
                                 onEdit?.(employee)
                               }}
+                              aria-label={`${employee.name}を編集`}
                             >
-                              <Edit className="h-4 w-4" />
+                              <Edit className="h-4 w-4" aria-hidden="true" />
                             </Button>
                             <Button
                               variant="ghost"
@@ -329,8 +336,9 @@ export function EmployeeTable({
                                 e.stopPropagation()
                                 onDelete?.(employee)
                               }}
+                              aria-label={`${employee.name}を削除`}
                             >
-                              <Trash2 className="h-4 w-4" />
+                              <Trash2 className="h-4 w-4" aria-hidden="true" />
                             </Button>
                           </div>
                         </td>

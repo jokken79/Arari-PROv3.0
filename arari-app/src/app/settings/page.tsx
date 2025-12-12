@@ -28,10 +28,9 @@ import { useTheme } from '@/components/ui/theme-provider'
 import { cn } from '@/lib/utils'
 import { syncApi } from '@/lib/api'
 
-// API base URL
+// API base URL - FastAPI backend (port 8000)
 import { useAppStore } from '@/store/appStore'
-// API base URL - Force localhost:8765 for this environment
-const API_URL = 'http://localhost:8765'
+const API_URL = 'http://localhost:8000'
 
 interface InsuranceSettings {
   employment_insurance_rate: string
@@ -203,6 +202,8 @@ export default function SettingsPage() {
                         <motion.button
                           key={option.value}
                           onClick={() => setTheme(option.value as any)}
+                          aria-label={`テーマを${option.label}に変更`}
+                          aria-pressed={isActive}
                           className={cn(
                             'flex flex-col items-center gap-3 p-4 rounded-xl border-2 transition-all',
                             isActive
@@ -315,6 +316,7 @@ export default function SettingsPage() {
                           fiscal_year: e.target.value
                         }))}
                         className="w-24 text-center"
+                        aria-label="適用年度"
                       />
                       <span className="text-sm text-muted-foreground">年度</span>
                     </div>
@@ -338,6 +340,7 @@ export default function SettingsPage() {
                           employment_insurance_rate: e.target.value
                         }))}
                         className="w-28 text-center"
+                        aria-label="雇用保険率（会社負担）"
                       />
                       <span className="text-sm text-muted-foreground">
                         ({(parseFloat(insuranceSettings.employment_insurance_rate) * 100).toFixed(2)}%)
@@ -363,6 +366,7 @@ export default function SettingsPage() {
                           workers_comp_rate: e.target.value
                         }))}
                         className="w-28 text-center"
+                        aria-label="労災保険率（会社負担）"
                       />
                       <span className="text-sm text-muted-foreground">
                         ({(parseFloat(insuranceSettings.workers_comp_rate) * 100).toFixed(2)}%)
@@ -388,6 +392,7 @@ export default function SettingsPage() {
                           target_margin: e.target.value
                         }))}
                         className="w-20 text-center"
+                        aria-label="目標マージン率（パーセント）"
                       />
                       <span className="text-sm text-muted-foreground">%</span>
                     </div>
@@ -401,8 +406,9 @@ export default function SettingsPage() {
                         onClick={handleSaveInsurance}
                         disabled={isSavingInsurance}
                         className="gap-2"
+                        aria-label="保険料率設定を保存"
                       >
-                        <Save className={cn("h-4 w-4", isSavingInsurance && "animate-spin")} />
+                        <Save className={cn("h-4 w-4", isSavingInsurance && "animate-spin")} aria-hidden="true" />
                         {isSavingInsurance ? '保存中...' : '設定を保存'}
                       </Button>
                     </div>
@@ -521,6 +527,7 @@ export default function SettingsPage() {
                       <Button
                         variant="outline"
                         className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                        aria-label="すべてのデータを削除"
                         onClick={async () => {
                           if (!confirm('本当にすべてのデータを削除しますか？\nこの操作は取り消せません。\n\nAre you sure you want to delete ALL data? This cannot be undone.')) {
                             return

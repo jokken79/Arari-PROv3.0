@@ -120,13 +120,14 @@ export default function MonthlyPage() {
             <button
               onClick={handleRefresh}
               disabled={isRefreshing}
+              aria-label="月次データを更新"
               className={cn(
                 "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all",
                 "bg-primary/10 hover:bg-primary/20 text-primary border border-primary/20",
                 isRefreshing && "opacity-50 cursor-not-allowed"
               )}
             >
-              <RefreshCw className={cn("h-4 w-4", isRefreshing && "animate-spin")} />
+              <RefreshCw className={cn("h-4 w-4", isRefreshing && "animate-spin")} aria-hidden="true" />
               データ更新
             </button>
           </motion.div>
@@ -148,6 +149,7 @@ export default function MonthlyPage() {
               </p>
               <a
                 href="/upload"
+                aria-label="給与明細ファイルをアップロード"
                 className="px-6 py-3 rounded-lg bg-primary text-primary-foreground font-medium hover:bg-primary/90 transition-colors"
               >
                 ファイルをアップロード

@@ -117,8 +117,10 @@ class PayrollService:
         """Create a new employee"""
         cursor = self.db.cursor()
         cursor.execute("""
-            INSERT INTO employees (employee_id, name, name_kana, dispatch_company, department, hourly_rate, billing_rate, status, hire_date)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO employees (employee_id, name, name_kana, dispatch_company, department,
+                                   hourly_rate, billing_rate, status, hire_date,
+                                   employee_type, gender, birth_date, termination_date)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             employee.employee_id,
             employee.name,
@@ -128,7 +130,11 @@ class PayrollService:
             employee.hourly_rate,
             employee.billing_rate,
             employee.status,
-            employee.hire_date
+            employee.hire_date,
+            getattr(employee, 'employee_type', 'haken'),
+            getattr(employee, 'gender', None),
+            getattr(employee, 'birth_date', None),
+            getattr(employee, 'termination_date', None),
         ))
         self.db.commit()
         return self.get_employee(employee.employee_id)
@@ -140,6 +146,7 @@ class PayrollService:
             UPDATE employees
             SET name = ?, name_kana = ?, dispatch_company = ?, department = ?,
                 hourly_rate = ?, billing_rate = ?, status = ?, hire_date = ?,
+                employee_type = ?, gender = ?, birth_date = ?, termination_date = ?,
                 updated_at = CURRENT_TIMESTAMP
             WHERE employee_id = ?
         """, (
@@ -151,6 +158,10 @@ class PayrollService:
             employee.billing_rate,
             employee.status,
             employee.hire_date,
+            getattr(employee, 'employee_type', 'haken'),
+            getattr(employee, 'gender', None),
+            getattr(employee, 'birth_date', None),
+            getattr(employee, 'termination_date', None),
             employee_id
         ))
         self.db.commit()
@@ -509,14 +520,21 @@ class PayrollService:
         }
 
     def _calculate_profit_distribution(self, period: str) -> List[Dict]:
-        """Calculate profit distribution for a period"""
+        """Calculate profit distribution for a period
+
+        Ranges are based on 製造派遣 target margin of 15%:
+        - <10%: Critical (赤字リスク)
+        - 10-15%: Below target (要改善)
+        - 15-18%: On target (目標達成)
+        - >18%: Excellent (優良)
+        """
         cursor = self.db.cursor()
 
         ranges = [
-            ("<3%", -999999999, 3),
-            ("3-7%", 3, 7),
-            ("7-10%", 7, 10),
-            (">10%", 10, 999999999),
+            ("<10%", -999999999, 10),    # Critical - below break-even risk
+            ("10-15%", 10, 15),          # Below target - needs improvement
+            ("15-18%", 15, 18),          # On target - good
+            (">18%", 18, 999999999),     # Excellent - very profitable
         ]
 
         cursor.execute("SELECT COUNT(*) FROM payroll_records WHERE period = ?", (period,))

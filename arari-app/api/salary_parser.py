@@ -501,13 +501,6 @@ class SalaryStatementParser:
                 # Normalize label by removing ALL spaces (both ASCII and full-width)
                 label_normalized = label.replace(' ', '').replace('　', '')
 
-                # DEBUG LOGGING
-                try:
-                    with open("d:\\Arari-PRO\\debug_headers.log", "a", encoding="utf-8") as f:
-                        f.write(f"Line {row} Col {col}: {label} → {label_normalized}\n")
-                except:
-                    pass
-
                 # Check against known field patterns (using normalized label)
                 # IMPORTANTE: Usar matching EXACTO para evitar confusiones
                 # Por ejemplo: '残業' no debe matchear '残業手当' (que es YEN, no horas)

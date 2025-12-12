@@ -57,7 +57,7 @@ export default function DashboardPage() {
   useEffect(() => {
     const fetchSettings = async () => {
       try {
-        const response = await fetch('http://localhost:8765/api/settings/target_margin')
+        const response = await fetch('http://localhost:8000/api/settings/target_margin')
         if (response.ok) {
           const data = await response.json()
           if (data.value) {
@@ -308,13 +308,14 @@ export default function DashboardPage() {
             <button
               onClick={handleRefresh}
               disabled={isRefreshing}
+              aria-label="ダッシュボードデータを更新"
               className={cn(
                 "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300",
                 "bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 border border-cyan-500/20 hover:border-cyan-500/40 hover:shadow-[0_0_15px_rgba(6,182,212,0.2)]",
                 isRefreshing && "opacity-50 cursor-not-allowed"
               )}
             >
-              <RefreshCw className={cn("h-4 w-4", isRefreshing && "animate-spin")} />
+              <RefreshCw className={cn("h-4 w-4", isRefreshing && "animate-spin")} aria-hidden="true" />
               データ更新
             </button>
           </motion.div>
@@ -336,6 +337,7 @@ export default function DashboardPage() {
               </p>
               <a
                 href="/upload"
+                aria-label="給与明細ファイルをアップロード"
                 className="px-6 py-3 rounded-lg bg-primary text-primary-foreground font-medium hover:bg-primary/90 transition-colors"
               >
                 ファイルをアップロード

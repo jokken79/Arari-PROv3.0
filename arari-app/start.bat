@@ -7,9 +7,9 @@ echo    粗利 PRO v2.0 - Starting...
 echo ========================================
 echo.
 
-:: Puertos no comunes para evitar conflictos
-set BACKEND_PORT=8765
-set FRONTEND_PORT=4321
+:: Puertos estándar del proyecto
+set BACKEND_PORT=8000
+set FRONTEND_PORT=3000
 
 echo [CONFIG] Backend Port:  %BACKEND_PORT%
 echo [CONFIG] Frontend Port: %FRONTEND_PORT%
@@ -52,7 +52,7 @@ if not exist "node_modules" (
 
 echo.
 echo [INFO] Starting Backend (FastAPI) on port %BACKEND_PORT%...
-start "Arari Backend" cmd /k "cd api && python -c "import uvicorn; uvicorn.run('main:app', host='0.0.0.0', port=%BACKEND_PORT%, reload=True)""
+start "Arari Backend" cmd /k "cd api && python -m uvicorn main:app --reload --host 0.0.0.0 --port %BACKEND_PORT%"
 
 :: Wait a moment for backend to start
 timeout /t 3 /nobreak >nul

@@ -146,6 +146,7 @@ export default function CompaniesPage() {
               </p>
               <a
                 href="/upload"
+                aria-label="給与明細ファイルをアップロード"
                 className="px-6 py-3 rounded-lg bg-primary text-primary-foreground font-medium hover:bg-primary/90 transition-colors"
               >
                 ファイルをアップロード
@@ -163,6 +164,9 @@ export default function CompaniesPage() {
                 <Card
                   className="overflow-hidden hover:shadow-lg transition-shadow cursor-pointer"
                   onClick={() => window.location.href = `/companies/${encodeURIComponent(company.name)}`}
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`${company.name}の詳細を表示`}
                 >
                   <CardContent className="p-6">
                     <div className="flex flex-col lg:flex-row lg:items-center gap-6">

@@ -1,6 +1,8 @@
 import type { Metadata } from 'next'
 import './globals.css'
 import { ThemeProvider } from '@/components/ui/theme-provider'
+import { ToastProvider } from '@/components/ui/toast-provider'
+import { QueryProvider } from '@/providers/QueryProvider'
 
 export const metadata: Metadata = {
   title: '粗利 PRO v2.0 - 利益管理システム',
@@ -16,8 +18,18 @@ export default function RootLayout({
   return (
     <html lang="ja" suppressHydrationWarning>
       <body className="font-sans antialiased">
+        {/* Skip to main content link for accessibility */}
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-[100] focus:px-4 focus:py-2 focus:bg-primary focus:text-primary-foreground focus:rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
+        >
+          メインコンテンツへスキップ
+        </a>
         <ThemeProvider defaultTheme="dark" storageKey="arari-pro-theme">
-          {children}
+          <QueryProvider>
+            {children}
+            <ToastProvider />
+          </QueryProvider>
         </ThemeProvider>
       </body>
     </html>

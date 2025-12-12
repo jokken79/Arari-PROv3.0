@@ -1,13 +1,15 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { Header } from '@/components/layout/Header'
 import { Sidebar } from '@/components/layout/Sidebar'
 import { EmployeeTable } from '@/components/employees/EmployeeTable'
-import { useAppStore } from '@/store/appStore'
-import type { Employee } from '@/types'
+import { useEmployees } from '@/hooks/useEmployees'
+import type { Employee as BackendEmployee } from '@/lib/api'
+import type { Employee as FrontendEmployee } from '@/types'
+import toast from 'react-hot-toast'
 
 export default function EmployeesPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -17,25 +19,32 @@ export default function EmployeesPage() {
   const sortParam = searchParams.get('sort')
   const orderParam = searchParams.get('order')
 
-  const { employees, useBackend, loadDataFromBackend, loadSampleData } = useAppStore()
+  // TanStack Query を使用してデータ取得
+  const { data: backendEmployees, isLoading, error } = useEmployees({
+    company: companyFilter || undefined,
+  })
 
-  useEffect(() => {
-    if (employees.length === 0) {
-      // Try backend first, fall back to sample data if it fails
-      if (useBackend) {
-        loadDataFromBackend().catch(() => {
-          loadSampleData()
-        })
-      } else {
-        loadSampleData()
-      }
-    }
-  }, [employees.length, useBackend, loadDataFromBackend, loadSampleData])
+  // エラーハンドリング
+  if (error) {
+    toast.error(`従業員データの取得に失敗しました: ${error.message}`)
+  }
 
-  // Filter employees by company if specified
-  const filteredEmployees = companyFilter
-    ? employees.filter(emp => emp.dispatchCompany === companyFilter)
-    : employees
+  // バックエンドのEmployee型をフロントエンドの型に変換
+  const employees: FrontendEmployee[] = (backendEmployees || []).map(emp => ({
+    id: emp.employee_id,
+    employeeId: emp.employee_id,
+    name: emp.name,
+    nameKana: emp.name_kana || '',
+    dispatchCompany: emp.dispatch_company,
+    department: emp.department || '',
+    hourlyRate: emp.hourly_rate,
+    billingRate: emp.billing_rate,
+    employeeType: (emp.employee_type as 'haken' | 'ukeoi' | undefined) || 'haken',
+    status: emp.status as 'active' | 'inactive' | 'pending',
+    hireDate: emp.hire_date || '',
+    createdAt: emp.created_at || new Date().toISOString(),
+    updatedAt: emp.updated_at || new Date().toISOString(),
+  }))
 
   return (
     <div className="min-h-screen bg-background">
@@ -59,16 +68,34 @@ export default function EmployeesPage() {
             </h1>
             <p className="text-muted-foreground mt-1">
               派遣社員の情報と粗利分析
-              {companyFilter && ` (${filteredEmployees.length}名)`}
+              {companyFilter && ` (${employees.length}名)`}
             </p>
           </motion.div>
 
-          <EmployeeTable
-            employees={filteredEmployees}
-            onView={(employee) => router.push(`/employees/${employee.employeeId}`)}
-            defaultSortField={(sortParam as any) || 'employeeId'}
-            defaultSortDirection={(orderParam as any) || 'asc'}
-          />
+          {/* ローディング状態 */}
+          {isLoading && (
+            <div className="flex items-center justify-center py-12">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+            </div>
+          )}
+
+          {/* エラー状態 */}
+          {error && !isLoading && (
+            <div className="bg-destructive/10 border border-destructive text-destructive px-4 py-3 rounded-lg">
+              <p className="font-medium">データの取得に失敗しました</p>
+              <p className="text-sm mt-1">{error.message}</p>
+            </div>
+          )}
+
+          {/* データ表示 */}
+          {!isLoading && !error && (
+            <EmployeeTable
+              employees={employees}
+              onView={(employee) => router.push(`/employees/${employee.employeeId}`)}
+              defaultSortField={(sortParam as any) || 'employeeId'}
+              defaultSortDirection={(orderParam as any) || 'asc'}
+            />
+          )}
         </div>
       </main>
     </div>

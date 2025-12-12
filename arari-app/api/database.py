@@ -104,11 +104,38 @@ def init_db():
         ("overtime_over_60h_pay", "REAL DEFAULT 0"),
         ("non_billable_allowances", "REAL DEFAULT 0"),  # 通勤手当（非）、業務手当等 - 会社負担のみ
         ("welfare_pension", "REAL DEFAULT 0"),
+        # ================================================================
+        # NEW COLUMNS - 2025-12-11: Deduction fields from Excel dynamic zone
+        # These fields are extracted by salary_parser.py but were not being saved
+        # ================================================================
+        ("rent_deduction", "REAL DEFAULT 0"),           # 家賃、寮費 - Housing/dormitory rent
+        ("utilities_deduction", "REAL DEFAULT 0"),      # 水道光熱、光熱費、電気代 - Utilities
+        ("meal_deduction", "REAL DEFAULT 0"),           # 弁当、弁当代、食事代 - Meal deductions
+        ("advance_payment", "REAL DEFAULT 0"),          # 前貸、前借 - Salary advances
+        ("year_end_adjustment", "REAL DEFAULT 0"),      # 年調過不足、年末調整 - Year-end tax adjustment
+        ("absence_days", "INTEGER DEFAULT 0"),          # 欠勤日数 - Absence days
     ]
 
     for col_name, col_type in new_columns:
         try:
             cursor.execute(f"ALTER TABLE payroll_records ADD COLUMN {col_name} {col_type}")
+        except sqlite3.OperationalError:
+            pass  # Column already exists
+
+    # ================================================================
+    # NEW COLUMNS FOR EMPLOYEES TABLE - 2025-12-11
+    # Add gender and birth_date fields
+    # ================================================================
+    employee_new_columns = [
+        ("gender", "TEXT"),              # 性別: M/F
+        ("birth_date", "TEXT"),          # 生年月日: YYYY-MM-DD
+        ("employee_type", "TEXT DEFAULT 'haken'"),  # 従業員タイプ: haken/ukeoi
+        ("termination_date", "TEXT"),    # 退社日: YYYY-MM-DD (resignation date)
+    ]
+
+    for col_name, col_type in employee_new_columns:
+        try:
+            cursor.execute(f"ALTER TABLE employees ADD COLUMN {col_name} {col_type}")
         except sqlite3.OperationalError:
             pass  # Column already exists
 
@@ -195,6 +222,67 @@ def init_db():
     """)
 
     conn.commit()
+
+    # ================================================================
+    # INITIALIZE AGENT TABLES
+    # ================================================================
+
+    # Import and initialize all agent tables
+    try:
+        from auth import init_auth_tables
+        init_auth_tables(conn)
+        print("[OK] Auth tables initialized")
+    except Exception as e:
+        print(f"[WARN] Auth tables: {e}")
+
+    try:
+        from alerts import init_alerts_tables
+        init_alerts_tables(conn)
+        print("[OK] Alerts tables initialized")
+    except Exception as e:
+        print(f"[WARN] Alerts tables: {e}")
+
+    try:
+        from audit import init_audit_tables
+        init_audit_tables(conn)
+        print("[OK] Audit tables initialized")
+    except Exception as e:
+        print(f"[WARN] Audit tables: {e}")
+
+    try:
+        from reports import init_reports_tables
+        init_reports_tables(conn)
+        print("[OK] Reports tables initialized")
+    except Exception as e:
+        print(f"[WARN] Reports tables: {e}")
+
+    try:
+        from budget import init_budget_tables
+        init_budget_tables(conn)
+        print("[OK] Budget tables initialized")
+    except Exception as e:
+        print(f"[WARN] Budget tables: {e}")
+
+    try:
+        from notifications import init_notification_tables
+        init_notification_tables(conn)
+        print("[OK] Notifications tables initialized")
+    except Exception as e:
+        print(f"[WARN] Notifications tables: {e}")
+
+    try:
+        from cache import init_cache_tables
+        init_cache_tables(conn)
+        print("[OK] Cache tables initialized")
+    except Exception as e:
+        print(f"[WARN] Cache tables: {e}")
+
+    try:
+        from backup import init_backup_system
+        init_backup_system()
+        print("[OK] Backup system initialized")
+    except Exception as e:
+        print(f"[WARN] Backup system: {e}")
 
     # NO sample data - start with clean database
     # Users will upload their own payroll files

@@ -154,7 +154,7 @@ export function FileUploader() {
                 : 'border-muted-foreground/25 hover:border-primary/50 hover:bg-muted/50'
             )}
           >
-            <input {...getInputProps()} />
+            <input {...getInputProps()} aria-label="給与明細ファイルをアップロード" />
 
             <motion.div
               animate={isDragActive ? { scale: 1.1, y: -5 } : { scale: 1, y: 0 }}
@@ -280,8 +280,9 @@ export function FileUploader() {
                         size="icon"
                         className="h-8 w-8 shrink-0"
                         onClick={() => removeFile(file.id)}
+                        aria-label={`${file.name}を削除`}
                       >
-                        <X className="h-4 w-4" />
+                        <X className="h-4 w-4" aria-hidden="true" />
                       </Button>
                     </motion.div>
                   ))}

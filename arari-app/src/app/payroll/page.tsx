@@ -104,14 +104,14 @@ export default function PayrollVerificationPage() {
                     <Card className="p-6">
                         <h2 className="text-xl font-semibold mb-4">期間別データ</h2>
                         <div className="overflow-x-auto">
-                            <table className="w-full">
+                            <table className="w-full" role="table" aria-label="期間別給料明細データ">
                                 <thead>
                                     <tr className="border-b">
-                                        <th className="text-left py-3 px-4">期間</th>
-                                        <th className="text-right py-3 px-4">レコード数</th>
-                                        <th className="text-right py-3 px-4">従業員数</th>
-                                        <th className="text-right py-3 px-4">総請求額</th>
-                                        <th className="text-right py-3 px-4">総粗利</th>
+                                        <th scope="col" className="text-left py-3 px-4">期間</th>
+                                        <th scope="col" className="text-right py-3 px-4">レコード数</th>
+                                        <th scope="col" className="text-right py-3 px-4">従業員数</th>
+                                        <th scope="col" className="text-right py-3 px-4">総請求額</th>
+                                        <th scope="col" className="text-right py-3 px-4">総粗利</th>
                                     </tr>
                                 </thead>
                                 <tbody>

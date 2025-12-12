@@ -257,7 +257,12 @@ async def import_employees(
                     hourly_rate=emp.hourly_rate,
                     billing_rate=emp.billing_rate,
                     status=emp.status,
-                    hire_date=emp.hire_date
+                    hire_date=emp.hire_date,
+                    # NEW FIELDS - 2025-12-11
+                    employee_type=emp.employee_type,
+                    gender=emp.gender,
+                    birth_date=emp.birth_date,
+                    termination_date=emp.termination_date,
                 )
                 
                 existing = service.get_employee(emp.employee_id)
@@ -373,7 +378,12 @@ async def upload_payroll_file(
                         hourly_rate=emp.hourly_rate,
                         billing_rate=emp.billing_rate,
                         status=emp.status,
-                        hire_date=emp.hire_date
+                        hire_date=emp.hire_date,
+                        # NEW FIELDS - 2025-12-11
+                        employee_type=emp.employee_type,
+                        gender=emp.gender,
+                        birth_date=emp.birth_date,
+                        termination_date=emp.termination_date,
                     )
                     
                     # Try update first (if exists), then create
@@ -511,6 +521,59 @@ async def export_payroll(
     """Export payroll records as JSON"""
     service = PayrollService(db)
     return service.get_payroll_records(period=period)
+
+@app.get("/api/export/all")
+async def export_all_data(
+    format: str = "excel",
+    db: sqlite3.Connection = Depends(get_db)
+):
+    """Export all data (employees + payroll) as Excel"""
+    service = PayrollService(db)
+    employees = service.get_employees()
+    payroll = service.get_payroll_records()
+
+    if format == "excel":
+        import openpyxl
+        from io import BytesIO
+
+        wb = openpyxl.Workbook()
+
+        # Employees sheet
+        ws_emp = wb.active
+        ws_emp.title = "従業員一覧"
+        if employees:
+            # Headers
+            headers = list(employees[0].keys())
+            for col, header in enumerate(headers, 1):
+                ws_emp.cell(row=1, column=col, value=header)
+            # Data
+            for row, emp in enumerate(employees, 2):
+                for col, key in enumerate(headers, 1):
+                    ws_emp.cell(row=row, column=col, value=emp.get(key))
+
+        # Payroll sheet
+        ws_pay = wb.create_sheet("給与明細")
+        if payroll:
+            headers = list(payroll[0].keys())
+            for col, header in enumerate(headers, 1):
+                ws_pay.cell(row=1, column=col, value=header)
+            for row, record in enumerate(payroll, 2):
+                for col, key in enumerate(headers, 1):
+                    ws_pay.cell(row=row, column=col, value=record.get(key))
+
+        # Save to bytes
+        output = BytesIO()
+        wb.save(output)
+        output.seek(0)
+
+        filename = f"arari_pro_export_{datetime.now().strftime('%Y%m%d')}.xlsx"
+        return Response(
+            content=output.getvalue(),
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers={"Content-Disposition": f"attachment; filename={filename}"}
+        )
+
+    return {"employees": employees, "payroll": payroll}
 
 @app.post("/api/sync-from-folder")
 async def sync_from_folder(
@@ -660,11 +723,13 @@ async def import_employees(
                     cursor.execute("""
                         INSERT OR REPLACE INTO employees
                         (employee_id, name, name_kana, dispatch_company, department,
-                         hourly_rate, billing_rate, status, hire_date, employee_type, created_at, updated_at)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
+                         hourly_rate, billing_rate, status, hire_date, employee_type,
+                         gender, birth_date, termination_date, created_at, updated_at)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
                     """, (
                         emp.employee_id, emp.name, emp.name_kana, emp.dispatch_company, emp.department,
-                        emp.hourly_rate, emp.billing_rate, emp.status, emp.hire_date, emp.employee_type
+                        emp.hourly_rate, emp.billing_rate, emp.status, emp.hire_date, emp.employee_type,
+                        emp.gender, emp.birth_date, emp.termination_date
                     ))
 
                     if existing:
@@ -888,6 +953,613 @@ async def create_template_manually(payload: dict):
         raise HTTPException(status_code=500, detail="Failed to create template")
 
     return {"status": "success", "message": f"Template '{factory_identifier}' created"}
+
+# ============== AUTH ENDPOINTS ==============
+
+from auth import AuthService, validate_token, has_permission
+from fastapi import Header
+
+@app.post("/api/auth/login")
+async def login(payload: dict, db: sqlite3.Connection = Depends(get_db)):
+    """Login and get token"""
+    username = payload.get("username")
+    password = payload.get("password")
+
+    if not username or not password:
+        raise HTTPException(status_code=400, detail="Username and password required")
+
+    service = AuthService(db)
+    result = service.login(username, password)
+
+    if not result:
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+
+    if "error" in result:
+        raise HTTPException(status_code=403, detail=result["error"])
+
+    return result
+
+@app.post("/api/auth/logout")
+async def logout(
+    authorization: str = Header(None),
+    db: sqlite3.Connection = Depends(get_db)
+):
+    """Logout and revoke token"""
+    if not authorization:
+        raise HTTPException(status_code=401, detail="No token provided")
+
+    token = authorization.replace("Bearer ", "")
+    service = AuthService(db)
+
+    if service.logout(token):
+        return {"message": "Logged out successfully"}
+    return {"message": "Token not found or already revoked"}
+
+@app.get("/api/auth/me")
+async def get_current_user_info(
+    authorization: str = Header(None),
+    db: sqlite3.Connection = Depends(get_db)
+):
+    """Get current user info"""
+    if not authorization:
+        raise HTTPException(status_code=401, detail="No token provided")
+
+    token = authorization.replace("Bearer ", "")
+    user = validate_token(db, token)
+
+    if not user:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+
+    return user
+
+@app.get("/api/users")
+async def get_users(db: sqlite3.Connection = Depends(get_db)):
+    """Get all users"""
+    service = AuthService(db)
+    return service.get_users()
+
+@app.post("/api/users")
+async def create_user(payload: dict, db: sqlite3.Connection = Depends(get_db)):
+    """Create new user"""
+    service = AuthService(db)
+    result = service.create_user(
+        username=payload.get("username"),
+        password=payload.get("password"),
+        role=payload.get("role", "viewer"),
+        full_name=payload.get("full_name"),
+        email=payload.get("email")
+    )
+
+    if "error" in result:
+        raise HTTPException(status_code=400, detail=result["error"])
+
+    return result
+
+# ============== ALERTS ENDPOINTS ==============
+
+from alerts import AlertService
+
+@app.get("/api/alerts")
+async def get_alerts(
+    severity: Optional[str] = None,
+    is_resolved: Optional[bool] = None,
+    period: Optional[str] = None,
+    db: sqlite3.Connection = Depends(get_db)
+):
+    """Get alerts with optional filtering"""
+    service = AlertService(db)
+    return service.get_alerts(severity=severity, is_resolved=is_resolved, period=period)
+
+@app.get("/api/alerts/summary")
+async def get_alerts_summary(db: sqlite3.Connection = Depends(get_db)):
+    """Get alerts summary by severity"""
+    service = AlertService(db)
+    return service.get_alert_summary()
+
+@app.post("/api/alerts/scan")
+async def scan_for_alerts(
+    period: Optional[str] = None,
+    db: sqlite3.Connection = Depends(get_db)
+):
+    """Scan data and generate alerts"""
+    service = AlertService(db)
+    return service.scan_for_alerts(period=period)
+
+@app.put("/api/alerts/{alert_id}/resolve")
+async def resolve_alert(
+    alert_id: int,
+    payload: dict = None,
+    db: sqlite3.Connection = Depends(get_db)
+):
+    """Resolve an alert"""
+    service = AlertService(db)
+    payload = payload or {}
+    success = service.resolve_alert(
+        alert_id,
+        resolved_by=payload.get("resolved_by"),
+        notes=payload.get("notes")
+    )
+    if not success:
+        raise HTTPException(status_code=404, detail="Alert not found")
+    return {"status": "resolved"}
+
+@app.get("/api/alerts/thresholds")
+async def get_alert_thresholds(db: sqlite3.Connection = Depends(get_db)):
+    """Get alert thresholds"""
+    service = AlertService(db)
+    return service.get_thresholds()
+
+@app.put("/api/alerts/thresholds/{key}")
+async def update_alert_threshold(
+    key: str,
+    payload: dict,
+    db: sqlite3.Connection = Depends(get_db)
+):
+    """Update alert threshold"""
+    service = AlertService(db)
+    value = payload.get("value")
+    if value is None:
+        raise HTTPException(status_code=400, detail="Value required")
+    service.update_threshold(key, float(value))
+    return {"status": "updated", "key": key, "value": value}
+
+# ============== AUDIT ENDPOINTS ==============
+
+from audit import AuditService
+
+@app.get("/api/audit")
+async def get_audit_logs(
+    user_id: Optional[int] = None,
+    action: Optional[str] = None,
+    entity_type: Optional[str] = None,
+    limit: int = 100,
+    db: sqlite3.Connection = Depends(get_db)
+):
+    """Get audit logs"""
+    service = AuditService(db)
+    return service.get_logs(user_id=user_id, action=action, entity_type=entity_type, limit=limit)
+
+@app.get("/api/audit/summary")
+async def get_audit_summary(
+    days: int = 7,
+    db: sqlite3.Connection = Depends(get_db)
+):
+    """Get audit summary"""
+    service = AuditService(db)
+    return service.get_summary(days=days)
+
+@app.get("/api/audit/entity/{entity_type}/{entity_id}")
+async def get_entity_history(
+    entity_type: str,
+    entity_id: str,
+    db: sqlite3.Connection = Depends(get_db)
+):
+    """Get history for a specific entity"""
+    service = AuditService(db)
+    return service.get_entity_history(entity_type, entity_id)
+
+# ============== REPORTS ENDPOINTS ==============
+
+from reports import ReportService
+from fastapi.responses import Response
+
+@app.get("/api/reports/monthly/{period}")
+async def get_monthly_report_data(period: str, db: sqlite3.Connection = Depends(get_db)):
+    """Get monthly report data"""
+    service = ReportService(db)
+    return service.get_monthly_report_data(period)
+
+@app.get("/api/reports/employee/{employee_id}")
+async def get_employee_report_data(
+    employee_id: str,
+    months: int = 6,
+    db: sqlite3.Connection = Depends(get_db)
+):
+    """Get employee report data"""
+    service = ReportService(db)
+    return service.get_employee_report_data(employee_id, months)
+
+@app.get("/api/reports/company/{company}")
+async def get_company_report_data(company: str, db: sqlite3.Connection = Depends(get_db)):
+    """Get company report data"""
+    service = ReportService(db)
+    return service.get_company_report_data(company)
+
+@app.get("/api/reports/download/{report_type}")
+async def download_report(
+    report_type: str,
+    period: Optional[str] = None,
+    employee_id: Optional[str] = None,
+    company: Optional[str] = None,
+    format: str = "excel",
+    db: sqlite3.Connection = Depends(get_db)
+):
+    """Download report as Excel"""
+    service = ReportService(db)
+
+    # Get report data
+    if report_type == "monthly" and period:
+        data = service.get_monthly_report_data(period)
+    elif report_type == "employee" and employee_id:
+        data = service.get_employee_report_data(employee_id)
+    elif report_type == "company" and company:
+        data = service.get_company_report_data(company)
+    else:
+        raise HTTPException(status_code=400, detail="Invalid report parameters")
+
+    if format == "excel":
+        excel_bytes = service.generate_excel_report(report_type, data)
+        filename = f"{report_type}_{period or employee_id or company}_{datetime.now().strftime('%Y%m%d')}.xlsx"
+        return Response(
+            content=excel_bytes,
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers={"Content-Disposition": f"attachment; filename={filename}"}
+        )
+
+    return data
+
+@app.get("/api/reports/history")
+async def get_report_history(limit: int = 50, db: sqlite3.Connection = Depends(get_db)):
+    """Get history of generated reports"""
+    service = ReportService(db)
+    return service.get_report_history(limit)
+
+# ============== BUDGET ENDPOINTS ==============
+
+from budget import BudgetService
+
+@app.get("/api/budgets")
+async def get_budgets(
+    period: Optional[str] = None,
+    entity_type: Optional[str] = None,
+    db: sqlite3.Connection = Depends(get_db)
+):
+    """Get all budgets"""
+    service = BudgetService(db)
+    return service.get_budgets(period=period, entity_type=entity_type)
+
+@app.post("/api/budgets")
+async def create_budget(payload: dict, db: sqlite3.Connection = Depends(get_db)):
+    """Create a new budget"""
+    service = BudgetService(db)
+    result = service.create_budget(
+        period=payload.get("period"),
+        entity_type=payload.get("entity_type", "total"),
+        entity_id=payload.get("entity_id"),
+        budget_revenue=payload.get("budget_revenue", 0),
+        budget_cost=payload.get("budget_cost", 0),
+        budget_profit=payload.get("budget_profit"),
+        budget_margin=payload.get("budget_margin"),
+        notes=payload.get("notes"),
+        created_by=payload.get("created_by")
+    )
+
+    if "error" in result:
+        raise HTTPException(status_code=400, detail=result["error"])
+
+    return result
+
+@app.get("/api/budgets/compare/{period}")
+async def compare_budget_vs_actual(
+    period: str,
+    entity_type: str = "total",
+    entity_id: Optional[str] = None,
+    db: sqlite3.Connection = Depends(get_db)
+):
+    """Compare budget vs actual"""
+    service = BudgetService(db)
+    result = service.compare_budget_vs_actual(period, entity_type, entity_id)
+
+    if "error" in result:
+        raise HTTPException(status_code=404, detail=result["error"])
+
+    return result
+
+@app.get("/api/budgets/summary")
+async def get_budget_summary(year: Optional[int] = None, db: sqlite3.Connection = Depends(get_db)):
+    """Get budget summary for a year"""
+    service = BudgetService(db)
+    return service.get_budget_summary(year)
+
+@app.delete("/api/budgets/{budget_id}")
+async def delete_budget(budget_id: int, db: sqlite3.Connection = Depends(get_db)):
+    """Delete a budget"""
+    service = BudgetService(db)
+    result = service.delete_budget(budget_id)
+
+    if "error" in result:
+        raise HTTPException(status_code=404, detail=result["error"])
+
+    return result
+
+# ============== NOTIFICATIONS ENDPOINTS ==============
+
+from notifications import NotificationService
+
+@app.get("/api/notifications")
+async def get_notifications(
+    user_id: Optional[int] = None,
+    unread_only: bool = False,
+    limit: int = 50,
+    db: sqlite3.Connection = Depends(get_db)
+):
+    """Get notifications"""
+    service = NotificationService(db)
+    return service.get_notifications(user_id=user_id, unread_only=unread_only, limit=limit)
+
+@app.get("/api/notifications/count")
+async def get_unread_count(user_id: Optional[int] = None, db: sqlite3.Connection = Depends(get_db)):
+    """Get unread notification count"""
+    service = NotificationService(db)
+    return {"unread_count": service.get_unread_count(user_id)}
+
+@app.put("/api/notifications/{notification_id}/read")
+async def mark_notification_read(notification_id: int, db: sqlite3.Connection = Depends(get_db)):
+    """Mark notification as read"""
+    service = NotificationService(db)
+    if service.mark_as_read(notification_id):
+        return {"status": "marked_as_read"}
+    raise HTTPException(status_code=404, detail="Notification not found")
+
+@app.put("/api/notifications/read-all")
+async def mark_all_read(user_id: int, db: sqlite3.Connection = Depends(get_db)):
+    """Mark all notifications as read"""
+    service = NotificationService(db)
+    count = service.mark_all_read(user_id)
+    return {"marked_count": count}
+
+@app.get("/api/notifications/preferences/{user_id}")
+async def get_notification_preferences(user_id: int, db: sqlite3.Connection = Depends(get_db)):
+    """Get notification preferences"""
+    service = NotificationService(db)
+    return service.get_preferences(user_id)
+
+@app.put("/api/notifications/preferences/{user_id}")
+async def update_notification_preferences(
+    user_id: int,
+    payload: dict,
+    db: sqlite3.Connection = Depends(get_db)
+):
+    """Update notification preferences"""
+    service = NotificationService(db)
+    return service.update_preferences(user_id, **payload)
+
+# ============== SEARCH ENDPOINTS ==============
+
+from search import SearchService
+
+@app.get("/api/search/employees")
+async def search_employees_get(
+    q: Optional[str] = None,
+    sort_by: Optional[str] = None,
+    sort_order: str = "asc",
+    page: int = 1,
+    page_size: int = 50,
+    db: sqlite3.Connection = Depends(get_db)
+):
+    """Advanced employee search"""
+    service = SearchService(db)
+    return service.search_employees(
+        query=q, sort_by=sort_by, sort_order=sort_order,
+        page=page, page_size=page_size
+    )
+
+@app.post("/api/search/employees")
+async def search_employees_post(
+    payload: dict,
+    db: sqlite3.Connection = Depends(get_db)
+):
+    """Advanced employee search with filters"""
+    service = SearchService(db)
+    return service.search_employees(
+        query=payload.get("query"),
+        filters=payload.get("filters"),
+        sort_by=payload.get("sort_by"),
+        sort_order=payload.get("sort_order", "asc"),
+        page=payload.get("page", 1),
+        page_size=payload.get("page_size", 50)
+    )
+
+@app.get("/api/search/payroll")
+async def search_payroll_records(
+    q: Optional[str] = None,
+    sort_by: Optional[str] = None,
+    sort_order: str = "asc",
+    page: int = 1,
+    page_size: int = 50,
+    db: sqlite3.Connection = Depends(get_db)
+):
+    """Advanced payroll search"""
+    service = SearchService(db)
+    return service.search_payroll(
+        query=q, sort_by=sort_by, sort_order=sort_order,
+        page=page, page_size=page_size
+    )
+
+@app.get("/api/search/anomalies")
+async def find_anomalies(period: Optional[str] = None, db: sqlite3.Connection = Depends(get_db)):
+    """Find data anomalies"""
+    service = SearchService(db)
+    return service.find_anomalies(period)
+
+@app.get("/api/search/suggestions")
+async def get_suggestions(q: str, field: str = "all", db: sqlite3.Connection = Depends(get_db)):
+    """Get search suggestions"""
+    service = SearchService(db)
+    return service.get_search_suggestions(q, field)
+
+@app.get("/api/search/filters")
+async def get_filter_options(db: sqlite3.Connection = Depends(get_db)):
+    """Get available filter options"""
+    service = SearchService(db)
+    return service.get_filter_options()
+
+# ============== VALIDATION ENDPOINTS ==============
+
+from validation import ValidationService
+
+@app.get("/api/validation")
+async def validate_all_data(db: sqlite3.Connection = Depends(get_db)):
+    """Run full data validation"""
+    service = ValidationService(db)
+    return service.validate_all()
+
+@app.get("/api/validation/employees")
+async def validate_employees_data(db: sqlite3.Connection = Depends(get_db)):
+    """Validate employee data"""
+    service = ValidationService(db)
+    service.validate_employees()
+    return service.get_summary()
+
+@app.get("/api/validation/payroll")
+async def validate_payroll_data(db: sqlite3.Connection = Depends(get_db)):
+    """Validate payroll data"""
+    service = ValidationService(db)
+    service.validate_payroll()
+    return service.get_summary()
+
+@app.post("/api/validation/fix")
+async def auto_fix_issues(
+    payload: dict = None,
+    db: sqlite3.Connection = Depends(get_db)
+):
+    """Auto-fix certain data issues"""
+    service = ValidationService(db)
+    fix_types = payload.get("fix_types") if payload else None
+    return service.auto_fix(fix_types)
+
+# ============== BACKUP ENDPOINTS ==============
+
+from backup import BackupService
+
+@app.get("/api/backups")
+async def list_backups():
+    """List all backups"""
+    service = BackupService()
+    return service.list_backups()
+
+@app.post("/api/backups")
+async def create_backup(payload: dict = None):
+    """Create a new backup"""
+    service = BackupService()
+    description = payload.get("description") if payload else None
+    result = service.create_backup(description)
+
+    if "error" in result:
+        raise HTTPException(status_code=500, detail=result["error"])
+
+    return result
+
+@app.get("/api/backups/stats")
+async def get_backup_stats():
+    """Get backup statistics"""
+    service = BackupService()
+    return service.get_backup_stats()
+
+@app.post("/api/backups/{filename}/restore")
+async def restore_backup(filename: str):
+    """Restore from backup"""
+    service = BackupService()
+    result = service.restore_backup(filename)
+
+    if "error" in result:
+        raise HTTPException(status_code=400, detail=result["error"])
+
+    return result
+
+@app.get("/api/backups/{filename}/verify")
+async def verify_backup(filename: str):
+    """Verify backup integrity"""
+    service = BackupService()
+    return service.verify_backup(filename)
+
+@app.delete("/api/backups/{filename}")
+async def delete_backup_file(filename: str):
+    """Delete a backup"""
+    service = BackupService()
+    result = service.delete_backup(filename)
+
+    if "error" in result:
+        raise HTTPException(status_code=404, detail=result["error"])
+
+    return result
+
+# ============== ROI ENDPOINTS ==============
+
+from roi import ROIService
+
+@app.get("/api/roi/clients")
+async def get_client_roi(
+    company: Optional[str] = None,
+    period: Optional[str] = None,
+    db: sqlite3.Connection = Depends(get_db)
+):
+    """Get ROI by client"""
+    service = ROIService(db)
+    return service.calculate_client_roi(company, period)
+
+@app.get("/api/roi/employees")
+async def get_employee_roi(
+    employee_id: Optional[str] = None,
+    period: Optional[str] = None,
+    db: sqlite3.Connection = Depends(get_db)
+):
+    """Get ROI by employee"""
+    service = ROIService(db)
+    return service.calculate_employee_roi(employee_id, period)
+
+@app.get("/api/roi/summary")
+async def get_roi_summary(period: Optional[str] = None, db: sqlite3.Connection = Depends(get_db)):
+    """Get ROI summary"""
+    service = ROIService(db)
+    return service.get_roi_summary(period)
+
+@app.get("/api/roi/trend")
+async def get_roi_trend(months: int = 6, db: sqlite3.Connection = Depends(get_db)):
+    """Get ROI trend"""
+    service = ROIService(db)
+    return service.get_roi_trend(months)
+
+@app.get("/api/roi/recommendations")
+async def get_roi_recommendations(period: Optional[str] = None, db: sqlite3.Connection = Depends(get_db)):
+    """Get ROI improvement recommendations"""
+    service = ROIService(db)
+    return service.get_recommendations(period)
+
+@app.get("/api/roi/compare")
+async def compare_roi_periods(
+    period1: str,
+    period2: str,
+    db: sqlite3.Connection = Depends(get_db)
+):
+    """Compare ROI between two periods"""
+    service = ROIService(db)
+    return service.compare_periods(period1, period2)
+
+# ============== CACHE ENDPOINTS ==============
+
+from cache import CacheService
+
+@app.get("/api/cache/stats")
+async def get_cache_stats(db: sqlite3.Connection = Depends(get_db)):
+    """Get cache statistics"""
+    service = CacheService(db)
+    return {
+        "memory": service.get_stats(),
+        "persistent": service.get_persistent_stats()
+    }
+
+@app.post("/api/cache/clear")
+async def clear_cache(payload: dict = None, db: sqlite3.Connection = Depends(get_db)):
+    """Clear cache"""
+    service = CacheService(db)
+    pattern = payload.get("pattern") if payload else None
+    memory_cleared = service.clear(pattern)
+    persistent_cleared = service.clear_persistent(pattern)
+    return {
+        "memory_cleared": memory_cleared,
+        "persistent_cleared": persistent_cleared
+    }
 
 # ============== Run Server ==============
 
