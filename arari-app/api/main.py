@@ -47,36 +47,10 @@ app = FastAPI(
 
 # CORS middleware for React frontend
 # Allow all frontend instances (ports 4000-4009 for multi-instance setup)
-allowed_origins = [
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-    "http://localhost:3001",
-    "http://127.0.0.1:3001",
-    "http://localhost:3002",
-    "http://127.0.0.1:3002",
-    "http://localhost:4321",
-    "http://127.0.0.1:4321",
-]
-
-# Add all 10 frontend instance ports (4000-4009)
-for port in range(4000, 4010):
-    allowed_origins.extend([
-        f"http://localhost:{port}",
-        f"http://127.0.0.1:{port}",
-    ])
-
-# Add custom FRONTEND_PORT from environment variable if set
-custom_frontend_port = os.getenv("FRONTEND_PORT")
-if custom_frontend_port:
-    print(f"[INFO] Adding custom CORS origin for port {custom_frontend_port}")
-    allowed_origins.extend([
-        f"http://localhost:{custom_frontend_port}",
-        f"http://127.0.0.1:{custom_frontend_port}",
-    ])
-
+# CORS middleware - Allow dynamic localhost ports for development flexibility
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=allowed_origins,
+    allow_origin_regex=r"http://(localhost|127\.0\.0\.1)(:\d+)?",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

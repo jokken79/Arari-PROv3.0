@@ -29,7 +29,7 @@ import { OvertimeByFactoryChart } from '@/components/charts/OvertimeByFactoryCha
 import { PaidLeaveChart } from '@/components/charts/PaidLeaveChart'
 import { RecentPayrolls } from '@/components/dashboard/RecentPayrolls'
 import { useAppStore } from '@/store/appStore'
-import { useDashboardStats } from '@/hooks'
+import { useDashboardStats, useEmployees, usePayrollRecords, usePayrollPeriods } from '@/hooks'
 import { useQuery } from '@tanstack/react-query'
 import { formatYen, formatPercent, formatNumber } from '@/lib/utils'
 import { cn } from '@/lib/utils'
@@ -38,11 +38,76 @@ import { NeonButton } from '@/components/ui/NeonButton'
 export default function DashboardPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const {
-    employees,
-    payrollRecords,
     selectedPeriod,
-    availablePeriods,
   } = useAppStore()
+
+  // Fetch data using TanStack Query hooks
+  const { data: rawEmployees = [] } = useEmployees()
+  const { data: rawPayrollRecords = [] } = usePayrollRecords()
+  const { data: availablePeriods = [] } = usePayrollPeriods()
+
+  // Map to internal types (snake_case -> camelCase)
+  const employees = useMemo(() => {
+    return rawEmployees.map(e => ({
+      id: e.id?.toString() || '',
+      employeeId: e.employee_id,
+      name: e.name,
+      nameKana: e.name_kana || '',
+      dispatchCompany: e.dispatch_company,
+      department: e.department || '',
+      hourlyRate: e.hourly_rate,
+      billingRate: e.billing_rate,
+      status: (e.status as any) || 'active',
+      hireDate: e.hire_date || '',
+      createdAt: e.created_at || '',
+      updatedAt: e.updated_at || '',
+    }))
+  }, [rawEmployees])
+
+  const payrollRecords = useMemo(() => {
+    return rawPayrollRecords.map(r => ({
+      id: r.id?.toString() || '',
+      employeeId: r.employee_id,
+      period: r.period,
+      workDays: r.work_days,
+      workHours: r.work_hours,
+      overtimeHours: r.overtime_hours,
+      nightHours: r.night_hours || 0,
+      holidayHours: r.holiday_hours || 0,
+      overtimeOver60h: r.overtime_over_60h || 0,
+      paidLeaveHours: r.paid_leave_hours,
+      paidLeaveDays: r.paid_leave_days,
+      paidLeaveAmount: r.paid_leave_amount || 0,
+      baseSalary: r.base_salary,
+      overtimePay: r.overtime_pay,
+      nightPay: r.night_pay || 0,
+      holidayPay: r.holiday_pay || 0,
+      overtimeOver60hPay: r.overtime_over_60h_pay || 0,
+      transportAllowance: r.transport_allowance,
+      otherAllowances: r.other_allowances,
+      nonBillableAllowances: r.non_billable_allowances || 0,
+      grossSalary: r.gross_salary,
+      socialInsurance: r.social_insurance,
+      welfarePension: r.welfare_pension || 0,
+      employmentInsurance: r.employment_insurance,
+      incomeTax: r.income_tax,
+      residentTax: r.resident_tax,
+      rentDeduction: r.rent_deduction || 0,
+      utilitiesDeduction: r.utilities_deduction || 0,
+      mealDeduction: r.meal_deduction || 0,
+      advancePayment: r.advance_payment || 0,
+      yearEndAdjustment: r.year_end_adjustment || 0,
+      otherDeductions: r.other_deductions,
+      netSalary: r.net_salary,
+      billingAmount: r.billing_amount,
+      companySocialInsurance: r.company_social_insurance,
+      companyEmploymentInsurance: r.company_employment_insurance,
+      companyWorkersComp: r.company_workers_comp || 0,
+      totalCompanyCost: r.total_company_cost,
+      grossProfit: r.gross_profit,
+      profitMargin: r.profit_margin,
+    }))
+  }, [rawPayrollRecords])
 
   // Fetch dashboard stats using TanStack Query
   const { data: dashboardStats, isLoading, error, refetch } = useDashboardStats(selectedPeriod)
