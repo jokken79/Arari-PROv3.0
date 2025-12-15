@@ -2,7 +2,7 @@
  * API client for 粗利 PRO backend
  */
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000').trim()
 
 interface ApiResponse<T> {
   data?: T
@@ -148,6 +148,20 @@ export const syncApi = {
 export const settingsApi = {
   getAll: async () => {
     return fetchApi<{ key: string; value: string }[]>('/api/settings')
+  },
+
+  getIgnoredCompanies: async () => {
+    return fetchApi<string[]>('/api/settings/ignored-companies')
+  },
+
+  toggleCompany: async (name: string, active: boolean) => {
+    return fetchApi<{ status: string; company: string; active: boolean }>(
+      `/api/companies/${encodeURIComponent(name)}/toggle`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ active }),
+      }
+    )
   },
 }
 
@@ -340,6 +354,7 @@ export interface CompanyStats {
   average_margin: number
   total_monthly_profit: number
   total_monthly_revenue?: number
+  is_active?: boolean
 }
 
 export interface MonthlyStats {

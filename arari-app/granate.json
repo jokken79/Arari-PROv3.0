@@ -1,0 +1,21 @@
+{
+    "project": {
+        "name": "Arari PRO",
+        "version": "2.0.0",
+        "description": "Profit Management System for Manufacturing Dispatch"
+    },
+    "network": {
+        "backend_port": 8000,
+        "frontend_port": 3000,
+        "host": "0.0.0.0"
+    },
+    "paths": {
+        "backend": "./api",
+        "frontend": "./",
+        "backend_entry": "main:app"
+    },
+    "scripts": {
+        "install_backend": "pip install -r api/requirements.txt",
+        "install_frontend": "npm install"
+    }
+}

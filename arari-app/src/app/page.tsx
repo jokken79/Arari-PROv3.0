@@ -33,6 +33,7 @@ import { useDashboardStats } from '@/hooks'
 import { useQuery } from '@tanstack/react-query'
 import { formatYen, formatPercent, formatNumber } from '@/lib/utils'
 import { cn } from '@/lib/utils'
+import { NeonButton } from '@/components/ui/NeonButton'
 
 export default function DashboardPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -325,19 +326,15 @@ export default function DashboardPage() {
                 )}
               </p>
             </div>
-            <button
+            <NeonButton
               onClick={handleRefresh}
               disabled={isLoading}
-              aria-label="ダッシュボードデータを更新"
-              className={cn(
-                "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300",
-                "bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 border border-cyan-500/20 hover:border-cyan-500/40 hover:shadow-[0_0_15px_rgba(6,182,212,0.2)]",
-                isLoading && "opacity-50 cursor-not-allowed"
-              )}
+              glowColor="blue"
+              className="flex items-center gap-2"
             >
               <RefreshCw className={cn("h-4 w-4", isLoading && "animate-spin")} aria-hidden="true" />
               データ更新
-            </button>
+            </NeonButton>
           </motion.div>
 
           {!hasData ? (

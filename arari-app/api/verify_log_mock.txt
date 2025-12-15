@@ -1,0 +1,17 @@
+Generating Mock Format B file...
+Parsing...
+[DEBUG] Starting SalaryStatementParser. Sheets: ['MockFormatB']
+[DEBUG] Processing sheet: MockFormatB
+[DEBUG] Sheet 'MockFormatB' detected layout: vertical
+[VerticalParser] Parsing sheet 'MockFormatB' using Vertical Logic
+[VerticalParser] Found Employee: Test User (000000) - detected 3 months
+[DEBUG] Sheet 'MockFormatB' yielded 1 records
+[OK] Parsed 1 employee records from Excel
+Parsed 1 records.
+--- Record: 2024年4月 (Test User) ---
+  Work Days: 20
+  Work Hours: 160.5
+  Base Salary: 300000.0
+  Overtime: 50000.0
+  Gross: 350000.0
+SUCCESS: Found expected April record.

@@ -51,11 +51,26 @@ const config: Config = {
           DEFAULT: 'hsl(var(--warning))',
           foreground: 'hsl(var(--warning-foreground))',
         },
+        // NEW: Neon Design System
+        neon: {
+          blue: '#00f2ea',
+          purple: '#bd00ff',
+          dark: '#0a0a0f',
+        }
       },
       borderRadius: {
         lg: 'var(--radius)',
         md: 'calc(var(--radius) - 2px)',
         sm: 'calc(var(--radius) - 4px)',
+      },
+      backgroundImage: {
+        'glass-gradient': 'linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.05) 100%)',
+        'neon-gradient': 'linear-gradient(to right, #00f2ea, #bd00ff)',
+      },
+      boxShadow: {
+        'neon-blue': '0 0 10px rgba(0, 242, 234, 0.5), 0 0 20px rgba(0, 242, 234, 0.3)',
+        'neon-purple': '0 0 10px rgba(189, 0, 255, 0.5), 0 0 20px rgba(189, 0, 255, 0.3)',
+        'glass': '0 8px 32px 0 rgba(0, 0, 0, 0.37)',
       },
       keyframes: {
         'accordion-down': {
@@ -85,6 +100,10 @@ const config: Config = {
           '0%, 100%': { opacity: '1' },
           '50%': { opacity: '0.5' },
         },
+        'glow-pulse': {
+          '0%, 100%': { boxShadow: '0 0 10px rgba(0, 242, 234, 0.5)' },
+          '50%': { boxShadow: '0 0 20px rgba(0, 242, 234, 0.8), 0 0 30px rgba(0, 242, 234, 0.4)' },
+        }
       },
       animation: {
         'accordion-down': 'accordion-down 0.2s ease-out',
@@ -94,6 +113,7 @@ const config: Config = {
         'scale-in': 'scale-in 0.3s ease-out forwards',
         shimmer: 'shimmer 2s infinite',
         pulse: 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+        'glow': 'glow-pulse 2s infinite',
       },
     },
   },

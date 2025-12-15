@@ -51,7 +51,7 @@ export function Header({ onMenuClick }: HeaderProps) {
         initial={{ y: -20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ duration: 0.3 }}
-        className="fixed top-0 left-0 right-0 z-50 w-full border-b border-border glass"
+        className="fixed top-0 left-0 right-0 z-50 w-full border-b border-black/5 dark:border-white/10 glass bg-white/70 dark:bg-black/40 backdrop-blur-xl"
       >
         <div className="flex h-16 items-center justify-between px-4 md:px-6">
           {/* Left side - Logo & Title */}
@@ -80,7 +80,7 @@ export function Header({ onMenuClick }: HeaderProps) {
               </div>
 
               <div className="hidden sm:block">
-                <h1 className="text-xl font-bold text-gradient">
+                <h1 className="text-xl font-bold bg-gradient-to-r from-neon-blue to-neon-purple bg-clip-text text-transparent">
                   粗利 PRO
                 </h1>
                 <p className="text-xs text-muted-foreground">

@@ -1,0 +1,7 @@
+Total Employees: 1207
+Stats: {'total_rows': 1207, 'employees_found': 1207, 'rows_skipped': 0, 'errors': 0}
+Sample: 200805 - VI THI HUE
+Sample: 200801 - NGUYEN QUANG THANG
+Sample: 200802 - NGUYEN HUY HOANG
+Sample: 200803 - NGUYEN QUANG HUNG
+Sample: 200804 - DANG ANH DUNG
