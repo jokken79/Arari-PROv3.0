@@ -130,7 +130,14 @@ def start():
     time.sleep(2)
     
     # Start Frontend
-    frontend_cmd = f"set PORT={f_port}&& set NEXT_PUBLIC_API_URL=http://localhost:{b_port}&& npm run dev"
+    # Update .env.local dynamically for reliability
+    env_local_path = Path(".env.local")
+    with open(env_local_path, "w", encoding="utf-8") as f:
+        f.write(f"NEXT_PUBLIC_API_URL=http://localhost:{b_port}\n")
+    log(f"Updated .env.local with Backend URL: http://localhost:{b_port}", "INFO")
+
+    # Start Frontend
+    frontend_cmd = f"set PORT={f_port}&& npm run dev"
     subprocess.Popen(f'start "Arari Frontend (Morfeo)" cmd /k "{frontend_cmd}"', shell=True)
     log("Frontend process launched", "SUCCESS")
     
