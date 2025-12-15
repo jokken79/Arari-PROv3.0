@@ -276,7 +276,7 @@ function CostBreakdownSection({
         </div>
         {(record.transportAllowance || 0) > 0 && (
           <div className="flex justify-between items-center">
-            <span className="text-xs text-blue-400 ml-3">├ 通勤手当 (総支給に含む)</span>
+            <span className="text-xs text-blue-400 ml-3">├ 通勤手当</span>
             <span className="font-mono text-sm text-blue-400">{formatYen(record.transportAllowance)}</span>
           </div>
         )}
@@ -301,7 +301,7 @@ function CostBreakdownSection({
           <span className="font-mono text-lg font-bold text-white">{formatYen(record.totalCompanyCost || (record.grossSalary + profitData.totalCompanyBenefits))}</span>
         </div>
       </div>
-    </div>
+    </div >
   )
 }
 

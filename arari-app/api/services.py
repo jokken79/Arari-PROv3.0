@@ -366,12 +366,41 @@ class PayrollService:
         paid_leave_amount = getattr(record, 'paid_leave_amount', 0) or 0
 
         # NOTE: paid_leave_amount is already in gross_salary - DO NOT add again
-        # NOTE: transport_allowance is already included in gross_salary (総支給額)
+        # NOTE: Smart check for Transport Allowance exclusion
+        # In some Excel formats, Transport Allowance (14,002) is NOT included in Gross Pay (325,587),
+        # even though the UI might say so. We need to check if we need to add it to Company Cost.
+        
+        # Calculate sum of known components
+        base_salary = getattr(record, 'base_salary', 0) or 0
+        overtime_pay = getattr(record, 'overtime_pay', 0) or 0
+        night_pay = getattr(record, 'night_pay', 0) or 0
+        holiday_pay = getattr(record, 'holiday_pay', 0) or 0
+        overtime_over_60h_pay = getattr(record, 'overtime_over_60h_pay', 0) or 0
+        paid_leave_amount = getattr(record, 'paid_leave_amount', 0) or 0
+        other_allowances = getattr(record, 'other_allowances', 0) or 0
+        transport_allowance = getattr(record, 'transport_allowance', 0) or 0
+        non_billable_allowances = getattr(record, 'non_billable_allowances', 0) or 0
+        
+        # Sum WITHOUT Transport
+        sum_without_transport = (
+            base_salary + overtime_pay + night_pay + holiday_pay +
+            overtime_over_60h_pay + paid_leave_amount + other_allowances +
+            non_billable_allowances 
+        )
+        
+        # Check if Gross matches Sum WITHOUT Transport (tolerance for rounding)
+        # If Gross is close to Sum Without Transport, then Transport is NOT in Gross.
+        # We must ADD it to Company Cost.
+        is_transport_excluded = abs(record.gross_salary - sum_without_transport) <= 100
+        
+        transport_cost_adder = transport_allowance if (is_transport_excluded and transport_allowance > 0) else 0
+
         total_company_cost = record.total_company_cost or round(
             record.gross_salary +
             company_social_insurance +
             company_employment_insurance +
-            company_workers_comp
+            company_workers_comp +
+            transport_cost_adder
         )
 
         # Calculate profit
