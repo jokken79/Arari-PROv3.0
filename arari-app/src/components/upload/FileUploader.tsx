@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useState, useEffect } from 'react'
+import { useCallback, useState, useEffect, useRef } from 'react'
 import { useDropzone } from 'react-dropzone'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
@@ -10,12 +10,13 @@ import {
   XCircle,
   Loader2,
   X,
+  Terminal,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
 import { cn } from '@/lib/utils'
-import { uploadApi } from '@/lib/api'
+// import { uploadApi } from '@/lib/api' // Bypassing for streaming support
 import { useAppStore } from '@/store/appStore'
 
 interface UploadedFileInfo {
@@ -31,11 +32,33 @@ interface UploadedFileInfo {
   file?: File
 }
 
+type LogEntry = {
+  type: 'info' | 'success' | 'error' | 'progress' | 'complete'
+  message: string
+  current?: number
+  total?: number
+  stats?: any
+  timestamp: string
+}
+
 export function FileUploader() {
   const [files, setFiles] = useState<UploadedFileInfo[]>([])
+  const [logs, setLogs] = useState<LogEntry[]>([])
+  const [isUploading, setIsUploading] = useState(false)
+  const logContainerRef = useRef<HTMLDivElement>(null)
+
   const { refreshFromBackend } = useAppStore()
 
-  const [isUploading, setIsUploading] = useState(false)
+  // Auto-scroll logs
+  useEffect(() => {
+    if (logContainerRef.current) {
+      logContainerRef.current.scrollTop = logContainerRef.current.scrollHeight
+    }
+  }, [logs])
+
+  const addLog = (entry: Omit<LogEntry, 'timestamp'>) => {
+    setLogs(prev => [...prev, { ...entry, timestamp: new Date().toLocaleTimeString() }])
+  }
 
   // Process queue effect
   useEffect(() => {
@@ -47,6 +70,12 @@ export function FileUploader() {
       if (!nextFile) return
 
       setIsUploading(true)
+      // Clear logs only if it's the first file of a batch? 
+      // Or keep appending? Let's keep appending with a separator for clarity.
+      if (files.filter(f => f.status === 'success' || f.status === 'error').length === 0) {
+        setLogs([])
+      }
+
       try {
         await processFile(nextFile)
       } finally {
@@ -62,35 +91,101 @@ export function FileUploader() {
 
     // Update status to uploading
     setFiles(prev => prev.map(f => f.id === fileInfo.id ? { ...f, status: 'uploading', progress: 0 } : f))
+    addLog({ type: 'info', message: `Starting upload for: ${fileInfo.name}` })
 
     try {
-      const result = await uploadApi.uploadFile(fileInfo.file)
+      const formData = new FormData()
+      formData.append('file', fileInfo.file)
 
-      if (result.data) {
-        setFiles(prev => prev.map(f =>
-          f.id === fileInfo.id
-            ? {
-              ...f,
-              status: 'success',
-              progress: 100,
-              records: result.data!.saved_records,
-              skipped: result.data!.skipped_count || 0,
-              errorCount: result.data!.error_count || 0,
-            }
-            : f
-        ))
-        await refreshFromBackend()
-      } else {
-        throw new Error(result.error || 'アップロードに失敗しました')
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+      const response = await fetch(`${apiUrl}/api/upload`, {
+        method: 'POST',
+        body: formData,
+      })
+
+      if (!response.ok) {
+        throw new Error(`Upload failed: ${response.statusText}`)
       }
+
+      const reader = response.body?.getReader()
+      if (!reader) throw new Error('ReadableStream not supported')
+
+      const decoder = new TextDecoder()
+      let buffer = ''
+      let finalStats: any = null
+
+      while (true) {
+        const { value, done } = await reader.read()
+        if (done) break
+
+        const chunk = decoder.decode(value, { stream: true })
+        buffer += chunk
+        const lines = buffer.split('\n')
+
+        for (let i = 0; i < lines.length - 1; i++) {
+          const line = lines[i].trim()
+          if (!line) continue
+
+          try {
+            const data = JSON.parse(line)
+
+            // Add to global logs
+            addLog({
+              type: data.type,
+              message: data.message,
+              current: data.current,
+              total: data.total
+            })
+
+            // Update file progress if available
+            if (data.type === 'progress' && data.current && data.total) {
+              const percentage = Math.round((data.current / data.total) * 100)
+              setFiles(prev => prev.map(f =>
+                f.id === fileInfo.id ? { ...f, status: 'processing', progress: percentage } : f
+              ))
+            }
+
+            if (data.type === 'success' && data.stats) {
+              finalStats = data.stats
+            }
+
+            // Handle "detected type" info for better UX?
+            // (Optional: Update UI to show "Types: Payroll" etc)
+
+          } catch (e) {
+            console.error('JSON Parse Error', line)
+          }
+        }
+        buffer = lines[lines.length - 1]
+      }
+
+      // Finalize file status
+      setFiles(prev => prev.map(f =>
+        f.id === fileInfo.id
+          ? {
+            ...f,
+            status: 'success',
+            progress: 100,
+            records: finalStats?.saved || finalStats?.imported || 0,
+            skipped: finalStats?.skipped || 0,
+            errorCount: finalStats?.errors || 0,
+          }
+          : f
+      ))
+
+      await refreshFromBackend()
+
     } catch (err) {
+      const errMsg = err instanceof Error ? err.message : 'Unknown error'
+      addLog({ type: 'error', message: `Error uploading ${fileInfo.name}: ${errMsg}` })
+
       setFiles(prev => prev.map(f =>
         f.id === fileInfo.id
           ? {
             ...f,
             status: 'error',
             progress: 100,
-            error: err instanceof Error ? err.message : 'Unknown error',
+            error: errMsg,
           }
           : f
       ))
@@ -193,6 +288,49 @@ export function FileUploader() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Terminal Log Viewer */}
+      <AnimatePresence>
+        {(logs.length > 0 || isUploading) && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+          >
+            <div className="rounded-lg overflow-hidden border border-slate-800 bg-slate-950 shadow-inner mb-6">
+              <div className="flex items-center gap-2 px-4 py-2 bg-slate-900 border-b border-slate-800 text-slate-400 text-xs">
+                <Terminal className="h-3 w-3" />
+                <span>Upload Process Output</span>
+              </div>
+              <div
+                ref={logContainerRef}
+                className="p-4 h-[200px] overflow-y-auto font-mono text-xs md:text-sm space-y-1"
+              >
+                {logs.map((log, index) => (
+                  <div key={index} className="flex gap-2 text-slate-300">
+                    <span className="text-slate-600 shrink-0">[{log.timestamp}]</span>
+                    <span className={cn(
+                      "break-all",
+                      log.type === 'error' && "text-red-400",
+                      log.type === 'success' && "text-emerald-400",
+                      log.type === 'info' && "text-blue-400 font-bold",
+                      log.type === 'complete' && "text-green-400 font-bold border-t border-slate-800 pt-2 mt-2"
+                    )}>
+                      {log.message}
+                    </span>
+                  </div>
+                ))}
+                {isUploading && (
+                  <div className="flex gap-2 text-slate-500 animate-pulse">
+                    <span className="text-slate-600">[{new Date().toLocaleTimeString()}]</span>
+                    <span>_</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Uploaded Files List */}
       <AnimatePresence>

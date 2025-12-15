@@ -314,213 +314,182 @@ async def upload_payroll_file(
     file: UploadFile = File(...),
     db: sqlite3.Connection = Depends(get_db)
 ):
-    """Upload and parse a payroll file (Excel or CSV)"""
-    # Validate file type
-    allowed_extensions = ['.xlsx', '.xlsm', '.xls', '.csv']
-    file_ext = '.' + file.filename.split('.')[-1].lower() if '.' in file.filename else ''
+    """Upload and parse a payroll file (Excel or CSV) with Streaming Log"""
+    from fastapi.responses import StreamingResponse
+    import json
+    import os
+    import tempfile
+    from fastapi.concurrency import run_in_threadpool
 
-    if file_ext not in allowed_extensions:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Invalid file type. Allowed: {', '.join(allowed_extensions)}"
-        )
+    async def log_generator():
+        try:
+            yield json.dumps({"type": "info", "message": f"Upload started: {file.filename}"}) + "\n"
 
-    # Validate file size (max 50MB)
-    MAX_FILE_SIZE = 50 * 1024 * 1024  # 50MB in bytes
+            # Validate file type
+            allowed_extensions = ['.xlsx', '.xlsm', '.xls', '.csv']
+            file_ext = '.' + file.filename.split('.')[-1].lower() if '.' in file.filename else ''
 
-    try:
-        # Read file content
-        content = await file.read()
+            if file_ext not in allowed_extensions:
+                yield json.dumps({
+                    "type": "error", 
+                    "message": f"Invalid extension. Allowed: {', '.join(allowed_extensions)}"
+                }) + "\n"
+                return
 
-        # Check file size after reading
-        if len(content) > MAX_FILE_SIZE:
-            raise HTTPException(
-                status_code=413,
-                detail=f"File too large. Maximum size: 50MB. Your file: {len(content) / 1024 / 1024:.2f}MB"
-            )
-
-        # Detect file type and use appropriate parser
-        
-        # Detect file type and use appropriate parser
-        
-        # ---------------------------------------------------------
-        # CASE A: Payroll File (給与明細)
-        # ---------------------------------------------------------
-        if file_ext in ['.xlsm', '.xlsx'] and ('給与' in file.filename or '給料' in file.filename or '明細' in file.filename):
-            print(f"[INFO] Detected Payroll File: {file.filename}")
-            print(f"[DEBUG] File size: {len(content)} bytes")
-            print(f"[DEBUG] File extension: {file_ext}")
-            # Use specialized SalaryStatementParser
-            template_stats = None
-            parser = SalaryStatementParser(use_intelligent_mode=True)
+            # Validate file size (max 50MB)
+            MAX_FILE_SIZE = 50 * 1024 * 1024 
+            content = await file.read()
             
-            # Run CPU-bound parsing in thread pool to avoid blocking async loop
-            from fastapi.concurrency import run_in_threadpool
-            print(f"[DEBUG] About to call parser.parse() in threadpool...")
-            records = await run_in_threadpool(parser.parse, content)
-            print(f"[DEBUG] Parser returned {len(records)} records")
-            
-            template_stats = parser.get_parsing_stats()
-            
-        # ---------------------------------------------------------
-        # CASE B: Employee Master File (社員台帳)
-        # ---------------------------------------------------------
-        elif file_ext in ['.xlsx', '.xlsm', '.xls'] and ('社員' in file.filename or 'Employee' in file.filename or '台帳' in file.filename):
-            print(f"[INFO] Detected Employee Master File: {file.filename}")
-            
-            # Save temp file for parser
-            with tempfile.NamedTemporaryFile(delete=False, suffix=file_ext) as tmp:
-                tmp.write(content)
-                tmp_path = tmp.name
+            if len(content) > MAX_FILE_SIZE:
+                 yield json.dumps({
+                    "type": "error", 
+                    "message": f"File too large (>50MB). Size: {len(content) / 1024 / 1024:.2f}MB"
+                }) + "\n"
+                 return
+
+            yield json.dumps({"type": "info", "message": "File read successfully. Detecting type..."}) + "\n"
+
+            # ---------------------------------------------------------
+            # CASE A: Payroll File (給与明細)
+            # ---------------------------------------------------------
+            if file_ext in ['.xlsm', '.xlsx'] and ('給与' in file.filename or '給料' in file.filename or '明細' in file.filename):
+                yield json.dumps({"type": "info", "message": "Detected: Payroll Statement (給与明細)"}) + "\n"
+                yield json.dumps({"type": "progress", "message": "Parsing Excel file (this may take a moment)..."}) + "\n"
                 
-            try:
-                parser = DBGenzaiXParser()
-                from fastapi.concurrency import run_in_threadpool
-                employees, stats = await run_in_threadpool(parser.parse_employees, tmp_path)
+                parser = SalaryStatementParser(use_intelligent_mode=True)
+                records = await run_in_threadpool(parser.parse, content)
                 
-                print(f"[INFO] Parsed {len(employees)} employees. Stats: {stats}")
+                yield json.dumps({"type": "info", "message": f"Parsed {len(records)} records. Saving to database..."}) + "\n"
                 
                 service = PayrollService(db)
-                imported_count = 0
+                saved_count = 0
+                error_count = 0
                 
-                # Upsert employees
-                for emp in employees:
-                    # Convert to EmployeeCreate schema
-                    emp_data = EmployeeCreate(
-                        employee_id=emp.employee_id,
-                        name=emp.name,
-                        name_kana=emp.name_kana,
-                        dispatch_company=emp.dispatch_company if emp.dispatch_company else "Unknown",
-                        department=emp.department,
-                        hourly_rate=emp.hourly_rate,
-                        billing_rate=emp.billing_rate,
-                        status=emp.status,
-                        hire_date=emp.hire_date,
-                        # NEW FIELDS - 2025-12-11
-                        employee_type=emp.employee_type,
-                        gender=emp.gender,
-                        birth_date=emp.birth_date,
-                        termination_date=emp.termination_date,
-                    )
-                    
-                    # Try update first (if exists), then create
-                    existing = service.get_employee(emp.employee_id)
-                    if existing:
-                        service.update_employee(emp.employee_id, emp_data)
-                    else:
-                        service.create_employee(emp_data)
-                    
-                    imported_count += 1
-                    
-                return {
-                    "success": True,
-                    "filename": file.filename,
-                    "total_records": stats['total_rows'],
-                    "saved_records": imported_count,
-                    "message": f"Successfully imported {imported_count} employees."
-                }
-                
-            finally:
-                if os.path.exists(tmp_path):
-                    os.unlink(tmp_path)
-
-        # ---------------------------------------------------------
-        # CASE C: Generic/Legacy Fallback
-        # ---------------------------------------------------------
-        else:
-            # Use existing ExcelParser for simple CSV/XLSX files
-            print(f"[INFO] Detected Generic/Legacy File: {file.filename}")
-            parser = ExcelParser()
-            from fastapi.concurrency import run_in_threadpool
-            records = await run_in_threadpool(parser.parse, content, file_ext)
-
-        # Save to database with transaction support
-        # All records are saved in a single transaction - if any fails, all rollback
-        service = PayrollService(db)
-        saved_count = 0
-        skipped = []  # Employees not found in database
-        errors = []   # Other errors
-
-        # Optimize N+1 queries: Load all employees once and create lookup map
-        all_employees = service.get_employees()
-        employee_map = {emp['employee_id']: emp for emp in all_employees}
-
-        # Start explicit transaction
-        cursor = db.cursor()
-        cursor.execute("BEGIN TRANSACTION")
-
-        try:
-            for record in records:
+                # Batch save or single transaction? Using single transaction for speed/consistency
+                cursor = db.cursor()
+                cursor.execute("BEGIN TRANSACTION")
                 try:
-                    # Check if employee exists using pre-loaded map (O(1) lookup)
-                    employee = employee_map.get(record.employee_id)
-                    if not employee:
-                        skipped.append({
-                            'employee_id': record.employee_id,
-                            'period': record.period,
-                            'reason': 'Employee not found in database'
-                        })
-                        continue
+                    total = len(records)
+                    for i, record_data in enumerate(records):
+                        try:
+                            service.create_payroll_record(record_data)
+                            saved_count += 1
+                        except Exception as e:
+                            error_count += 1
+                        
+                        # Report progress every 50 records
+                        if (i+1) % 50 == 0:
+                             yield json.dumps({
+                                 "type": "progress", 
+                                 "message": f"Saving records [{i+1}/{total}]...",
+                                 "current": i+1,
+                                 "total": total
+                             }) + "\n"
 
-                    service.create_payroll_record(record)
-                    saved_count += 1
-
-                except sqlite3.IntegrityError as e:
-                    # Duplicate record with same (employee_id, period) - this is OK
-                    # INSERT OR REPLACE in services.py handles this
-                    if 'UNIQUE constraint failed' in str(e):
-                        saved_count += 1  # Count as saved (replaced)
-                    else:
-                        errors.append({
-                            'employee_id': record.employee_id,
-                            'period': record.period,
-                            'error': str(e)
-                        })
-                        # Rollback on integrity errors (other than duplicate)
-                        db.rollback()
-                        raise
-
+                    db.commit()
+                    yield json.dumps({
+                        "type": "success",
+                        "message": f"Successfully saved {saved_count} records.",
+                        "stats": {"total": total, "saved": saved_count, "errors": error_count}
+                    }) + "\n"
+                    
                 except Exception as e:
-                    errors.append({
-                        'employee_id': record.employee_id,
-                        'period': record.period,
-                        'error': str(e)
-                    })
-                    # Rollback on any unexpected error
                     db.rollback()
-                    raise
+                    yield json.dumps({"type": "error", "message": f"Database Error: {str(e)}"}) + "\n"
+                    raise e
 
-            # If we got here, all records processed successfully - commit transaction
-            db.commit()
+            # ---------------------------------------------------------
+            # CASE B: Employee Master File (社員台帳)
+            # ---------------------------------------------------------
+            elif file_ext in ['.xlsx', '.xlsm', '.xls'] and ('社員' in file.filename or 'Employee' in file.filename or '台帳' in file.filename):
+                yield json.dumps({"type": "info", "message": "Detected: Employee Master (社員台帳)"}) + "\n"
+                
+                with tempfile.NamedTemporaryFile(delete=False, suffix=file_ext) as tmp:
+                    tmp.write(content)
+                    tmp_path = tmp.name
+                
+                try:
+                    parser = DBGenzaiXParser()
+                    yield json.dumps({"type": "progress", "message": "Parsing Employees..."}) + "\n"
+                    
+                    employees, stats = await run_in_threadpool(parser.parse_employees, tmp_path)
+                    yield json.dumps({"type": "info", "message": f"Found {len(employees)} employees."}) + "\n"
+
+                    service = PayrollService(db)
+                    imported_count = 0
+                    total = len(employees)
+                    
+                    for i, emp in enumerate(employees):
+                        # Convert/Upsert logic...
+                        emp_data = EmployeeCreate(
+                            employee_id=emp.employee_id,
+                            name=emp.name,
+                            name_kana=emp.name_kana,
+                            dispatch_company=emp.dispatch_company if emp.dispatch_company else "Unknown",
+                            department=emp.department,
+                            hourly_rate=emp.hourly_rate,
+                            billing_rate=emp.billing_rate,
+                            status=emp.status,
+                            hire_date=emp.hire_date,
+                            employee_type=emp.employee_type,
+                            gender=emp.gender,
+                            birth_date=emp.birth_date,
+                            termination_date=emp.termination_date,
+                        )
+                        existing = service.get_employee(emp.employee_id)
+                        if existing:
+                            service.update_employee(emp.employee_id, emp_data)
+                        else:
+                            service.create_employee(emp_data)
+                        
+                        imported_count += 1
+                        
+                        if (i+1) % 50 == 0:
+                             yield json.dumps({
+                                 "type": "progress", 
+                                 "message": f"Syncing employees [{i+1}/{total}]...",
+                                 "current": i+1,
+                                 "total": total
+                             }) + "\n"
+                    
+                    yield json.dumps({
+                        "type": "success",
+                        "message": f"Imported {imported_count} employees.",
+                        "stats": {"total": total, "imported": imported_count}
+                    }) + "\n"
+
+                finally:
+                    if os.path.exists(tmp_path):
+                        os.unlink(tmp_path)
+
+            else:
+                 # Fallback (Generic)
+                 yield json.dumps({"type": "info", "message": "Detected: Generic Excel/CSV"}) + "\n"
+                 parser = ExcelParser()
+                 records = await run_in_threadpool(parser.parse, content)
+                 
+                 service = PayrollService(db)
+                 saved_count = 0
+                 # Simple save loop
+                 for i, r in enumerate(records):
+                     service.create_payroll_record(r)
+                     saved_count += 1
+                     if (i+1) % 50 == 0:
+                         yield json.dumps({"type": "progress", "message": f"Saving {i+1}..."}) + "\n"
+                 
+                 yield json.dumps({
+                        "type": "success",
+                        "message": f"Saved {saved_count} records.",
+                        "stats": {"saved": saved_count}
+                    }) + "\n"
+
+            # Final Completion Signal
+            yield json.dumps({"type": "complete", "message": "Processing Finished."}) + "\n"
 
         except Exception as e:
-            # Rollback already happened in inner catch, but ensure it's done
-            try:
-                db.rollback()
-            except:
-                pass
-            # Re-raise to outer handler
-            raise
+            yield json.dumps({"type": "error", "message": f"Critical Error: {str(e)}"}) + "\n"
 
-        response = {
-            "success": True,
-            "filename": file.filename,
-            "total_records": len(records),
-            "saved_records": saved_count,
-            "skipped_count": len(skipped),
-            "error_count": len(errors),
-            "skipped_details": skipped[:10] if skipped else None,  # First 10 skipped
-            "errors": [e['error'] for e in errors[:10]] if errors else None  # First 10 error messages
-        }
-
-        # Add template stats if available
-        if template_stats:
-            response["template_stats"] = template_stats
-
-        return response
-
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Error processing file: {str(e)}")
+    return StreamingResponse(log_generator(), media_type="application/x-ndjson")
 
 # ============== Export ==============
 
