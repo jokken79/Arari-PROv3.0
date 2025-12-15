@@ -589,30 +589,30 @@ class PayrollService:
             SELECT value FROM json_each((SELECT value FROM settings WHERE key = 'ignored_companies'))
         )
     """, (period,))
-    total = cursor.fetchone()[0]
+        total = cursor.fetchone()[0]
 
-    distribution = []
-    for range_name, min_val, max_val in ranges:
-        cursor.execute("""
-            SELECT COUNT(*) 
-            FROM payroll_records p
-            LEFT JOIN employees e ON p.employee_id = e.employee_id
-            WHERE p.period = ? 
-            AND p.profit_margin >= ? 
-            AND p.profit_margin < ?
-            AND e.dispatch_company NOT IN (
-                SELECT value FROM json_each((SELECT value FROM settings WHERE key = 'ignored_companies'))
-            )
-        """, (period, min_val, max_val))
-        count = cursor.fetchone()[0]
-        percentage = (count / total * 100) if total > 0 else 0
-        distribution.append({
-            "range": range_name,
-            "count": count,
-            "percentage": round(percentage, 1)
-        })
+        distribution = []
+        for range_name, min_val, max_val in ranges:
+            cursor.execute("""
+                SELECT COUNT(*) 
+                FROM payroll_records p
+                LEFT JOIN employees e ON p.employee_id = e.employee_id
+                WHERE p.period = ? 
+                AND p.profit_margin >= ? 
+                AND p.profit_margin < ?
+                AND e.dispatch_company NOT IN (
+                    SELECT value FROM json_each((SELECT value FROM settings WHERE key = 'ignored_companies'))
+                )
+            """, (period, min_val, max_val))
+            count = cursor.fetchone()[0]
+            percentage = (count / total * 100) if total > 0 else 0
+            distribution.append({
+                "range": range_name,
+                "count": count,
+                "percentage": round(percentage, 1)
+            })
 
-    return distribution
+        return distribution
 
     def _empty_statistics(self) -> Dict:
         """Return empty statistics"""

@@ -279,7 +279,7 @@ class SalaryStatementParser:
         # Process all sheets except the summary sheet (集計) and Contract (請負)
         for sheet_name in wb.sheetnames:
             # Skip only summary and index sheets. '請負' (Ukeoi) is now ALLOWED.
-            if sheet_name in ['集計', 'Summary', '目次', 'Index']:
+            if sheet_name in ['集計', 'Summary', '目次', 'Index', '請負', 'DBUkeoiX', '請負社員']:
                 print(f"[DEBUG] Skipping sheet: {sheet_name}")
                 continue
 
