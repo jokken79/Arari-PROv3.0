@@ -11,6 +11,7 @@ from fastapi import FastAPI, UploadFile, File, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
+from pydantic import BaseModel
 import uvicorn
 import tempfile
 import os
@@ -514,6 +515,7 @@ async def export_all_data(
     db: sqlite3.Connection = Depends(get_db)
 ):
     """Export all data (employees + payroll) as Excel"""
+    from datetime import datetime
     service = PayrollService(db)
     employees = service.get_employees()
     payroll = service.get_payroll_records()
@@ -560,6 +562,104 @@ async def export_all_data(
         )
 
     return {"employees": employees, "payroll": payroll}
+
+
+# ---------------------------------------------------------
+# Wage Ledger Export (賃金台帳)
+# ---------------------------------------------------------
+class WageLedgerRequest(BaseModel):
+    template_name: str  # 'format_b' or 'format_c'
+    year: int
+    target: str         # 'single' or 'all_in_company'
+    employee_id: Optional[str] = None
+    company_name: Optional[str] = None
+
+@app.post("/api/export/wage-ledger")
+async def export_wage_ledger(
+    request: WageLedgerRequest,
+    db: sqlite3.Connection = Depends(get_db)
+):
+    from api.export_service import WageLedgerExportService
+    from fastapi.responses import FileResponse
+    from starlette.background import BackgroundTask
+    
+    # Path to templates
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+    TEMPLATE_DIR = os.path.join(BASE_DIR, "templates")
+    
+    export_service = WageLedgerExportService(TEMPLATE_DIR)
+    payroll_service = PayrollService(db)
+    
+    try:
+        if request.target == 'single':
+            if not request.employee_id:
+                raise HTTPException(status_code=400, detail="Employee ID required for single export")
+            
+            # Fetch employee as dict (handling object or dict return)
+            emp_obj = payroll_service.get_employee(request.employee_id)
+            if not emp_obj:
+                 raise HTTPException(status_code=404, detail="Employee not found")
+            
+            # Convert to dict for export service
+            employee = emp_obj.__dict__ if hasattr(emp_obj, '__dict__') else emp_obj
+
+            records = payroll_service.get_payroll_by_employee_year(request.employee_id, request.year)
+            
+            file_path = await run_in_threadpool(
+                export_service.generate_ledger, 
+                employee, records, request.template_name, request.year
+            )
+            
+            filename = f"賃金台帳_{employee['name']}_{request.year}.xlsx"
+            return FileResponse(
+                path=file_path, 
+                filename=filename, 
+                media_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                background=BackgroundTask(lambda: os.unlink(file_path)) 
+            )
+
+        elif request.target == 'all_in_company':
+            if not request.company_name:
+                raise HTTPException(status_code=400, detail="Company Name required for batch export")
+            
+            # 1. Get all employees in company
+            all_employees = payroll_service.get_employees(company=request.company_name)
+            
+            export_requests = []
+            
+            for emp in all_employees:
+                emp_dict = emp.__dict__ if hasattr(emp, '__dict__') else emp
+                records = payroll_service.get_payroll_by_employee_year(emp_dict['employee_id'], request.year)
+                
+                export_requests.append({
+                    "employee": emp_dict,
+                    "records": records,
+                    "template": request.template_name
+                })
+            
+            if not export_requests:
+                raise HTTPException(status_code=404, detail=f"No employees found for company: {request.company_name}")
+
+            zip_path = await run_in_threadpool(
+                export_service.create_batch_zip,
+                export_requests, request.year
+            )
+            
+            filename = f"賃金台帳_{request.company_name}_{request.year}.zip"
+            return FileResponse(
+                path=zip_path,
+                filename=filename,
+                media_type='application/zip',
+                background=BackgroundTask(lambda: os.unlink(zip_path))
+            )
+            
+        else:
+             raise HTTPException(status_code=400, detail="Invalid target specified")
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/sync-from-folder")
 async def sync_from_folder(
