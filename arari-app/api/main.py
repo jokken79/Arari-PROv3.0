@@ -64,6 +64,15 @@ for port in range(4000, 4010):
         f"http://127.0.0.1:{port}",
     ])
 
+# Add custom FRONTEND_PORT from environment variable if set
+custom_frontend_port = os.getenv("FRONTEND_PORT")
+if custom_frontend_port:
+    print(f"[INFO] Adding custom CORS origin for port {custom_frontend_port}")
+    allowed_origins.extend([
+        f"http://localhost:{custom_frontend_port}",
+        f"http://127.0.0.1:{custom_frontend_port}",
+    ])
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
@@ -716,6 +725,29 @@ async def get_insurance_rates(db: sqlite3.Connection = Depends(get_db)):
     """Get current insurance rates"""
     service = PayrollService(db)
     return service.get_insurance_rates()
+
+
+@app.get("/api/settings/ignored-companies")
+async def get_ignored_companies(db: sqlite3.Connection = Depends(get_db)):
+    """Get list of ignored companies"""
+    service = PayrollService(db)
+    return service.get_ignored_companies()
+
+@app.post("/api/companies/{company_name}/toggle")
+async def toggle_company_status(
+    company_name: str,
+    payload: dict,
+    db: sqlite3.Connection = Depends(get_db)
+):
+    """Toggle company active status"""
+    service = PayrollService(db)
+    active = payload.get("active", True)
+    
+    # Decode double-encoded URL component if needed or handle raw string
+    # FastAPI handles URL decoding for path params automatically
+    
+    service.set_company_active(company_name, active)
+    return {"status": "success", "company": company_name, "active": active}
 
 
 # ============== TEMPLATES ==============

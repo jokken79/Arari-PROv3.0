@@ -340,6 +340,7 @@ export interface CompanyStats {
   average_margin: number
   total_monthly_profit: number
   total_monthly_revenue?: number
+  is_active?: boolean
 }
 
 export interface MonthlyStats {

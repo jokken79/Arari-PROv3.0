@@ -63,6 +63,29 @@ class PayrollService:
             'workers_comp_rate': float(self.get_setting('workers_comp_rate', '0.003')),
         }
 
+    def get_ignored_companies(self) -> List[str]:
+        """Get list of ignored/deactivated companies"""
+        import json
+        val = self.get_setting('ignored_companies', '[]')
+        try:
+            return json.loads(val)
+        except:
+            return []
+
+    def set_company_active(self, company_name: str, active: bool) -> bool:
+        """Set company active/inactive status"""
+        import json
+        ignored = self.get_ignored_companies()
+        
+        if active:
+            if company_name in ignored:
+                ignored.remove(company_name)
+        else:
+            if company_name not in ignored:
+                ignored.append(company_name)
+                
+        return self.update_setting('ignored_companies', json.dumps(ignored), "Ignored companies list")
+
     # ============== Employee Operations ==============
 
     def get_employees(self, search: Optional[str] = None, company: Optional[str] = None, employee_type: Optional[str] = None) -> List[Dict]:
@@ -438,7 +461,13 @@ class PayrollService:
         cursor.execute("SELECT COUNT(*) FROM employees WHERE status = 'active'")
         active_employees = cursor.fetchone()[0]
 
-        cursor.execute("SELECT COUNT(DISTINCT dispatch_company) FROM employees")
+        cursor.execute("""
+            SELECT COUNT(DISTINCT dispatch_company) 
+            FROM employees 
+            WHERE dispatch_company NOT IN (
+                SELECT value FROM json_each((SELECT value FROM settings WHERE key = 'ignored_companies'))
+            )
+        """)
         total_companies = cursor.fetchone()[0]
 
         # Period statistics
@@ -449,8 +478,12 @@ class PayrollService:
                 SUM(billing_amount) as total_revenue,
                 SUM(total_company_cost) as total_cost,
                 SUM(gross_profit) as total_profit
-            FROM payroll_records
-            WHERE period = ?
+            FROM payroll_records p
+            LEFT JOIN employees e ON p.employee_id = e.employee_id
+            WHERE p.period = ?
+            AND e.dispatch_company NOT IN (
+                SELECT value FROM json_each((SELECT value FROM settings WHERE key = 'ignored_companies'))
+            )
         """, (period,))
         stats = cursor.fetchone()
 
@@ -462,7 +495,11 @@ class PayrollService:
                 SUM(total_company_cost) as cost,
                 SUM(gross_profit) as profit,
                 AVG(profit_margin) as margin
-            FROM payroll_records
+            FROM payroll_records p
+            LEFT JOIN employees e ON p.employee_id = e.employee_id
+            WHERE e.dispatch_company NOT IN (
+                SELECT value FROM json_each((SELECT value FROM settings WHERE key = 'ignored_companies'))
+            )
             GROUP BY period
             ORDER BY 
                 CAST(SUBSTR(period, 1, 4) AS INTEGER) DESC,
@@ -625,8 +662,15 @@ class PayrollService:
             GROUP BY e.dispatch_company
             ORDER BY total_monthly_profit DESC
         """, (period,))
+        
+        result = [dict(row) for row in cursor.fetchall()]
 
-        return [dict(row) for row in cursor.fetchall()]
+        # Add 'is_active' flag
+        ignored = self.get_ignored_companies()
+        for c in result:
+            c['is_active'] = c['company_name'] not in ignored
+            
+        return result
 
     def get_profit_trend(self, months: int = 6) -> List[Dict]:
         """Get profit trend for last N months"""
