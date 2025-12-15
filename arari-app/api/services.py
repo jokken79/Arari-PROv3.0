@@ -517,12 +517,15 @@ class PayrollService:
                 e.dispatch_company as company_name,
                 COUNT(DISTINCT e.employee_id) as employee_count,
                 AVG(e.hourly_rate) as average_hourly_rate,
-                AVG(e.billing_rate) as average_billing_rate,
+        AVG(e.billing_rate) as average_billing_rate,
                 AVG(e.billing_rate - e.hourly_rate) as average_profit,
                 AVG((e.billing_rate - e.hourly_rate) / e.billing_rate * 100) as average_margin,
                 SUM(p.gross_profit) as total_monthly_profit
             FROM employees e
             LEFT JOIN payroll_records p ON e.employee_id = p.employee_id AND p.period = ?
+            WHERE e.dispatch_company NOT IN (
+                SELECT value FROM json_each((SELECT value FROM settings WHERE key = 'ignored_companies'))
+            )
             GROUP BY e.dispatch_company
             ORDER BY total_monthly_profit DESC
             LIMIT 5
@@ -535,6 +538,9 @@ class PayrollService:
             FROM payroll_records p
             LEFT JOIN employees e ON p.employee_id = e.employee_id
             WHERE p.period = ?
+            AND e.dispatch_company NOT IN (
+                SELECT value FROM json_each((SELECT value FROM settings WHERE key = 'ignored_companies'))
+            )
             ORDER BY p.gross_profit DESC
             LIMIT 10
         """, (period,))
@@ -574,24 +580,39 @@ class PayrollService:
             (">18%", 18, 999999999),     # Excellent - very profitable
         ]
 
-        cursor.execute("SELECT COUNT(*) FROM payroll_records WHERE period = ?", (period,))
-        total = cursor.fetchone()[0]
+        cursor.execute("""
+        SELECT COUNT(*) 
+        FROM payroll_records p
+        LEFT JOIN employees e ON p.employee_id = e.employee_id
+        WHERE p.period = ?
+        AND e.dispatch_company NOT IN (
+            SELECT value FROM json_each((SELECT value FROM settings WHERE key = 'ignored_companies'))
+        )
+    """, (period,))
+    total = cursor.fetchone()[0]
 
-        distribution = []
-        for range_name, min_val, max_val in ranges:
-            cursor.execute("""
-                SELECT COUNT(*) FROM payroll_records
-                WHERE period = ? AND profit_margin >= ? AND profit_margin < ?
-            """, (period, min_val, max_val))
-            count = cursor.fetchone()[0]
-            percentage = (count / total * 100) if total > 0 else 0
-            distribution.append({
-                "range": range_name,
-                "count": count,
-                "percentage": round(percentage, 1)
-            })
+    distribution = []
+    for range_name, min_val, max_val in ranges:
+        cursor.execute("""
+            SELECT COUNT(*) 
+            FROM payroll_records p
+            LEFT JOIN employees e ON p.employee_id = e.employee_id
+            WHERE p.period = ? 
+            AND p.profit_margin >= ? 
+            AND p.profit_margin < ?
+            AND e.dispatch_company NOT IN (
+                SELECT value FROM json_each((SELECT value FROM settings WHERE key = 'ignored_companies'))
+            )
+        """, (period, min_val, max_val))
+        count = cursor.fetchone()[0]
+        percentage = (count / total * 100) if total > 0 else 0
+        distribution.append({
+            "range": range_name,
+            "count": count,
+            "percentage": round(percentage, 1)
+        })
 
-        return distribution
+    return distribution
 
     def _empty_statistics(self) -> Dict:
         """Return empty statistics"""

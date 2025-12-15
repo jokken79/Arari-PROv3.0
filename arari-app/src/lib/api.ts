@@ -149,6 +149,20 @@ export const settingsApi = {
   getAll: async () => {
     return fetchApi<{ key: string; value: string }[]>('/api/settings')
   },
+
+  getIgnoredCompanies: async () => {
+    return fetchApi<string[]>('/api/settings/ignored-companies')
+  },
+
+  toggleCompany: async (name: string, active: boolean) => {
+    return fetchApi<{ status: string; company: string; active: boolean }>(
+      `/api/companies/${encodeURIComponent(name)}/toggle`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ active }),
+      }
+    )
+  },
 }
 
 // ============== Upload API ==============
