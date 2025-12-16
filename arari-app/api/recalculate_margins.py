@@ -22,8 +22,8 @@ Opciones:
     --dry-run    Mostrar cambios sin aplicarlos
 """
 
-import sqlite3
 import argparse
+import sqlite3
 from pathlib import Path
 
 # Tasas de seguro (2025年度)
@@ -32,17 +32,24 @@ WORKERS_COMP_RATE = 0.003  # 労災保険 0.3%
 
 # Billing multipliers
 BILLING_MULTIPLIERS = {
-    'overtime_normal': 1.25,      # 残業 ≤60h
-    'overtime_over_60h': 1.5,     # 残業 >60h
-    'night': 0.25,                # 深夜 (extra)
-    'holiday': 1.35,              # 休日
+    "overtime_normal": 1.25,  # 残業 ≤60h
+    "overtime_over_60h": 1.5,  # 残業 >60h
+    "night": 0.25,  # 深夜 (extra)
+    "holiday": 1.35,  # 休日
 }
 
 # Ruta a la base de datos
 DB_PATH = Path(__file__).parent / "arari_pro.db"
 
 
-def calculate_billing_amount(work_hours, overtime_hours, overtime_over_60h, night_hours, holiday_hours, billing_rate):
+def calculate_billing_amount(
+    work_hours,
+    overtime_hours,
+    overtime_over_60h,
+    night_hours,
+    holiday_hours,
+    billing_rate,
+):
     """
     Calculate billing amount from hours and billing rate
 
@@ -64,18 +71,28 @@ def calculate_billing_amount(work_hours, overtime_hours, overtime_over_60h, nigh
     base_billing = work_hours * billing_rate
 
     # 残業 ≤60h: ×1.25
-    overtime_billing = overtime_hours * billing_rate * BILLING_MULTIPLIERS['overtime_normal']
+    overtime_billing = (
+        overtime_hours * billing_rate * BILLING_MULTIPLIERS["overtime_normal"]
+    )
 
     # 残業 >60h: ×1.5
-    overtime_over_60h_billing = overtime_over_60h * billing_rate * BILLING_MULTIPLIERS['overtime_over_60h']
+    overtime_over_60h_billing = (
+        overtime_over_60h * billing_rate * BILLING_MULTIPLIERS["overtime_over_60h"]
+    )
 
     # 深夜: +0.25 extra
-    night_billing = night_hours * billing_rate * BILLING_MULTIPLIERS['night']
+    night_billing = night_hours * billing_rate * BILLING_MULTIPLIERS["night"]
 
     # 休日: ×1.35
-    holiday_billing = holiday_hours * billing_rate * BILLING_MULTIPLIERS['holiday']
+    holiday_billing = holiday_hours * billing_rate * BILLING_MULTIPLIERS["holiday"]
 
-    return round(base_billing + overtime_billing + overtime_over_60h_billing + night_billing + holiday_billing)
+    return round(
+        base_billing
+        + overtime_billing
+        + overtime_over_60h_billing
+        + night_billing
+        + holiday_billing
+    )
 
 
 def recalculate_all_records(dry_run: bool = False):
@@ -99,13 +116,16 @@ def recalculate_all_records(dry_run: bool = False):
 
     for col_name, col_type in new_columns:
         try:
-            cursor.execute(f"ALTER TABLE payroll_records ADD COLUMN {col_name} {col_type}")
+            cursor.execute(
+                f"ALTER TABLE payroll_records ADD COLUMN {col_name} {col_type}"
+            )
             print(f"✅ Columna {col_name} agregada")
         except sqlite3.OperationalError:
             pass  # Column already exists
 
     # Obtener todos los registros con información del empleado
-    cursor.execute("""
+    cursor.execute(
+        """
         SELECT
             p.id,
             p.employee_id,
@@ -131,7 +151,8 @@ def recalculate_all_records(dry_run: bool = False):
         FROM payroll_records p
         LEFT JOIN employees e ON p.employee_id = e.employee_id
         ORDER BY p.period, p.employee_id
-    """)
+    """
+    )
 
     records = cursor.fetchall()
     print(f"\n📊 Procesando {len(records)} registros...\n")
@@ -141,27 +162,31 @@ def recalculate_all_records(dry_run: bool = False):
     billing_calculated = 0
 
     for record in records:
-        record_id = record['id']
-        employee_id = record['employee_id']
-        period = record['period']
-        work_hours = record['work_hours'] or 0
-        overtime_hours = record['overtime_hours'] or 0
-        night_hours = record['night_hours'] or 0
-        holiday_hours = record['holiday_hours'] or 0
-        overtime_over_60h = record['overtime_over_60h'] or 0
-        gross_salary = record['gross_salary'] or 0
-        social_insurance = record['social_insurance'] or 0
-        billing_amount = record['billing_amount'] or 0
-        paid_leave_hours = record['paid_leave_hours'] or 0
-        paid_leave_amount = record['paid_leave_amount'] or 0
-        hourly_rate = record['hourly_rate'] or 0
-        billing_rate = record['billing_rate'] or 0
+        record_id = record["id"]
+        employee_id = record["employee_id"]
+        period = record["period"]
+        work_hours = record["work_hours"] or 0
+        overtime_hours = record["overtime_hours"] or 0
+        night_hours = record["night_hours"] or 0
+        holiday_hours = record["holiday_hours"] or 0
+        overtime_over_60h = record["overtime_over_60h"] or 0
+        gross_salary = record["gross_salary"] or 0
+        social_insurance = record["social_insurance"] or 0
+        billing_amount = record["billing_amount"] or 0
+        paid_leave_hours = record["paid_leave_hours"] or 0
+        paid_leave_amount = record["paid_leave_amount"] or 0
+        hourly_rate = record["hourly_rate"] or 0
+        billing_rate = record["billing_rate"] or 0
 
         # Calculate billing_amount if it's 0 or missing
         if billing_amount == 0 and billing_rate > 0:
             billing_amount = calculate_billing_amount(
-                work_hours, overtime_hours, overtime_over_60h,
-                night_hours, holiday_hours, billing_rate
+                work_hours,
+                overtime_hours,
+                overtime_over_60h,
+                night_hours,
+                holiday_hours,
+                billing_rate,
             )
             billing_calculated += 1
 
@@ -196,40 +221,47 @@ def recalculate_all_records(dry_run: bool = False):
 
         # Costo total - DO NOT add paid_leave_cost (already in gross_salary)
         total_company_cost = (
-            gross_salary +
-            company_social_insurance +
-            company_employment_insurance +
-            company_workers_comp
+            gross_salary
+            + company_social_insurance
+            + company_employment_insurance
+            + company_workers_comp
             # ❌ NO paid_leave_cost - ya está en gross_salary!
         )
 
         # Margen bruto
         gross_profit = billing_amount - total_company_cost
-        profit_margin = (gross_profit / billing_amount * 100) if billing_amount > 0 else 0
+        profit_margin = (
+            (gross_profit / billing_amount * 100) if billing_amount > 0 else 0
+        )
 
         # Mostrar cambios
-        old_profit = record['old_gross_profit'] or 0
-        old_margin = record['old_profit_margin'] or 0
-        old_billing = record['billing_amount'] or 0
+        old_profit = record["old_gross_profit"] or 0
+        old_margin = record["old_profit_margin"] or 0
+        old_billing = record["billing_amount"] or 0
 
         # Check if there are significant changes
         has_changes = (
-            abs(gross_profit - old_profit) > 1 or
-            abs(profit_margin - old_margin) > 0.1 or
-            (old_billing == 0 and billing_amount > 0)
+            abs(gross_profit - old_profit) > 1
+            or abs(profit_margin - old_margin) > 0.1
+            or (old_billing == 0 and billing_amount > 0)
         )
 
         if has_changes:
             print(f"📝 {employee_id} ({period}):")
             if old_billing == 0 and billing_amount > 0:
                 print(f"   請求金額: ¥0 → ¥{billing_amount:,.0f} (自動計算)")
-            print(f"   粗利: ¥{old_profit:,.0f} → ¥{gross_profit:,.0f} (差: ¥{gross_profit - old_profit:,.0f})")
+            print(
+                f"   粗利: ¥{old_profit:,.0f} → ¥{gross_profit:,.0f} (差: ¥{gross_profit - old_profit:,.0f})"
+            )
             print(f"   マージン: {old_margin:.1f}% → {profit_margin:.1f}%")
-            print(f"   [雇用保険: ¥{company_employment_insurance:,}, 労災: ¥{company_workers_comp:,}]")
+            print(
+                f"   [雇用保険: ¥{company_employment_insurance:,}, 労災: ¥{company_workers_comp:,}]"
+            )
             print()
 
             if not dry_run:
-                cursor.execute("""
+                cursor.execute(
+                    """
                     UPDATE payroll_records
                     SET company_social_insurance = ?,
                         company_employment_insurance = ?,
@@ -239,16 +271,18 @@ def recalculate_all_records(dry_run: bool = False):
                         gross_profit = ?,
                         profit_margin = ?
                     WHERE id = ?
-                """, (
-                    company_social_insurance,
-                    company_employment_insurance,
-                    company_workers_comp,
-                    billing_amount,
-                    total_company_cost,
-                    gross_profit,
-                    profit_margin,
-                    record_id
-                ))
+                """,
+                    (
+                        company_social_insurance,
+                        company_employment_insurance,
+                        company_workers_comp,
+                        billing_amount,
+                        total_company_cost,
+                        gross_profit,
+                        profit_margin,
+                        record_id,
+                    ),
+                )
 
             updated_count += 1
 
@@ -258,41 +292,44 @@ def recalculate_all_records(dry_run: bool = False):
     conn.close()
 
     print(f"\n{'=' * 50}")
-    print(f"📊 RESUMEN:")
+    print("📊 RESUMEN:")
     print(f"   Total registros: {len(records)}")
     print(f"   Actualizados: {updated_count}")
     print(f"   Billing calculado: {billing_calculated}")
     print(f"   Sin billing_rate: {skipped_count}")
 
     if dry_run:
-        print(f"\n⚠️  MODO DRY-RUN: No se aplicaron cambios")
-        print(f"   Ejecuta sin --dry-run para aplicar los cambios")
+        print("\n⚠️  MODO DRY-RUN: No se aplicaron cambios")
+        print("   Ejecuta sin --dry-run para aplicar los cambios")
     else:
-        print(f"\n✅ Cambios aplicados exitosamente")
+        print("\n✅ Cambios aplicados exitosamente")
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Recalcular márgenes de datos históricos')
-    parser.add_argument('--dry-run', action='store_true',
-                       help='Mostrar cambios sin aplicarlos')
+    parser = argparse.ArgumentParser(
+        description="Recalcular márgenes de datos históricos"
+    )
+    parser.add_argument(
+        "--dry-run", action="store_true", help="Mostrar cambios sin aplicarlos"
+    )
 
     args = parser.parse_args()
 
     print("=" * 50)
     print("🔄 RECÁLCULO DE MÁRGENES (粗利)")
     print("=" * 50)
-    print(f"\nTasas aplicadas (2024年度):")
+    print("\nTasas aplicadas (2024年度):")
     print(f"  • 雇用保険（会社負担）: {EMPLOYMENT_INSURANCE_RATE * 100}%")
     print(f"  • 労災保険: {WORKERS_COMP_RATE * 100}%")
-    print(f"  • 社会保険（会社負担）: = 本人負担額")
-    print(f"\nMultiplicadores de billing:")
+    print("  • 社会保険（会社負担）: = 本人負担額")
+    print("\nMultiplicadores de billing:")
     print(f"  • 残業 ≤60h: ×{BILLING_MULTIPLIERS['overtime_normal']}")
     print(f"  • 残業 >60h: ×{BILLING_MULTIPLIERS['overtime_over_60h']}")
     print(f"  • 深夜: +{BILLING_MULTIPLIERS['night']} (extra)")
     print(f"  • 休日: ×{BILLING_MULTIPLIERS['holiday']}")
 
     if args.dry_run:
-        print(f"\n⚠️  MODO DRY-RUN: Solo se mostrarán los cambios")
+        print("\n⚠️  MODO DRY-RUN: Solo se mostrarán los cambios")
 
     recalculate_all_records(dry_run=args.dry_run)
 

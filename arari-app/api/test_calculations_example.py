@@ -10,8 +10,9 @@ Full test suite should be implemented in /tests/ directory.
 """
 
 import pytest
-from models import PayrollRecordCreate
+
 from config import BillingMultipliers, InsuranceRates
+from models import PayrollRecordCreate
 
 
 def test_billing_calculation_basic():
@@ -19,7 +20,7 @@ def test_billing_calculation_basic():
     Test basic billing calculation: 160h × ¥1,700 = ¥272,000
     """
     # Mock employee with billing_rate
-    employee = {'billing_rate': 1700}
+    employee = {"billing_rate": 1700}
 
     # Mock record with 160h work_hours, no overtime
     record = PayrollRecordCreate(
@@ -41,7 +42,7 @@ def test_billing_calculation_basic():
         resident_tax=0,
         other_deductions=0,
         net_salary=0,
-        billing_amount=0
+        billing_amount=0,
     )
 
     # Expected billing: 160 × 1700 = ¥272,000
@@ -61,7 +62,9 @@ def test_billing_calculation_with_overtime():
     overtime_hours = 10
 
     base_billing = work_hours * billing_rate
-    overtime_billing = overtime_hours * billing_rate * BillingMultipliers.OVERTIME_NORMAL
+    overtime_billing = (
+        overtime_hours * billing_rate * BillingMultipliers.OVERTIME_NORMAL
+    )
 
     expected_total = base_billing + overtime_billing
 
@@ -146,19 +149,23 @@ def test_company_cost_calculation():
     # Company costs
     company_social_insurance = social_insurance_employee  # Same as employee (労使折半)
     company_employment_insurance = round(gross_salary * InsuranceRates.EMPLOYMENT_2025)
-    company_workers_comp = round(gross_salary * InsuranceRates.WORKERS_COMP_MANUFACTURING)
+    company_workers_comp = round(
+        gross_salary * InsuranceRates.WORKERS_COMP_MANUFACTURING
+    )
     paid_leave_cost = paid_leave_hours * hourly_rate
 
     total_company_cost = (
-        gross_salary +
-        company_social_insurance +
-        company_employment_insurance +
-        company_workers_comp +
-        paid_leave_cost
+        gross_salary
+        + company_social_insurance
+        + company_employment_insurance
+        + company_workers_comp
+        + paid_leave_cost
     )
 
     expected = 360600
-    assert total_company_cost == expected, f"Expected ¥{expected:,.0f} but got ¥{total_company_cost:,.0f}"
+    assert (
+        total_company_cost == expected
+    ), f"Expected ¥{expected:,.0f} but got ¥{total_company_cost:,.0f}"
 
 
 def test_profit_margin_calculation():
@@ -175,7 +182,9 @@ def test_profit_margin_calculation():
     gross_profit = billing_amount - total_company_cost
     profit_margin = (gross_profit / billing_amount * 100) if billing_amount > 0 else 0
 
-    assert gross_profit == 40000, f"Expected profit ¥40,000 but got ¥{gross_profit:,.0f}"
+    assert (
+        gross_profit == 40000
+    ), f"Expected profit ¥40,000 but got ¥{gross_profit:,.0f}"
     assert profit_margin == 10.0, f"Expected margin 10% but got {profit_margin:.1f}%"
 
 
@@ -185,16 +194,21 @@ def test_profit_margin_manufacturing_target():
     """
     from config import BusinessRules
 
-    assert BusinessRules.TARGET_MARGIN_MANUFACTURING == 15.0, \
-        "Manufacturing target margin should be 15%"
+    assert (
+        BusinessRules.TARGET_MARGIN_MANUFACTURING == 15.0
+    ), "Manufacturing target margin should be 15%"
 
 
 def test_insurance_rates_2025():
     """
     Test 2025 insurance rates are correct
     """
-    assert InsuranceRates.EMPLOYMENT_2025 == 0.0090, "Employment rate 2025 should be 0.90%"
-    assert InsuranceRates.WORKERS_COMP_MANUFACTURING == 0.003, "Workers comp should be 0.3%"
+    assert (
+        InsuranceRates.EMPLOYMENT_2025 == 0.0090
+    ), "Employment rate 2025 should be 0.90%"
+    assert (
+        InsuranceRates.WORKERS_COMP_MANUFACTURING == 0.003
+    ), "Workers comp should be 0.3%"
 
 
 def test_validation_limits_work_hours():
@@ -204,7 +218,9 @@ def test_validation_limits_work_hours():
     from config import ValidationLimits
 
     assert ValidationLimits.MAX_WORK_HOURS == 400, "Max work hours should be 400h/month"
-    assert ValidationLimits.MAX_OVERTIME_HOURS == 100, "Max overtime should be 100h/month"
+    assert (
+        ValidationLimits.MAX_OVERTIME_HOURS == 100
+    ), "Max overtime should be 100h/month"
 
 
 def test_period_format_validation():
@@ -215,7 +231,7 @@ def test_period_format_validation():
 
     # Valid formats
     valid_periods = ["2025年1月", "2025年12月", "2024年6月"]
-    period_pattern = r'^\d{4}年\d{1,2}月$'
+    period_pattern = r"^\d{4}年\d{1,2}月$"
 
     for period in valid_periods:
         assert re.match(period_pattern, period), f"Valid period '{period}' should match"
@@ -224,10 +240,13 @@ def test_period_format_validation():
     invalid_periods = ["2025-01", "January 2025", "2025年1", "2025年", "1月"]
 
     for period in invalid_periods:
-        assert not re.match(period_pattern, period), f"Invalid period '{period}' should NOT match"
+        assert not re.match(
+            period_pattern, period
+        ), f"Invalid period '{period}' should NOT match"
 
 
 # ============== Integration Test Example ==============
+
 
 def test_full_payroll_calculation_integration():
     """
@@ -252,13 +271,17 @@ def test_full_payroll_calculation_integration():
 
     # Step 1: Calculate billing amount
     base_billing = work_hours * billing_rate
-    overtime_billing = overtime_hours * billing_rate * BillingMultipliers.OVERTIME_NORMAL
+    overtime_billing = (
+        overtime_hours * billing_rate * BillingMultipliers.OVERTIME_NORMAL
+    )
     night_billing = night_hours * billing_rate * BillingMultipliers.NIGHT
 
     billing_amount = base_billing + overtime_billing + night_billing
     # Expected: 160×1700 + 15×1700×1.25 + 10×1700×0.25 = 272,000 + 31,875 + 4,250 = ¥308,125
 
-    assert billing_amount == 308125, f"Billing should be ¥308,125 but got ¥{billing_amount:,.0f}"
+    assert (
+        billing_amount == 308125
+    ), f"Billing should be ¥308,125 but got ¥{billing_amount:,.0f}"
 
     # Step 2: Calculate gross salary (what employee receives)
     base_salary = work_hours * hourly_rate
@@ -269,7 +292,9 @@ def test_full_payroll_calculation_integration():
     gross_salary = base_salary + overtime_pay + night_pay + transport
     # Expected: 272,000 + 31,875 + 4,250 + 15,000 = ¥323,125
 
-    assert gross_salary == 323125, f"Gross salary should be ¥323,125 but got ¥{gross_salary:,.0f}"
+    assert (
+        gross_salary == 323125
+    ), f"Gross salary should be ¥323,125 but got ¥{gross_salary:,.0f}"
 
     # Step 3: Calculate company costs
     social_insurance_employee = round(gross_salary * 0.15)  # Example rate
@@ -279,32 +304,33 @@ def test_full_payroll_calculation_integration():
     paid_leave_cost = paid_leave_hours * hourly_rate
 
     total_company_cost = (
-        gross_salary +
-        company_social_insurance +
-        company_employment_insurance +
-        company_workers_comp +
-        paid_leave_cost
+        gross_salary
+        + company_social_insurance
+        + company_employment_insurance
+        + company_workers_comp
+        + paid_leave_cost
     )
     # Expected: 323,125 + 48,469 + 2,908 + 970 + 13,600 = ¥389,072
 
-    assert abs(total_company_cost - 389072) < 10, \
-        f"Total cost should be ~¥389,072 but got ¥{total_company_cost:,.0f}"
+    assert (
+        abs(total_company_cost - 389072) < 10
+    ), f"Total cost should be ~¥389,072 but got ¥{total_company_cost:,.0f}"
 
     # Step 4: Calculate profit and margin
     gross_profit = billing_amount - total_company_cost
-    profit_margin = (gross_profit / billing_amount * 100)
+    profit_margin = gross_profit / billing_amount * 100
 
     # Expected profit: 308,125 - 389,072 = ¥-80,947 (NEGATIVE! - Not profitable)
     # This shows the importance of correct billing_rate vs hourly_rate
 
-    print(f"\n📊 Integration Test Results:")
+    print("\n📊 Integration Test Results:")
     print(f"   Billing Amount: ¥{billing_amount:,.0f}")
     print(f"   Total Cost: ¥{total_company_cost:,.0f}")
     print(f"   Gross Profit: ¥{gross_profit:,.0f}")
     print(f"   Margin: {profit_margin:.2f}%")
 
     if profit_margin < 15:
-        print(f"   ⚠️  Margin below target (15%)")
+        print("   ⚠️  Margin below target (15%)")
 
 
 # ============== Run Tests ==============

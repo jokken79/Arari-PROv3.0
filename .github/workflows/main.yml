@@ -1,0 +1,54 @@
+name: Arari PRO CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v3
+      with:
+        python-version: '3.11'
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+
+    - name: Install Python dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r arari-app/api/requirements.txt
+    
+    - name: Install Node.js dependencies
+      run: |
+        cd arari-app
+        npm install
+
+    - name: Run Python tests
+      run: |
+        cd arari-app/api
+        python -m pytest
+
+    - name: Run Frontend tests
+      run: |
+        cd arari-app
+        npm test
+
+    - name: Run Python linter
+      run: |
+        cd arari-app
+        python -m ruff check api
+
+    - name: Run Frontend linter
+      run: |
+        cd arari-app
+        npm run lint

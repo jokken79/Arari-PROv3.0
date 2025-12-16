@@ -1,6 +1,4 @@
 
-import sys
-
 try:
     with open("debug_costs.log", "r", encoding="utf-16") as f:
         print(f.read())

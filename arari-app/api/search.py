@@ -4,9 +4,8 @@ Full-text and filtered search for 粗利 PRO
 """
 
 import sqlite3
-from typing import List, Dict, Any, Optional
 from dataclasses import dataclass
-import re
+from typing import Any, Dict, List
 
 
 @dataclass
@@ -24,9 +23,15 @@ class SearchService:
         self.conn = conn
         self.cursor = conn.cursor()
 
-    def search_employees(self, query: str = None, filters: List[Dict] = None,
-                         sort_by: str = None, sort_order: str = "asc",
-                         page: int = 1, page_size: int = 50) -> Dict[str, Any]:
+    def search_employees(
+        self,
+        query: str = None,
+        filters: List[Dict] = None,
+        sort_by: str = None,
+        sort_order: str = "asc",
+        page: int = 1,
+        page_size: int = 50,
+    ) -> Dict[str, Any]:
         """Advanced employee search"""
         sql = """
             SELECT e.*,
@@ -59,8 +64,15 @@ class SearchService:
                 value2 = f.get("value2")
 
                 # Validate field name (prevent SQL injection)
-                allowed_fields = ["employee_id", "name", "dispatch_company", "status",
-                                 "hourly_rate", "billing_rate", "hire_date"]
+                allowed_fields = [
+                    "employee_id",
+                    "name",
+                    "dispatch_company",
+                    "status",
+                    "hourly_rate",
+                    "billing_rate",
+                    "hire_date",
+                ]
                 if field not in allowed_fields:
                     continue
 
@@ -106,7 +118,7 @@ class SearchService:
             "hourly_rate": "e.hourly_rate",
             "billing_rate": "e.billing_rate",
             "margin": "avg_margin",
-            "status": "e.status"
+            "status": "e.status",
         }
 
         if sort_by and sort_by in sort_fields:
@@ -132,12 +144,18 @@ class SearchService:
             "total": total_count,
             "page": page,
             "page_size": page_size,
-            "total_pages": (total_count + page_size - 1) // page_size
+            "total_pages": (total_count + page_size - 1) // page_size,
         }
 
-    def search_payroll(self, query: str = None, filters: List[Dict] = None,
-                       sort_by: str = None, sort_order: str = "asc",
-                       page: int = 1, page_size: int = 50) -> Dict[str, Any]:
+    def search_payroll(
+        self,
+        query: str = None,
+        filters: List[Dict] = None,
+        sort_by: str = None,
+        sort_order: str = "asc",
+        page: int = 1,
+        page_size: int = 50,
+    ) -> Dict[str, Any]:
         """Advanced payroll search"""
         sql = """
             SELECT p.*, e.name as employee_name, e.dispatch_company
@@ -177,7 +195,7 @@ class SearchService:
                     "revenue": "p.billing_amount",
                     "cost": "p.total_company_cost",
                     "work_hours": "p.work_hours",
-                    "overtime": "p.overtime_hours"
+                    "overtime": "p.overtime_hours",
                 }
 
                 if field not in field_map:
@@ -226,7 +244,7 @@ class SearchService:
             "company": "e.dispatch_company",
             "margin": "p.profit_margin",
             "profit": "p.gross_profit",
-            "revenue": "p.billing_amount"
+            "revenue": "p.billing_amount",
         }
 
         if sort_by and sort_by in sort_fields:
@@ -252,12 +270,12 @@ class SearchService:
             "total": total_count,
             "page": page,
             "page_size": page_size,
-            "total_pages": (total_count + page_size - 1) // page_size
+            "total_pages": (total_count + page_size - 1) // page_size,
         }
 
-    def search_by_margin_range(self, min_margin: float = None,
-                               max_margin: float = None,
-                               period: str = None) -> List[Dict[str, Any]]:
+    def search_by_margin_range(
+        self, min_margin: float = None, max_margin: float = None, period: str = None
+    ) -> List[Dict[str, Any]]:
         """Find employees by margin range"""
         sql = """
             SELECT p.*, e.name, e.dispatch_company
@@ -293,7 +311,7 @@ class SearchService:
             "high_margin": [],
             "excessive_hours": [],
             "missing_billing": [],
-            "zero_salary": []
+            "zero_salary": [],
         }
 
         base_where = "WHERE 1=1"
@@ -303,62 +321,77 @@ class SearchService:
             params.append(period)
 
         # Negative margin
-        self.cursor.execute(f"""
+        self.cursor.execute(
+            f"""
             SELECT p.employee_id, p.period, p.profit_margin, e.name
             FROM payroll_records p
             JOIN employees e ON p.employee_id = e.employee_id
             {base_where} AND p.profit_margin < 0
-        """, params)
+        """,
+            params,
+        )
         anomalies["negative_margin"] = [
             {"employee_id": r[0], "period": r[1], "margin": r[2], "name": r[3]}
             for r in self.cursor.fetchall()
         ]
 
         # High margin (>40%)
-        self.cursor.execute(f"""
+        self.cursor.execute(
+            f"""
             SELECT p.employee_id, p.period, p.profit_margin, e.name
             FROM payroll_records p
             JOIN employees e ON p.employee_id = e.employee_id
             {base_where} AND p.profit_margin > 40
-        """, params)
+        """,
+            params,
+        )
         anomalies["high_margin"] = [
             {"employee_id": r[0], "period": r[1], "margin": r[2], "name": r[3]}
             for r in self.cursor.fetchall()
         ]
 
         # Excessive hours (>250)
-        self.cursor.execute(f"""
+        self.cursor.execute(
+            f"""
             SELECT p.employee_id, p.period, p.work_hours, e.name
             FROM payroll_records p
             JOIN employees e ON p.employee_id = e.employee_id
             {base_where} AND p.work_hours > 250
-        """, params)
+        """,
+            params,
+        )
         anomalies["excessive_hours"] = [
             {"employee_id": r[0], "period": r[1], "hours": r[2], "name": r[3]}
             for r in self.cursor.fetchall()
         ]
 
         # Missing billing
-        self.cursor.execute(f"""
+        self.cursor.execute(
+            f"""
             SELECT p.employee_id, p.period, p.billing_amount, e.name
             FROM payroll_records p
             JOIN employees e ON p.employee_id = e.employee_id
             {base_where} AND (p.billing_amount IS NULL OR p.billing_amount = 0)
             AND p.work_hours > 0
-        """, params)
+        """,
+            params,
+        )
         anomalies["missing_billing"] = [
             {"employee_id": r[0], "period": r[1], "billing": r[2], "name": r[3]}
             for r in self.cursor.fetchall()
         ]
 
         # Zero salary with hours
-        self.cursor.execute(f"""
+        self.cursor.execute(
+            f"""
             SELECT p.employee_id, p.period, p.gross_salary, e.name
             FROM payroll_records p
             JOIN employees e ON p.employee_id = e.employee_id
             {base_where} AND (p.gross_salary IS NULL OR p.gross_salary = 0)
             AND p.work_hours > 0
-        """, params)
+        """,
+            params,
+        )
         anomalies["zero_salary"] = [
             {"employee_id": r[0], "period": r[1], "salary": r[2], "name": r[3]}
             for r in self.cursor.fetchall()
@@ -370,11 +403,12 @@ class SearchService:
         return {
             "anomalies": anomalies,
             "total_count": total_anomalies,
-            "period": period
+            "period": period,
         }
 
-    def get_search_suggestions(self, query: str, field: str = "all",
-                               limit: int = 10) -> List[str]:
+    def get_search_suggestions(
+        self, query: str, field: str = "all", limit: int = 10
+    ) -> List[str]:
         """Get search suggestions based on existing data"""
         suggestions = set()
 
@@ -384,21 +418,30 @@ class SearchService:
         search_term = f"%{query}%"
 
         if field in ["all", "employee"]:
-            self.cursor.execute("""
+            self.cursor.execute(
+                """
                 SELECT DISTINCT name FROM employees WHERE name LIKE ? LIMIT ?
-            """, (search_term, limit))
+            """,
+                (search_term, limit),
+            )
             suggestions.update(r[0] for r in self.cursor.fetchall())
 
         if field in ["all", "company"]:
-            self.cursor.execute("""
+            self.cursor.execute(
+                """
                 SELECT DISTINCT dispatch_company FROM employees WHERE dispatch_company LIKE ? LIMIT ?
-            """, (search_term, limit))
+            """,
+                (search_term, limit),
+            )
             suggestions.update(r[0] for r in self.cursor.fetchall())
 
         if field in ["all", "id"]:
-            self.cursor.execute("""
+            self.cursor.execute(
+                """
                 SELECT DISTINCT employee_id FROM employees WHERE employee_id LIKE ? LIMIT ?
-            """, (search_term, limit))
+            """,
+                (search_term, limit),
+            )
             suggestions.update(r[0] for r in self.cursor.fetchall())
 
         return sorted(list(suggestions))[:limit]
@@ -407,11 +450,15 @@ class SearchService:
         """Get available filter options"""
 
         # Companies
-        self.cursor.execute("SELECT DISTINCT dispatch_company FROM employees ORDER BY dispatch_company")
+        self.cursor.execute(
+            "SELECT DISTINCT dispatch_company FROM employees ORDER BY dispatch_company"
+        )
         companies = [r[0] for r in self.cursor.fetchall()]
 
         # Periods
-        self.cursor.execute("SELECT DISTINCT period FROM payroll_records ORDER BY period DESC")
+        self.cursor.execute(
+            "SELECT DISTINCT period FROM payroll_records ORDER BY period DESC"
+        )
         periods = [r[0] for r in self.cursor.fetchall()]
 
         # Statuses
@@ -419,10 +466,12 @@ class SearchService:
         statuses = [r[0] for r in self.cursor.fetchall()]
 
         # Margin ranges
-        self.cursor.execute("""
+        self.cursor.execute(
+            """
             SELECT MIN(profit_margin), MAX(profit_margin), AVG(profit_margin)
             FROM payroll_records WHERE profit_margin IS NOT NULL
-        """)
+        """
+        )
         margin_stats = self.cursor.fetchone()
 
         return {
@@ -432,6 +481,6 @@ class SearchService:
             "margin_range": {
                 "min": margin_stats[0],
                 "max": margin_stats[1],
-                "avg": margin_stats[2]
-            }
+                "avg": margin_stats[2],
+            },
         }

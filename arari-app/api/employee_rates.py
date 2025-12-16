@@ -2,9 +2,10 @@
 Load and cache employee hourly rates (時給) and billing rates (単価) from 社員台帳
 """
 
-from openpyxl import load_workbook
-from typing import Dict, Optional, Tuple
 import os
+from typing import Dict, Tuple
+
+from openpyxl import load_workbook
 
 
 class EmployeeRatesLoader:
@@ -15,10 +16,10 @@ class EmployeeRatesLoader:
     SHEET_NAME = "DBGenzaiX"
 
     # Column positions in DBGenzaiX (1-indexed)
-    COL_EMPLOYEE_ID = 2      # Column B: 社員№
-    COL_EMPLOYEE_NAME = 8    # Column H: 氏名
-    COL_HOURLY_RATE = 14     # Column N: 現給 (時給) - what we PAY the employee
-    COL_BILLING_RATE = 16    # Column P: 現単価 (単価) - what factory PAYS us
+    COL_EMPLOYEE_ID = 2  # Column B: 社員№
+    COL_EMPLOYEE_NAME = 8  # Column H: 氏名
+    COL_HOURLY_RATE = 14  # Column N: 現給 (時給) - what we PAY the employee
+    COL_BILLING_RATE = 16  # Column P: 現単価 (単価) - what factory PAYS us
 
     def __init__(self):
         """Initialize loader and cache employee rates"""
@@ -69,7 +70,9 @@ class EmployeeRatesLoader:
                 self._rates_cache[emp_id_str] = (hourly, billing)
 
                 if hourly > 0 or billing > 0:
-                    print(f"Loaded rates for {emp_id_str}: 時給={hourly}, 単価={billing}")
+                    print(
+                        f"Loaded rates for {emp_id_str}: 時給={hourly}, 単価={billing}"
+                    )
 
             print(f"Loaded {len(self._rates_cache)} employee rates from 社員台帳")
 

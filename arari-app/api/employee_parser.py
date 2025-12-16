@@ -4,28 +4,30 @@ Parser for Excel files containing employee data from DBGenzaiX sheet.
 Supports both .xls and .xlsm files.
 """
 
-import openpyxl
-from typing import List, Dict, Tuple, Optional
-from dataclasses import dataclass
 import re
+from dataclasses import dataclass
+from typing import Dict, List, Optional, Tuple
+
+import openpyxl
 
 
 @dataclass
 class EmployeeRecord:
     """Employee record to import"""
+
     employee_id: str
     name: str
     name_kana: Optional[str] = None
     hourly_rate: float = 0.0
     billing_rate: float = 0.0
     dispatch_company: Optional[str] = None
-    status: str = 'active'
+    status: str = "active"
     hire_date: Optional[str] = None
     department: Optional[str] = None
-    employee_type: str = 'haken'
+    employee_type: str = "haken"
     # NEW FIELDS - 2025-12-11
-    gender: Optional[str] = None          # 性別: 男/女 or M/F
-    birth_date: Optional[str] = None      # 生年月日: Date of birth
+    gender: Optional[str] = None  # 性別: 男/女 or M/F
+    birth_date: Optional[str] = None  # 生年月日: Date of birth
     termination_date: Optional[str] = None  # 退社日: Resignation/termination date
 
 
@@ -34,39 +36,90 @@ class DBGenzaiXParser:
 
     # Column name mappings (case-insensitive, supports multiple names)
     COLUMN_MAPPINGS = {
-        'employee_id': [
-            'employee_id', 'emp_id', '社員id', '社員ID', '社員番号', 'empid', '社員№',
-            '社員no', '社員ｎｏ', '従業員id', '従業員番号', 'id', 'no', 'no.', 'code',
-            '社員コード', '従業員コード'
+        "employee_id": [
+            "employee_id",
+            "emp_id",
+            "社員id",
+            "社員ID",
+            "社員番号",
+            "empid",
+            "社員№",
+            "社員no",
+            "社員ｎｏ",
+            "従業員id",
+            "従業員番号",
+            "id",
+            "no",
+            "no.",
+            "code",
+            "社員コード",
+            "従業員コード",
         ],
-        'name': ['name', '氏名', '名前', '社員名', '従業員名'],
-        'name_kana': ['name_kana', 'kana', 'フリガナ', 'カナ', '氏名カナ', '氏名読み'],
-        'hourly_rate': ['hourly_rate', '時給', '時間給', '時給額', '基本時給'],
-        'billing_rate': ['billing_rate', '単価', '請求単価', 'billing', '派遣単価', '売上単価', '請求単価(円)', '単価(円)', '支払単価', '時間単価'],
-        'dispatch_company': ['dispatch_company', '派遣会社', 'company', 'companies', '派遣先', '派遣先名', '就業先'],
-        'status': ['status', 'ステータス', '状態', '稼働状態', '現在', '在籍状況'],
-        'hire_date': ['hire_date', '入社日', 'hire', '雇用日', '採用日'],
-        'department': ['department', '部署', '所属', '部門', '配属先'],
+        "name": ["name", "氏名", "名前", "社員名", "従業員名"],
+        "name_kana": ["name_kana", "kana", "フリガナ", "カナ", "氏名カナ", "氏名読み"],
+        "hourly_rate": ["hourly_rate", "時給", "時間給", "時給額", "基本時給"],
+        "billing_rate": [
+            "billing_rate",
+            "単価",
+            "請求単価",
+            "billing",
+            "派遣単価",
+            "売上単価",
+            "請求単価(円)",
+            "単価(円)",
+            "支払単価",
+            "時間単価",
+        ],
+        "dispatch_company": [
+            "dispatch_company",
+            "派遣会社",
+            "company",
+            "companies",
+            "派遣先",
+            "派遣先名",
+            "就業先",
+        ],
+        "status": ["status", "ステータス", "状態", "稼働状態", "現在", "在籍状況"],
+        "hire_date": ["hire_date", "入社日", "hire", "雇用日", "採用日"],
+        "department": ["department", "部署", "所属", "部門", "配属先"],
         # NEW FIELDS - 2025-12-11
-        'gender': ['gender', '性別', 'sex', '男女', '男/女'],
-        'birth_date': ['birth_date', '生年月日', 'birthday', '誕生日', '生日', 'dob', 'date_of_birth'],
-        'termination_date': ['termination_date', '退社日', '退職日', 'resignation_date', 'end_date', '終了日', '離職日'],
+        "gender": ["gender", "性別", "sex", "男女", "男/女"],
+        "birth_date": [
+            "birth_date",
+            "生年月日",
+            "birthday",
+            "誕生日",
+            "生日",
+            "dob",
+            "date_of_birth",
+        ],
+        "termination_date": [
+            "termination_date",
+            "退社日",
+            "退職日",
+            "resignation_date",
+            "end_date",
+            "終了日",
+            "離職日",
+        ],
     }
 
     # Active statuses (mapped to 'active')
-    ACTIVE_STATUSES = ['在籍', '在職中', 'アクティブ', '勤務中', 'active', '在勤']
+    ACTIVE_STATUSES = ["在籍", "在職中", "アクティブ", "勤務中", "active", "在勤"]
 
     # Inactive statuses (mapped to 'inactive')
-    INACTIVE_STATUSES = ['退社', '退職', '休職', 'inactive']
+    INACTIVE_STATUSES = ["退社", "退職", "休職", "inactive"]
 
     def __init__(self):
         self.errors: List[str] = []
         self.warnings: List[str] = []
 
-    def parse_employees(self, file_path: str) -> Tuple[List[EmployeeRecord], Dict[str, int]]:
+    def parse_employees(
+        self, file_path: str
+    ) -> Tuple[List[EmployeeRecord], Dict[str, int]]:
         """
         Parse employees from Excel file.
-        
+
         Logic:
         1. Try to find 'DBGenzaiX' sheet.
         2. If found, look for headers in first 10 rows.
@@ -77,118 +130,137 @@ class DBGenzaiXParser:
         self.warnings = []
         employees = []
         stats = {
-            'total_rows': 0,
-            'employees_found': 0,
-            'rows_skipped': 0,
-            'errors': 0,
+            "total_rows": 0,
+            "employees_found": 0,
+            "rows_skipped": 0,
+            "errors": 0,
         }
 
         try:
             # Load workbook
             wb = openpyxl.load_workbook(file_path, data_only=True)
-            
+
             target_sheet = None
             header_row = None
             col_indices = {}
 
             # Strategy 1: Look for DBGenzaiX sheet specifically
-            sheet_name = self._find_sheet(wb, 'DBGenzaiX')
+            sheet_name = self._find_sheet(wb, "DBGenzaiX")
             if sheet_name:
                 sheet = wb[sheet_name]
                 found_row, indices = self._find_header_row(sheet)
-                if found_row and indices.get('employee_id'):
+                if found_row and indices.get("employee_id"):
                     target_sheet = sheet
                     header_row = found_row
                     col_indices = indices
 
             # Strategy 2: If no valid DBGenzaiX, search ALL sheets
             if not target_sheet:
-                print(f"[DEBUG] DBGenzaiX not found. Scanning {len(wb.sheetnames)} sheets: {wb.sheetnames}")
+                print(
+                    f"[DEBUG] DBGenzaiX not found. Scanning {len(wb.sheetnames)} sheets: {wb.sheetnames}"
+                )
                 for name in wb.sheetnames:
                     sheet = wb[name]
                     print(f"[DEBUG] Checking sheet: {name}")
                     found_row, indices = self._find_header_row(sheet)
                     if found_row:
-                        print(f"[DEBUG] Found potential header in {name} at row {found_row}. Indices: {indices}")
-                        if indices.get('employee_id'):
+                        print(
+                            f"[DEBUG] Found potential header in {name} at row {found_row}. Indices: {indices}"
+                        )
+                        if indices.get("employee_id"):
                             target_sheet = sheet
                             header_row = found_row
                             col_indices = indices
-                            print(f"[DEBUG] VALID HEADER FOUND in {name} at row {found_row}")
+                            print(
+                                f"[DEBUG] VALID HEADER FOUND in {name} at row {found_row}"
+                            )
                             break
                     else:
                         print(f"[DEBUG] No header found in {name}")
 
             if not target_sheet:
                 print("[DEBUG] CRITICAL: No suitable sheet found after scanning all.")
-                self.errors.append("No se encontró ninguna hoja con columna '社員番号' (Employee ID)")
+                self.errors.append(
+                    "No se encontró ninguna hoja con columna '社員番号' (Employee ID)"
+                )
                 return employees, stats
 
-            print(f"[DEBUG] Processing sheet '{target_sheet.title}' from row {header_row + 1} to {target_sheet.max_row}")
+            print(
+                f"[DEBUG] Processing sheet '{target_sheet.title}' from row {header_row + 1} to {target_sheet.max_row}"
+            )
 
             # Iterate through data rows (start after header_row)
             for row_num in range(header_row + 1, target_sheet.max_row + 1):
-                stats['total_rows'] += 1
-                
+                stats["total_rows"] += 1
+
                 # Debug first few rows
                 if row_num < header_row + 5:
-                     print(f"[DEBUG] Processing row {row_num}...")
+                    print(f"[DEBUG] Processing row {row_num}...")
 
                 try:
                     # Get values from row
                     row_data = {}
                     for field, col_idx in col_indices.items():
                         if col_idx:
-                            cell_value = target_sheet.cell(row=row_num, column=col_idx).value
+                            cell_value = target_sheet.cell(
+                                row=row_num, column=col_idx
+                            ).value
                             row_data[field] = cell_value
-                    
+
                     if row_num < header_row + 5:
                         print(f"[DEBUG] Row {row_num} raw data: {row_data}")
 
                     # Check if employee_id exists (required field)
-                    emp_id = str(row_data.get('employee_id', '')).strip()
-                    if not emp_id or emp_id == 'None':
+                    emp_id = str(row_data.get("employee_id", "")).strip()
+                    if not emp_id or emp_id == "None":
                         if row_num < header_row + 5:
                             print(f"[DEBUG] Row {row_num} skipped: No Employee ID")
-                        stats['rows_skipped'] += 1
+                        stats["rows_skipped"] += 1
                         continue
 
                     # Build employee record
                     # Determine status based on termination_date if not explicitly set
-                    termination_date = self._format_date(row_data.get('termination_date'))
-                    explicit_status = row_data.get('status')
+                    termination_date = self._format_date(
+                        row_data.get("termination_date")
+                    )
+                    explicit_status = row_data.get("status")
 
                     # If termination_date exists, employee is inactive
                     if termination_date:
-                        status = 'inactive'
+                        status = "inactive"
                     elif explicit_status:
                         status = self._map_status(explicit_status)
                     else:
-                        status = 'active'
+                        status = "active"
 
                     emp = EmployeeRecord(
                         employee_id=emp_id,
-                        name=str(row_data.get('name', '')).strip() or f"Employee {emp_id}",
-                        name_kana=self._clean_value(row_data.get('name_kana')),
-                        hourly_rate=self._to_float(row_data.get('hourly_rate')),
-                        billing_rate=self._to_float(row_data.get('billing_rate')),
-                        dispatch_company=self._clean_value(row_data.get('dispatch_company')),
+                        name=str(row_data.get("name", "")).strip()
+                        or f"Employee {emp_id}",
+                        name_kana=self._clean_value(row_data.get("name_kana")),
+                        hourly_rate=self._to_float(row_data.get("hourly_rate")),
+                        billing_rate=self._to_float(row_data.get("billing_rate")),
+                        dispatch_company=self._clean_value(
+                            row_data.get("dispatch_company")
+                        ),
                         status=status,
-                        hire_date=self._format_date(row_data.get('hire_date')),
-                        department=self._clean_value(row_data.get('department')),
-                        employee_type=self._detect_employee_type(row_data.get('billing_rate')),
+                        hire_date=self._format_date(row_data.get("hire_date")),
+                        department=self._clean_value(row_data.get("department")),
+                        employee_type=self._detect_employee_type(
+                            row_data.get("billing_rate")
+                        ),
                         # NEW FIELDS
-                        gender=self._map_gender(row_data.get('gender')),
-                        birth_date=self._format_date(row_data.get('birth_date')),
+                        gender=self._map_gender(row_data.get("gender")),
+                        birth_date=self._format_date(row_data.get("birth_date")),
                         termination_date=termination_date,
                     )
 
                     employees.append(emp)
-                    stats['employees_found'] += 1
+                    stats["employees_found"] += 1
                     print(f"[DEBUG] Added employee: {emp_id}")
 
                 except Exception as e:
-                    stats['errors'] += 1
+                    stats["errors"] += 1
                     print(f"[DEBUG] Error in row {row_num}: {e}")
                     self.errors.append(f"Fila {row_num}: {str(e)}")
 
@@ -211,35 +283,39 @@ class DBGenzaiXParser:
     def _find_header_row(self, sheet) -> Tuple[Optional[int], Dict[str, Optional[int]]]:
         """
         Scan first 15 rows to find a valid header row.
-        STRICT VALIDATION: Row must contain 'employee_id' AND at least one other field 
+        STRICT VALIDATION: Row must contain 'employee_id' AND at least one other field
         (name, status, dispatch_company, etc.) to be considered a header.
         This prevents false positives on rows that just have "No" or "ID".
         """
         for row in range(1, min(20, sheet.max_row + 1)):
             col_indices = self._detect_columns_in_row(sheet, row)
-            
+
             # Check for employee_id
-            has_id = col_indices.get('employee_id')
-            
+            has_id = col_indices.get("employee_id")
+
             # Check for at least one other critical field
-            has_other_field = any([
-                col_indices.get('name'),
-                col_indices.get('status'),
-                col_indices.get('billing_rate'),
-                col_indices.get('dispatch_company'),
-                col_indices.get('hourly_rate')
-            ])
-            
+            has_other_field = any(
+                [
+                    col_indices.get("name"),
+                    col_indices.get("status"),
+                    col_indices.get("billing_rate"),
+                    col_indices.get("dispatch_company"),
+                    col_indices.get("hourly_rate"),
+                ]
+            )
+
             if has_id and has_other_field:
                 return row, col_indices
-                
+
         # Last resort: if we only found ID but nothing else, maybe return it?
         # But safest is to return None to avoid garbage data.
         return None, {}
 
     def _detect_columns_in_row(self, sheet, row_num: int) -> Dict[str, Optional[int]]:
         """Detect column indices from a specific row"""
-        col_indices: Dict[str, Optional[int]] = {field: None for field in self.COLUMN_MAPPINGS}
+        col_indices: Dict[str, Optional[int]] = {
+            field: None for field in self.COLUMN_MAPPINGS
+        }
 
         # Scan columns
         for col_idx in range(1, sheet.max_column + 1):
@@ -254,7 +330,7 @@ class DBGenzaiXParser:
                 # Skip if already found
                 if col_indices[field]:
                     continue
-                    
+
                 for alias in aliases:
                     if header_lower == alias.lower():
                         col_indices[field] = col_idx
@@ -265,74 +341,74 @@ class DBGenzaiXParser:
     def _map_status(self, status_value) -> str:
         """Map status value to 'active' or 'inactive'"""
         if not status_value:
-            return 'active'
+            return "active"
 
         status_str = str(status_value).strip()
         if status_str in self.ACTIVE_STATUSES:
-            return 'active'
+            return "active"
         elif status_str in self.INACTIVE_STATUSES:
-            return 'inactive'
+            return "inactive"
         # Default: if not recognized, assume active
-        return 'active'
+        return "active"
 
     def _detect_employee_type(self, billing_rate) -> str:
         """Determine employee type based on billing_rate"""
         rate = self._to_float(billing_rate)
-        return 'haken' if rate > 0 else 'ukeoi'
+        return "haken" if rate > 0 else "ukeoi"
 
     def _to_float(self, value) -> float:
         """Convert value to float, return 0 if invalid"""
-        if value is None or value == '' or str(value).lower() == 'none':
+        if value is None or value == "" or str(value).lower() == "none":
             return 0.0
         try:
             # Handle Japanese currency format
             if isinstance(value, str):
-                value = value.replace('¥', '').replace(',', '').strip()
+                value = value.replace("¥", "").replace(",", "").strip()
             return float(value)
         except (ValueError, TypeError):
             return 0.0
 
     def _clean_value(self, value) -> Optional[str]:
         """Clean and validate string value"""
-        if value is None or value == '' or str(value).lower() == 'none':
+        if value is None or value == "" or str(value).lower() == "none":
             return None
         cleaned = str(value).strip()
         return cleaned if cleaned else None
 
     def _map_gender(self, value) -> Optional[str]:
         """Map gender value to standardized format (M/F)"""
-        if value is None or value == '' or str(value).lower() == 'none':
+        if value is None or value == "" or str(value).lower() == "none":
             return None
 
         gender_str = str(value).strip().upper()
 
         # Japanese mappings
-        if gender_str in ['男', '男性', 'M', 'MALE', '♂']:
-            return 'M'
-        elif gender_str in ['女', '女性', 'F', 'FEMALE', '♀']:
-            return 'F'
+        if gender_str in ["男", "男性", "M", "MALE", "♂"]:
+            return "M"
+        elif gender_str in ["女", "女性", "F", "FEMALE", "♀"]:
+            return "F"
 
         return None
 
     def _format_date(self, value) -> Optional[str]:
         """Format date value to YYYY-MM-DD string"""
-        if value is None or value == '' or str(value).lower() == 'none':
+        if value is None or value == "" or str(value).lower() == "none":
             return None
 
         from datetime import datetime
 
         # If already a datetime object (from Excel)
         if isinstance(value, datetime):
-            return value.strftime('%Y-%m-%d')
+            return value.strftime("%Y-%m-%d")
 
         # Try to parse string formats
         date_str = str(value).strip()
 
         # Common Japanese formats: 1990/01/15, 1990-01-15, 1990年1月15日
         patterns = [
-            (r'(\d{4})/(\d{1,2})/(\d{1,2})', '%Y/%m/%d'),
-            (r'(\d{4})-(\d{1,2})-(\d{1,2})', '%Y-%m-%d'),
-            (r'(\d{4})年(\d{1,2})月(\d{1,2})日', None),  # Special handling
+            (r"(\d{4})/(\d{1,2})/(\d{1,2})", "%Y/%m/%d"),
+            (r"(\d{4})-(\d{1,2})-(\d{1,2})", "%Y-%m-%d"),
+            (r"(\d{4})年(\d{1,2})月(\d{1,2})日", None),  # Special handling
         ]
 
         for pattern, fmt in patterns:
@@ -341,7 +417,7 @@ class DBGenzaiXParser:
                 if fmt:
                     try:
                         parsed = datetime.strptime(date_str, fmt)
-                        return parsed.strftime('%Y-%m-%d')
+                        return parsed.strftime("%Y-%m-%d")
                     except ValueError:
                         pass
                 else:
@@ -354,9 +430,10 @@ class DBGenzaiXParser:
             serial = float(date_str)
             if 1 < serial < 100000:  # Reasonable range for dates
                 from datetime import timedelta
+
                 base = datetime(1899, 12, 30)  # Excel's epoch
                 result = base + timedelta(days=serial)
-                return result.strftime('%Y-%m-%d')
+                return result.strftime("%Y-%m-%d")
         except ValueError:
             pass
 

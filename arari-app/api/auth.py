@@ -3,40 +3,47 @@ AuthAgent - Authentication & Authorization System
 JWT-based authentication with role-based access control
 """
 
-import os
-import hashlib
 import secrets
-from datetime import datetime, timedelta
-from typing import Optional, Dict, Any
-from functools import wraps
 import sqlite3
-import json
+from datetime import datetime, timedelta
+from functools import wraps
+from typing import Any, Dict, Optional
+
+import bcrypt
 
 # JWT-like token management (simple implementation without external deps)
 # In production, use python-jose or PyJWT
 
-SECRET_KEY = os.environ.get("ARARI_SECRET_KEY", secrets.token_hex(32))
+# SECRET_KEY is not directly used for password hashing with bcrypt
+# It can still be used for JWT tokens if implemented.
+# SECRET_KEY = os.environ.get("ARARI_SECRET_KEY", secrets.token_hex(32))
 TOKEN_EXPIRE_HOURS = 24
 
 # Role hierarchy
 ROLES = {
-    "admin": 100,      # Full access
-    "manager": 50,     # View + edit + reports
-    "viewer": 10,      # View only
+    "admin": 100,  # Full access
+    "manager": 50,  # View + edit + reports
+    "viewer": 10,  # View only
 }
 
 ROLE_PERMISSIONS = {
     "admin": ["*"],  # All permissions
     "manager": [
-        "view:employees", "edit:employees",
-        "view:payroll", "edit:payroll",
-        "view:reports", "generate:reports",
-        "view:statistics", "view:alerts",
+        "view:employees",
+        "edit:employees",
+        "view:payroll",
+        "edit:payroll",
+        "view:reports",
+        "generate:reports",
+        "view:statistics",
+        "view:alerts",
         "upload:files",
     ],
     "viewer": [
-        "view:employees", "view:payroll",
-        "view:reports", "view:statistics",
+        "view:employees",
+        "view:payroll",
+        "view:reports",
+        "view:statistics",
     ],
 }
 
@@ -46,7 +53,8 @@ def init_auth_tables(conn: sqlite3.Connection):
     cursor = conn.cursor()
 
     # Users table
-    cursor.execute("""
+    cursor.execute(
+        """
         CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             username TEXT UNIQUE NOT NULL,
@@ -59,10 +67,12 @@ def init_auth_tables(conn: sqlite3.Connection):
             created_at TEXT DEFAULT CURRENT_TIMESTAMP,
             updated_at TEXT DEFAULT CURRENT_TIMESTAMP
         )
-    """)
+    """
+    )
 
     # Sessions/Tokens table
-    cursor.execute("""
+    cursor.execute(
+        """
         CREATE TABLE IF NOT EXISTS auth_tokens (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             user_id INTEGER NOT NULL,
@@ -71,42 +81,51 @@ def init_auth_tables(conn: sqlite3.Connection):
             created_at TEXT DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (user_id) REFERENCES users(id)
         )
-    """)
+    """
+    )
 
     # Create indexes
-    cursor.execute("""
+    cursor.execute(
+        """
         CREATE INDEX IF NOT EXISTS idx_users_username
         ON users(username)
-    """)
+    """
+    )
 
-    cursor.execute("""
+    cursor.execute(
+        """
         CREATE INDEX IF NOT EXISTS idx_tokens_token
         ON auth_tokens(token)
-    """)
+    """
+    )
 
     # Create default admin user if not exists
     cursor.execute("SELECT COUNT(*) FROM users WHERE username = 'Admin'")
     if cursor.fetchone()[0] == 0:
-        default_password = "Admin123"  # Change in production!
-        password_hash = hash_password(default_password)
-        cursor.execute("""
+        default_password = "admin123"
+        password_hash = hash_password(default_password)  # Use bcrypt
+        cursor.execute(
+            """
             INSERT INTO users (username, password_hash, full_name, role, email)
             VALUES (?, ?, ?, ?, ?)
-        """, ("Admin", password_hash, "Administrator", "admin", "admin@arari-pro.local"))
-        print("[AUTH] Created default admin user (username: Admin, password: Admin123)")
-
+        """,
+            ("Admin", password_hash, "Administrator", "admin", "admin@arari-pro.local"),
+        )
+        print(
+            f"[AUTH] Created default admin user (username: Admin, password: {default_password})"
+        )  # Changed to f-string
     conn.commit()
 
 
 def hash_password(password: str) -> str:
-    """Hash password with salt"""
-    salt = SECRET_KEY[:16]
-    return hashlib.sha256(f"{salt}{password}".encode()).hexdigest()
+    """Hash password using bcrypt"""
+    hashed_password = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt())
+    return hashed_password.decode("utf-8")
 
 
-def verify_password(password: str, password_hash: str) -> bool:
-    """Verify password against hash"""
-    return hash_password(password) == password_hash
+def verify_password(password: str, hashed_password: str) -> bool:
+    """Verify password against bcrypt hash"""
+    return bcrypt.checkpw(password.encode("utf-8"), hashed_password.encode("utf-8"))
 
 
 def generate_token() -> str:
@@ -120,28 +139,34 @@ def create_token(conn: sqlite3.Connection, user_id: int) -> Dict[str, Any]:
     expires_at = datetime.now() + timedelta(hours=TOKEN_EXPIRE_HOURS)
 
     cursor = conn.cursor()
-    cursor.execute("""
+    cursor.execute(
+        """
         INSERT INTO auth_tokens (user_id, token, expires_at)
         VALUES (?, ?, ?)
-    """, (user_id, token, expires_at.isoformat()))
+    """,
+        (user_id, token, expires_at.isoformat()),
+    )
     conn.commit()
 
     return {
         "token": token,
         "expires_at": expires_at.isoformat(),
-        "token_type": "bearer"
+        "token_type": "bearer",
     }
 
 
 def validate_token(conn: sqlite3.Connection, token: str) -> Optional[Dict[str, Any]]:
     """Validate token and return user info if valid"""
     cursor = conn.cursor()
-    cursor.execute("""
+    cursor.execute(
+        """
         SELECT u.id, u.username, u.role, u.full_name, u.email, t.expires_at
         FROM auth_tokens t
         JOIN users u ON t.user_id = u.id
         WHERE t.token = ? AND u.is_active = 1
-    """, (token,))
+    """,
+        (token,),
+    )
 
     row = cursor.fetchone()
     if not row:
@@ -161,7 +186,7 @@ def validate_token(conn: sqlite3.Connection, token: str) -> Optional[Dict[str, A
         "role": row[2],
         "full_name": row[3],
         "email": row[4],
-        "expires_at": row[5]
+        "expires_at": row[5],
     }
 
 
@@ -209,10 +234,13 @@ class AuthService:
 
     def login(self, username: str, password: str) -> Optional[Dict[str, Any]]:
         """Authenticate user and return token"""
-        self.cursor.execute("""
+        self.cursor.execute(
+            """
             SELECT id, username, password_hash, role, full_name, email, is_active
             FROM users WHERE username = ?
-        """, (username,))
+        """,
+            (username,),
+        )
 
         row = self.cursor.fetchone()
         if not row:
@@ -227,9 +255,12 @@ class AuthService:
             return None
 
         # Update last login
-        self.cursor.execute("""
+        self.cursor.execute(
+            """
             UPDATE users SET last_login = ? WHERE id = ?
-        """, (datetime.now().isoformat(), user_id))
+        """,
+            (datetime.now().isoformat(), user_id),
+        )
         self.conn.commit()
 
         # Create token
@@ -241,17 +272,23 @@ class AuthService:
                 "username": username,
                 "role": role,
                 "full_name": full_name,
-                "email": email
+                "email": email,
             },
-            **token_data
+            **token_data,
         }
 
     def logout(self, token: str) -> bool:
         """Logout user by revoking token"""
         return revoke_token(self.conn, token)
 
-    def create_user(self, username: str, password: str, role: str = "viewer",
-                    full_name: str = None, email: str = None) -> Dict[str, Any]:
+    def create_user(
+        self,
+        username: str,
+        password: str,
+        role: str = "viewer",
+        full_name: str = None,
+        email: str = None,
+    ) -> Dict[str, Any]:
         """Create new user"""
         if role not in ROLES:
             return {"error": f"Invalid role. Valid roles: {list(ROLES.keys())}"}
@@ -259,10 +296,13 @@ class AuthService:
         password_hash = hash_password(password)
 
         try:
-            self.cursor.execute("""
+            self.cursor.execute(
+                """
                 INSERT INTO users (username, password_hash, role, full_name, email)
                 VALUES (?, ?, ?, ?, ?)
-            """, (username, password_hash, role, full_name, email))
+            """,
+                (username, password_hash, role, full_name, email),
+            )
             self.conn.commit()
 
             return {
@@ -270,7 +310,7 @@ class AuthService:
                 "username": username,
                 "role": role,
                 "full_name": full_name,
-                "email": email
+                "email": email,
             }
         except sqlite3.IntegrityError:
             return {"error": "Username already exists"}
@@ -289,15 +329,20 @@ class AuthService:
         set_clause = ", ".join(f"{k} = ?" for k in updates.keys())
         values = list(updates.values()) + [user_id]
 
-        self.cursor.execute(f"""
+        self.cursor.execute(
+            f"""
             UPDATE users SET {set_clause}, updated_at = CURRENT_TIMESTAMP
             WHERE id = ?
-        """, values)
+        """,
+            values,
+        )
         self.conn.commit()
 
         return {"status": "updated", "user_id": user_id}
 
-    def change_password(self, user_id: int, old_password: str, new_password: str) -> Dict[str, Any]:
+    def change_password(
+        self, user_id: int, old_password: str, new_password: str
+    ) -> Dict[str, Any]:
         """Change user password"""
         self.cursor.execute("SELECT password_hash FROM users WHERE id = ?", (user_id,))
         row = self.cursor.fetchone()
@@ -309,10 +354,13 @@ class AuthService:
             return {"error": "Current password is incorrect"}
 
         new_hash = hash_password(new_password)
-        self.cursor.execute("""
+        self.cursor.execute(
+            """
             UPDATE users SET password_hash = ?, updated_at = CURRENT_TIMESTAMP
             WHERE id = ?
-        """, (new_hash, user_id))
+        """,
+            (new_hash, user_id),
+        )
         self.conn.commit()
 
         # Revoke all tokens (force re-login)
@@ -340,7 +388,7 @@ class AuthService:
                 "email": row[4],
                 "is_active": bool(row[5]),
                 "last_login": row[6],
-                "created_at": row[7]
+                "created_at": row[7],
             }
             for row in self.cursor.fetchall()
         ]
@@ -348,9 +396,11 @@ class AuthService:
     def delete_user(self, user_id: int, hard_delete: bool = False) -> Dict[str, Any]:
         """Delete or deactivate user"""
         # Don't allow deleting the last admin
-        self.cursor.execute("""
+        self.cursor.execute(
+            """
             SELECT COUNT(*) FROM users WHERE role = 'admin' AND is_active = 1
-        """)
+        """
+        )
         admin_count = self.cursor.fetchone()[0]
 
         self.cursor.execute("SELECT role FROM users WHERE id = ?", (user_id,))
@@ -365,10 +415,13 @@ class AuthService:
             revoke_all_user_tokens(self.conn, user_id)
             self.cursor.execute("DELETE FROM users WHERE id = ?", (user_id,))
         else:
-            self.cursor.execute("""
+            self.cursor.execute(
+                """
                 UPDATE users SET is_active = 0, updated_at = CURRENT_TIMESTAMP
                 WHERE id = ?
-            """, (user_id,))
+            """,
+                (user_id,),
+            )
             revoke_all_user_tokens(self.conn, user_id)
 
         self.conn.commit()
@@ -390,11 +443,14 @@ def get_current_user(token: str, conn: sqlite3.Connection) -> Optional[Dict[str,
 
 def require_auth(permission: str = None):
     """Decorator to require authentication and optionally specific permission"""
+
     def decorator(func):
         @wraps(func)
         async def wrapper(*args, **kwargs):
             # This would be implemented with FastAPI's Depends
             # For now, return the function as-is
             return await func(*args, **kwargs)
+
         return wrapper
+
     return decorator

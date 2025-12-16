@@ -1,6 +1,6 @@
+import os
 
 import openpyxl
-import os
 
 template_path = r"d:\Arari-PROv1.0.25.12.11\Arari-PROv1.0\Arari-PRO\arari-app\api\templates\template_format_b.xlsx"
 
@@ -13,7 +13,21 @@ ws = wb.active
 
 print("=== TEMPLATE ANALYSIS ===")
 # Scan specific areas for keywords
-keywords = ['氏名', 'No', '部門', '入社', '1月', '4月', '基本', '残業', '総支給', '控除', '差引', '支給', '合計']
+keywords = [
+    "氏名",
+    "No",
+    "部門",
+    "入社",
+    "1月",
+    "4月",
+    "基本",
+    "残業",
+    "総支給",
+    "控除",
+    "差引",
+    "支給",
+    "合計",
+]
 
 print("\n[KEYWORD SCAN]")
 for row in range(1, 40):
@@ -29,10 +43,10 @@ for row in range(1, 40):
                     print(f"{cell_ref}: {s_val}")
                     found = True
                     break
-            
+
             # Print row headers that might be important
             if not found and col <= 3 and len(s_val) < 10:
-                 print(f"{cell_ref} (Header?): {s_val}")
+                print(f"{cell_ref} (Header?): {s_val}")
 
 print("\n[MONTH ROW CHECK]")
 # Assume headers are somewhere in rows 1-10

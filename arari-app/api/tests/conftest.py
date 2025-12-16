@@ -1,14 +1,16 @@
-import pytest
-from fastapi.testclient import TestClient
-import sqlite3
 import os
+import sqlite3
 import sys
 
-# Add the parent directory to the sys.path to allow imports from the api module
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+import pytest
+from fastapi.testclient import TestClient
 
-from main import app
+# Add the parent directory to the sys.path to allow imports from the api module
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
 from database import get_db, init_db
+from main import app
+
 
 @pytest.fixture(scope="function")
 def db_session():
@@ -18,16 +20,17 @@ def db_session():
     conn = sqlite3.connect(":memory:", check_same_thread=False)
     conn.row_factory = sqlite3.Row
     init_db(conn)
-    
+
     def get_test_db():
         return conn
 
     app.dependency_overrides[get_db] = get_test_db
-    
+
     yield conn
-    
+
     conn.close()
     app.dependency_overrides.clear()
+
 
 @pytest.fixture(scope="function")
 def test_client(db_session):

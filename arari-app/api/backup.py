@@ -3,15 +3,13 @@ BackupAgent - Database Backup System
 Automated backups and restoration for 粗利 PRO
 """
 
-import sqlite3
-import shutil
-import os
-from datetime import datetime, timedelta
-from pathlib import Path
-from typing import List, Dict, Any, Optional
 import hashlib
 import json
-
+import shutil
+import sqlite3
+from datetime import datetime
+from pathlib import Path
+from typing import Any, Dict, List, Optional
 
 # Backup configuration
 BACKUP_DIR = Path(__file__).parent / "backups"
@@ -53,15 +51,15 @@ def validate_backup_filename(filename: str, backup_dir: Path) -> Optional[Path]:
     import re
 
     # Reject filenames with path separators or parent references
-    if '/' in filename or '\\' in filename or '..' in filename:
+    if "/" in filename or "\\" in filename or ".." in filename:
         return None
 
     # Must be a .db file
-    if not filename.endswith('.db'):
+    if not filename.endswith(".db"):
         return None
 
     # Only allow safe characters: alphanumeric, underscore, hyphen, dot
-    if not re.match(r'^[a-zA-Z0-9_\-\.]+$', filename):
+    if not re.match(r"^[a-zA-Z0-9_\-\.]+$", filename):
         return None
 
     # Construct the path
@@ -132,8 +130,8 @@ class BackupService:
                 "records": {
                     "employees": employee_count,
                     "payroll_records": payroll_count,
-                    "templates": template_count
-                }
+                    "templates": template_count,
+                },
             }
 
             metadata_path = backup_path.with_suffix(".json")
@@ -143,10 +141,7 @@ class BackupService:
             # Clean old backups
             self.cleanup_old_backups()
 
-            return {
-                "success": True,
-                "backup": metadata
-            }
+            return {"success": True, "backup": metadata}
 
         except Exception as e:
             return {"error": str(e)}
@@ -191,7 +186,9 @@ class BackupService:
             return {
                 "success": True,
                 "message": f"Restored from {backup_filename}",
-                "pre_restore_backup": str(pre_restore_backup) if self.db_path.exists() else None
+                "pre_restore_backup": (
+                    str(pre_restore_backup) if self.db_path.exists() else None
+                ),
             }
 
         except sqlite3.DatabaseError:
@@ -216,7 +213,7 @@ class BackupService:
                     "filename": backup_file.name,
                     "created_at": datetime.fromtimestamp(stat.st_mtime).isoformat(),
                     "file_size": stat.st_size,
-                    "records": {}
+                    "records": {},
                 }
 
             backups.append(metadata)
@@ -242,7 +239,7 @@ class BackupService:
         return {
             "filename": backup_filename,
             "created_at": datetime.fromtimestamp(stat.st_mtime).isoformat(),
-            "file_size": stat.st_size
+            "file_size": stat.st_size,
         }
 
     def verify_backup(self, backup_filename: str) -> Dict[str, Any]:
@@ -265,7 +262,10 @@ class BackupService:
             conn.close()
 
             if result != "ok":
-                return {"valid": False, "error": f"SQLite integrity check failed: {result}"}
+                return {
+                    "valid": False,
+                    "error": f"SQLite integrity check failed: {result}",
+                }
 
             # Check checksum if metadata exists
             metadata_path = backup_path.with_suffix(".json")
@@ -310,7 +310,9 @@ class BackupService:
         """Remove old backups, keeping only the most recent N"""
         keep = keep or MAX_BACKUPS
 
-        backups = sorted(self.backup_dir.glob("*.db"), key=lambda p: p.stat().st_mtime, reverse=True)
+        backups = sorted(
+            self.backup_dir.glob("*.db"), key=lambda p: p.stat().st_mtime, reverse=True
+        )
 
         deleted = 0
         for backup in backups[keep:]:
@@ -323,22 +325,14 @@ class BackupService:
             except:
                 pass
 
-        return {
-            "kept": min(len(backups), keep),
-            "deleted": deleted
-        }
+        return {"kept": min(len(backups), keep), "deleted": deleted}
 
     def get_backup_stats(self) -> Dict[str, Any]:
         """Get backup statistics"""
         backups = list(self.backup_dir.glob("*.db"))
 
         if not backups:
-            return {
-                "total_backups": 0,
-                "total_size": 0,
-                "oldest": None,
-                "newest": None
-            }
+            return {"total_backups": 0, "total_size": 0, "oldest": None, "newest": None}
 
         total_size = sum(b.stat().st_size for b in backups)
         oldest = min(backups, key=lambda p: p.stat().st_mtime)
@@ -350,12 +344,12 @@ class BackupService:
             "total_size_mb": round(total_size / 1024 / 1024, 2),
             "oldest": {
                 "filename": oldest.name,
-                "date": datetime.fromtimestamp(oldest.stat().st_mtime).isoformat()
+                "date": datetime.fromtimestamp(oldest.stat().st_mtime).isoformat(),
             },
             "newest": {
                 "filename": newest.name,
-                "date": datetime.fromtimestamp(newest.stat().st_mtime).isoformat()
-            }
+                "date": datetime.fromtimestamp(newest.stat().st_mtime).isoformat(),
+            },
         }
 
 

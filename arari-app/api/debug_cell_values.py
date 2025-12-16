@@ -1,15 +1,19 @@
 """Debug script to see actual cell values being read"""
-import openpyxl
+
 from pathlib import Path
+
+import openpyxl
 
 # Open first Excel file
 excel_path = Path(r"D:\給料明細\給与明細(派遣社員)2025.1(0217支給).xlsm")
-wb = openpyxl.load_workbook(excel_path, data_only=False)  # Read formulas, not calculated values
+wb = openpyxl.load_workbook(
+    excel_path, data_only=False
+)  # Read formulas, not calculated values
 
 # Get first data sheet (skip summary)
 sheet = wb[wb.sheetnames[1]]  # First data sheet after 集計
 print(f"Sheet: {sheet.title}")
-print("="*80)
+print("=" * 80)
 
 # Check first employee
 # Employee ID should be at row 6, col 10
@@ -33,7 +37,7 @@ for row in range(10, 51):
     if cell_val is not None and cell_val != 0:
         print(f"Row {row}: Label='{cell_label}' Value={cell_val}")
 
-print("\n" + "="*80)
+print("\n" + "=" * 80)
 print("Checking first 5 rows for first employee:")
 for row in range(1, 6):
     print(f"Row {row}:")

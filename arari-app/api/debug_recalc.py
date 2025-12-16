@@ -1,8 +1,7 @@
-
 import sqlite3
-import os
 
 DB_PATH = "arari_pro.db"
+
 
 def debug_recalc():
     conn = sqlite3.connect(DB_PATH)
@@ -10,7 +9,8 @@ def debug_recalc():
     cursor = conn.cursor()
 
     # Get one record where employee has rate
-    cursor.execute("""
+    cursor.execute(
+        """
         SELECT
             p.id,
             p.employee_id,
@@ -22,8 +22,9 @@ def debug_recalc():
         LEFT JOIN employees e ON p.employee_id = e.employee_id
         WHERE e.billing_rate > 0
         LIMIT 1
-    """)
-    
+    """
+    )
+
     row = cursor.fetchone()
     if row:
         print(f"Record ID: {row['id']}")
@@ -32,13 +33,14 @@ def debug_recalc():
         print(f"Work Hours: {row['work_hours']}")
         print(f"Billing Amount (Current): {row['billing_amount']}")
         print(f"Billing Rate (From Employee): {row['billing_rate']}")
-        
+
         # Sim calc
-        rate = row['billing_rate']
-        hours = row['work_hours']
+        rate = row["billing_rate"]
+        hours = row["work_hours"]
         print(f"Calc Base: {hours} * {rate} = {hours * rate}")
     else:
         print("No records found with valid billing rate!")
+
 
 if __name__ == "__main__":
     debug_recalc()

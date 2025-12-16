@@ -3,14 +3,13 @@ NotificationAgent - Notification System
 Email and in-app notifications for 粗利 PRO
 """
 
+import os
+import smtplib
 import sqlite3
 from datetime import datetime, timedelta
-from typing import List, Dict, Any, Optional
-import json
-import smtplib
-from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-import os
+from email.mime.text import MIMEText
+from typing import Any, Dict, List
 
 
 def init_notification_tables(conn: sqlite3.Connection):
@@ -18,7 +17,8 @@ def init_notification_tables(conn: sqlite3.Connection):
     cursor = conn.cursor()
 
     # Notifications table (in-app)
-    cursor.execute("""
+    cursor.execute(
+        """
         CREATE TABLE IF NOT EXISTS notifications (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             user_id INTEGER,
@@ -32,10 +32,12 @@ def init_notification_tables(conn: sqlite3.Connection):
             expires_at TEXT,
             created_at TEXT DEFAULT CURRENT_TIMESTAMP
         )
-    """)
+    """
+    )
 
     # Email queue table
-    cursor.execute("""
+    cursor.execute(
+        """
         CREATE TABLE IF NOT EXISTS email_queue (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             to_email TEXT NOT NULL,
@@ -49,10 +51,12 @@ def init_notification_tables(conn: sqlite3.Connection):
             sent_at TEXT,
             created_at TEXT DEFAULT CURRENT_TIMESTAMP
         )
-    """)
+    """
+    )
 
     # Notification preferences table
-    cursor.execute("""
+    cursor.execute(
+        """
         CREATE TABLE IF NOT EXISTS notification_preferences (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             user_id INTEGER UNIQUE NOT NULL,
@@ -65,18 +69,23 @@ def init_notification_tables(conn: sqlite3.Connection):
             alert_data_issues INTEGER DEFAULT 1,
             updated_at TEXT DEFAULT CURRENT_TIMESTAMP
         )
-    """)
+    """
+    )
 
     # Create indexes
-    cursor.execute("""
+    cursor.execute(
+        """
         CREATE INDEX IF NOT EXISTS idx_notifications_user
         ON notifications(user_id, is_read)
-    """)
+    """
+    )
 
-    cursor.execute("""
+    cursor.execute(
+        """
         CREATE INDEX IF NOT EXISTS idx_email_queue_status
         ON email_queue(status)
-    """)
+    """
+    )
 
     conn.commit()
 
@@ -97,24 +106,37 @@ class NotificationService:
 
     # ==================== In-App Notifications ====================
 
-    def create_notification(self, title: str, message: str,
-                           notification_type: str = "info",
-                           user_id: int = None, link: str = None,
-                           priority: str = "normal",
-                           expires_days: int = 30) -> int:
+    def create_notification(
+        self,
+        title: str,
+        message: str,
+        notification_type: str = "info",
+        user_id: int = None,
+        link: str = None,
+        priority: str = "normal",
+        expires_days: int = 30,
+    ) -> int:
         """Create an in-app notification"""
-        expires_at = (datetime.now() + timedelta(days=expires_days)).isoformat() if expires_days else None
+        expires_at = (
+            (datetime.now() + timedelta(days=expires_days)).isoformat()
+            if expires_days
+            else None
+        )
 
-        self.cursor.execute("""
+        self.cursor.execute(
+            """
             INSERT INTO notifications (user_id, notification_type, title, message, link, priority, expires_at)
             VALUES (?, ?, ?, ?, ?, ?, ?)
-        """, (user_id, notification_type, title, message, link, priority, expires_at))
+        """,
+            (user_id, notification_type, title, message, link, priority, expires_at),
+        )
         self.conn.commit()
 
         return self.cursor.lastrowid
 
-    def get_notifications(self, user_id: int = None, unread_only: bool = False,
-                         limit: int = 50) -> List[Dict[str, Any]]:
+    def get_notifications(
+        self, user_id: int = None, unread_only: bool = False, limit: int = 50
+    ) -> List[Dict[str, Any]]:
         """Get notifications for a user"""
         query = "SELECT * FROM notifications WHERE 1=1"
         params = []
@@ -140,25 +162,33 @@ class NotificationService:
 
     def mark_as_read(self, notification_id: int) -> bool:
         """Mark a notification as read"""
-        self.cursor.execute("""
+        self.cursor.execute(
+            """
             UPDATE notifications SET is_read = 1, read_at = ?
             WHERE id = ?
-        """, (datetime.now().isoformat(), notification_id))
+        """,
+            (datetime.now().isoformat(), notification_id),
+        )
         self.conn.commit()
         return self.cursor.rowcount > 0
 
     def mark_all_read(self, user_id: int) -> int:
         """Mark all notifications as read for a user"""
-        self.cursor.execute("""
+        self.cursor.execute(
+            """
             UPDATE notifications SET is_read = 1, read_at = ?
             WHERE user_id = ? AND is_read = 0
-        """, (datetime.now().isoformat(), user_id))
+        """,
+            (datetime.now().isoformat(), user_id),
+        )
         self.conn.commit()
         return self.cursor.rowcount
 
     def delete_notification(self, notification_id: int) -> bool:
         """Delete a notification"""
-        self.cursor.execute("DELETE FROM notifications WHERE id = ?", (notification_id,))
+        self.cursor.execute(
+            "DELETE FROM notifications WHERE id = ?", (notification_id,)
+        )
         self.conn.commit()
         return self.cursor.rowcount > 0
 
@@ -181,29 +211,37 @@ class NotificationService:
         """Delete old notifications"""
         cutoff = (datetime.now() - timedelta(days=days)).isoformat()
 
-        self.cursor.execute("""
+        self.cursor.execute(
+            """
             DELETE FROM notifications
             WHERE created_at < ? OR (expires_at IS NOT NULL AND expires_at < ?)
-        """, (cutoff, datetime.now().isoformat()))
+        """,
+            (cutoff, datetime.now().isoformat()),
+        )
         self.conn.commit()
 
         return self.cursor.rowcount
 
     # ==================== Email Notifications ====================
 
-    def queue_email(self, to_email: str, subject: str, body: str,
-                    html_body: str = None) -> int:
+    def queue_email(
+        self, to_email: str, subject: str, body: str, html_body: str = None
+    ) -> int:
         """Add email to queue"""
-        self.cursor.execute("""
+        self.cursor.execute(
+            """
             INSERT INTO email_queue (to_email, subject, body, html_body)
             VALUES (?, ?, ?, ?)
-        """, (to_email, subject, body, html_body))
+        """,
+            (to_email, subject, body, html_body),
+        )
         self.conn.commit()
 
         return self.cursor.lastrowid
 
-    def send_email(self, to_email: str, subject: str, body: str,
-                   html_body: str = None) -> Dict[str, Any]:
+    def send_email(
+        self, to_email: str, subject: str, body: str, html_body: str = None
+    ) -> Dict[str, Any]:
         """Send email immediately"""
         if not self.smtp_user:
             return {"error": "Email not configured (SMTP_USER not set)"}
@@ -234,13 +272,16 @@ class NotificationService:
 
     def process_email_queue(self, batch_size: int = 10) -> Dict[str, Any]:
         """Process pending emails in queue"""
-        self.cursor.execute("""
+        self.cursor.execute(
+            """
             SELECT id, to_email, subject, body, html_body, attempts
             FROM email_queue
             WHERE status = 'pending' AND attempts < 3
             ORDER BY created_at
             LIMIT ?
-        """, (batch_size,))
+        """,
+            (batch_size,),
+        )
 
         emails = self.cursor.fetchall()
         sent = 0
@@ -252,35 +293,44 @@ class NotificationService:
             result = self.send_email(to_email, subject, body, html_body)
 
             if result.get("success"):
-                self.cursor.execute("""
+                self.cursor.execute(
+                    """
                     UPDATE email_queue SET status = 'sent', sent_at = ?, last_attempt = ?
                     WHERE id = ?
-                """, (datetime.now().isoformat(), datetime.now().isoformat(), email_id))
+                """,
+                    (datetime.now().isoformat(), datetime.now().isoformat(), email_id),
+                )
                 sent += 1
             else:
                 new_status = "failed" if attempts >= 2 else "pending"
-                self.cursor.execute("""
+                self.cursor.execute(
+                    """
                     UPDATE email_queue SET status = ?, attempts = attempts + 1,
                     last_attempt = ?, error_message = ?
                     WHERE id = ?
-                """, (new_status, datetime.now().isoformat(), result.get("error"), email_id))
+                """,
+                    (
+                        new_status,
+                        datetime.now().isoformat(),
+                        result.get("error"),
+                        email_id,
+                    ),
+                )
                 failed += 1
 
         self.conn.commit()
 
-        return {
-            "processed": len(emails),
-            "sent": sent,
-            "failed": failed
-        }
+        return {"processed": len(emails), "sent": sent, "failed": failed}
 
     def get_email_queue_status(self) -> Dict[str, Any]:
         """Get email queue statistics"""
-        self.cursor.execute("""
+        self.cursor.execute(
+            """
             SELECT status, COUNT(*) as count
             FROM email_queue
             GROUP BY status
-        """)
+        """
+        )
 
         stats = {row[0]: row[1] for row in self.cursor.fetchall()}
 
@@ -288,16 +338,19 @@ class NotificationService:
             "pending": stats.get("pending", 0),
             "sent": stats.get("sent", 0),
             "failed": stats.get("failed", 0),
-            "total": sum(stats.values())
+            "total": sum(stats.values()),
         }
 
     # ==================== Notification Preferences ====================
 
     def get_preferences(self, user_id: int) -> Dict[str, Any]:
         """Get notification preferences for a user"""
-        self.cursor.execute("""
+        self.cursor.execute(
+            """
             SELECT * FROM notification_preferences WHERE user_id = ?
-        """, (user_id,))
+        """,
+            (user_id,),
+        )
 
         row = self.cursor.fetchone()
         if not row:
@@ -310,15 +363,21 @@ class NotificationService:
                 "in_app_alerts": True,
                 "alert_low_margin": True,
                 "alert_budget_exceeded": True,
-                "alert_data_issues": True
+                "alert_data_issues": True,
             }
 
         columns = [desc[0] for desc in self.cursor.description]
         prefs = dict(zip(columns, row))
 
         # Convert integers to booleans
-        for key in ["email_alerts", "email_reports", "in_app_alerts",
-                    "alert_low_margin", "alert_budget_exceeded", "alert_data_issues"]:
+        for key in [
+            "email_alerts",
+            "email_reports",
+            "in_app_alerts",
+            "alert_low_margin",
+            "alert_budget_exceeded",
+            "alert_data_issues",
+        ]:
             if key in prefs:
                 prefs[key] = bool(prefs[key])
 
@@ -326,9 +385,15 @@ class NotificationService:
 
     def update_preferences(self, user_id: int, **kwargs) -> Dict[str, Any]:
         """Update notification preferences"""
-        allowed_fields = ["email_alerts", "email_reports", "email_digest",
-                         "in_app_alerts", "alert_low_margin",
-                         "alert_budget_exceeded", "alert_data_issues"]
+        allowed_fields = [
+            "email_alerts",
+            "email_reports",
+            "email_digest",
+            "in_app_alerts",
+            "alert_low_margin",
+            "alert_budget_exceeded",
+            "alert_data_issues",
+        ]
 
         updates = {k: v for k, v in kwargs.items() if k in allowed_fields}
 
@@ -345,26 +410,30 @@ class NotificationService:
         placeholders = ", ".join(["?"] * len(fields))
         update_clause = ", ".join(f"{f} = excluded.{f}" for f in fields)
 
-        self.cursor.execute(f"""
+        self.cursor.execute(
+            f"""
             INSERT INTO notification_preferences (user_id, {", ".join(fields)})
             VALUES (?, {placeholders})
             ON CONFLICT(user_id) DO UPDATE SET {update_clause}, updated_at = CURRENT_TIMESTAMP
-        """, [user_id] + list(updates.values()))
+        """,
+            [user_id] + list(updates.values()),
+        )
         self.conn.commit()
 
         return {"status": "updated", "user_id": user_id}
 
     # ==================== Alert Notifications ====================
 
-    def notify_low_margin(self, employee_id: str, employee_name: str,
-                         margin: float, period: str) -> None:
+    def notify_low_margin(
+        self, employee_id: str, employee_name: str, margin: float, period: str
+    ) -> None:
         """Create notification for low margin"""
         self.create_notification(
             title=f"マージン警告: {employee_name}",
             message=f"{employee_name} ({employee_id}) のマージンが {margin:.1f}% です（{period}）。目標: 15%",
             notification_type="alert",
             priority="high",
-            link=f"/employees/{employee_id}"
+            link=f"/employees/{employee_id}",
         )
 
     def notify_budget_exceeded(self, period: str, variance: float) -> None:
@@ -374,7 +443,7 @@ class NotificationService:
             message=f"{period} の実績が予算を ¥{abs(variance):,.0f} {'下回り' if variance < 0 else '上回り'}ました。",
             notification_type="alert",
             priority="high" if variance < 0 else "normal",
-            link=f"/reports?period={period}"
+            link=f"/reports?period={period}",
         )
 
     def notify_data_issue(self, issue_type: str, details: str) -> None:
@@ -384,16 +453,18 @@ class NotificationService:
             message=details,
             notification_type="warning",
             priority="normal",
-            link="/validate"
+            link="/validate",
         )
 
-    def notify_report_ready(self, report_type: str, period: str = None,
-                           download_link: str = None) -> None:
+    def notify_report_ready(
+        self, report_type: str, period: str = None, download_link: str = None
+    ) -> None:
         """Create notification for report ready"""
         self.create_notification(
             title=f"レポート完了: {report_type}",
-            message=f"{report_type} レポートが生成されました" + (f" ({period})" if period else ""),
+            message=f"{report_type} レポートが生成されました"
+            + (f" ({period})" if period else ""),
             notification_type="info",
             priority="normal",
-            link=download_link
+            link=download_link,
         )

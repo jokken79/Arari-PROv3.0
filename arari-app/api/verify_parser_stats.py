@@ -1,11 +1,11 @@
-
-import sys
 import os
+import sys
 
 # Add current directory to path to find models
 sys.path.append(os.getcwd())
 
 from salary_parser import SalaryStatementParser
+
 
 def verify_fix():
     print("Testing SalaryStatementParser.get_parsing_stats()...")
@@ -17,6 +17,7 @@ def verify_fix():
         print(f"FAIL: AttributeError caught: {e}")
     except Exception as e:
         print(f"FAIL: Unexpected error: {e}")
+
 
 if __name__ == "__main__":
     verify_fix()

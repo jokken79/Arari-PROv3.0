@@ -22,7 +22,8 @@ def recalculate_paid_leave_days():
     cursor = conn.cursor()
 
     # Obtener todos los registros con paid_leave_amount > 0
-    cursor.execute("""
+    cursor.execute(
+        """
         SELECT
             pr.id,
             pr.employee_id,
@@ -36,7 +37,8 @@ def recalculate_paid_leave_days():
         FROM payroll_records pr
         JOIN employees e ON pr.employee_id = e.employee_id
         WHERE pr.paid_leave_amount > 0 OR pr.paid_leave_hours > 0
-    """)
+    """
+    )
 
     records = cursor.fetchall()
     print(f"Found {len(records)} records with paid leave")
@@ -46,13 +48,13 @@ def recalculate_paid_leave_days():
 
     for record in records:
         try:
-            record_id = record['id']
-            work_days = record['work_days'] or 0
-            work_hours = record['work_hours'] or 0
-            paid_leave_amount = record['paid_leave_amount'] or 0
-            paid_leave_hours_db = record['paid_leave_hours'] or 0
-            current_days = record['current_days'] or 0
-            hourly_rate = record['hourly_rate'] or 0
+            record_id = record["id"]
+            work_days = record["work_days"] or 0
+            work_hours = record["work_hours"] or 0
+            paid_leave_amount = record["paid_leave_amount"] or 0
+            paid_leave_hours_db = record["paid_leave_hours"] or 0
+            current_days = record["current_days"] or 0
+            hourly_rate = record["hourly_rate"] or 0
 
             # Calcular daily_work_hours
             if work_days > 0 and work_hours > 0:
@@ -76,22 +78,25 @@ def recalculate_paid_leave_days():
 
             # Solo actualizar si el valor es diferente
             if abs(calculated_days - current_days) > 0.01:
-                cursor.execute("""
+                cursor.execute(
+                    """
                     UPDATE payroll_records
                     SET paid_leave_days = ?,
                         paid_leave_hours = ?
                     WHERE id = ?
-                """, (round(calculated_days, 2), round(calculated_hours, 2), record_id))
+                """,
+                    (round(calculated_days, 2), round(calculated_hours, 2), record_id),
+                )
                 updated += 1
 
-        except Exception as e:
+        except Exception:
             errors += 1
 
     conn.commit()
     conn.close()
 
-    print(f"")
-    print(f"Result:")
+    print("")
+    print("Result:")
     print(f"  - Total records: {len(records)}")
     print(f"  - Updated: {updated}")
     print(f"  - Errors: {errors}")
@@ -106,7 +111,8 @@ def show_summary():
     cursor = conn.cursor()
 
     # Total por mes
-    cursor.execute("""
+    cursor.execute(
+        """
         SELECT
             period,
             COUNT(*) as count,
@@ -117,7 +123,8 @@ def show_summary():
         WHERE paid_leave_amount > 0
         GROUP BY period
         ORDER BY period
-    """)
+    """
+    )
 
     print("")
     print("Paid Leave Summary by period:")
@@ -134,7 +141,9 @@ def show_summary():
         grand_total_amount += total_amount
         grand_total_days += total_days
         # ASCII only output
-        print(f"{period}: {count} records, {total_amount:,.0f} yen, {total_days:.1f} days")
+        print(
+            f"{period}: {count} records, {total_amount:,.0f} yen, {total_days:.1f} days"
+        )
 
     print("-" * 80)
     print(f"TOTAL: {grand_total_amount:,.0f} yen, {grand_total_days:.1f} days")

@@ -2,12 +2,13 @@
 Pydantic models for API request/response validation
 """
 
-from pydantic import BaseModel, Field, field_validator, ConfigDict
-from typing import Optional, List
-from datetime import datetime
 import re
+from typing import Optional
+
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 # ============== Employee Models ==============
+
 
 class EmployeeBase(BaseModel):
     employee_id: str = Field(..., description="社員番号")
@@ -19,14 +20,18 @@ class EmployeeBase(BaseModel):
     billing_rate: float = Field(0, description="単価")
     status: str = Field("active", description="ステータス")
     hire_date: Optional[str] = Field(None, description="入社日")
-    employee_type: str = Field("haken", description="従業員タイプ (haken=派遣社員, ukeoi=請負社員)")
+    employee_type: str = Field(
+        "haken", description="従業員タイプ (haken=派遣社員, ukeoi=請負社員)"
+    )
     # NEW FIELDS - 2025-12-11
     gender: Optional[str] = Field(None, description="性別 (M=男性, F=女性)")
     birth_date: Optional[str] = Field(None, description="生年月日 (YYYY-MM-DD)")
     termination_date: Optional[str] = Field(None, description="退社日 (YYYY-MM-DD)")
 
+
 class EmployeeCreate(EmployeeBase):
     pass
+
 
 class Employee(EmployeeBase):
     id: Optional[int] = None
@@ -39,20 +44,28 @@ class Employee(EmployeeBase):
 
     model_config = ConfigDict(from_attributes=True)
 
+
 # ============== Payroll Record Models ==============
+
 
 class PayrollRecordBase(BaseModel):
     employee_id: str = Field(..., min_length=1, description="社員番号")
     period: str = Field(..., description="対象期間 (例: 2025年1月)")
     work_days: int = Field(0, ge=0, le=31, description="出勤日数")
     work_hours: float = Field(0, ge=0, le=400, description="労働時間 (max 400h/month)")
-    overtime_hours: float = Field(0, ge=0, le=100, description="残業時間（≤60h部分, max 100h)")
+    overtime_hours: float = Field(
+        0, ge=0, le=100, description="残業時間（≤60h部分, max 100h)"
+    )
     night_hours: float = Field(0, ge=0, le=200, description="深夜時間")
     holiday_hours: float = Field(0, ge=0, le=100, description="休日時間")
-    overtime_over_60h: float = Field(0, ge=0, le=100, description="60H過残業（60h超え部分）")
+    overtime_over_60h: float = Field(
+        0, ge=0, le=100, description="60H過残業（60h超え部分）"
+    )
     paid_leave_hours: float = Field(0, ge=0, le=200, description="有給時間")
     paid_leave_days: float = Field(0, ge=0, le=25, description="有給日数")
-    paid_leave_amount: float = Field(0, ge=0, description="有給金額（円）- 直接値がある場合")
+    paid_leave_amount: float = Field(
+        0, ge=0, description="有給金額（円）- 直接値がある場合"
+    )
     base_salary: float = Field(0, ge=0, description="基本給")
     overtime_pay: float = Field(0, ge=0, description="残業代（≤60h: ×1.25）")
     night_pay: float = Field(0, ge=0, description="深夜手当（本人: ×0.25）")
@@ -60,7 +73,9 @@ class PayrollRecordBase(BaseModel):
     overtime_over_60h_pay: float = Field(0, ge=0, description="60H過残業手当（×1.5）")
     transport_allowance: float = Field(0, description="通勤費（控除含む場合は負値可）")
     other_allowances: float = Field(0, ge=0, description="その他手当（請求可能）")
-    non_billable_allowances: float = Field(0, ge=0, description="非請求手当（通勤手当（非）、業務手当等）- 会社負担のみ")
+    non_billable_allowances: float = Field(
+        0, ge=0, description="非請求手当（通勤手当（非）、業務手当等）- 会社負担のみ"
+    )
     gross_salary: float = Field(0, ge=0, description="総支給額")
     social_insurance: float = Field(0, ge=0, description="社会保険料（健康保険）")
     welfare_pension: float = Field(0, ge=0, description="厚生年金保険料")
@@ -71,26 +86,32 @@ class PayrollRecordBase(BaseModel):
     utilities_deduction: float = Field(0, ge=0, description="水道光熱費")
     meal_deduction: float = Field(0, ge=0, description="弁当代/食事代")
     advance_payment: float = Field(0, ge=0, description="前借金/前貸")
-    year_end_adjustment: float = Field(0, description="年末調整 (負値可、還付の場合は正？通常は徴収が基本だが還付もある)")
+    year_end_adjustment: float = Field(
+        0,
+        description="年末調整 (負値可、還付の場合は正？通常は徴収が基本だが還付もある)",
+    )
     other_deductions: float = Field(0, ge=0, description="その他控除")
-    net_salary: float = Field(0, description="差引支給額（負値も許容 - 控除超過の場合）")
+    net_salary: float = Field(
+        0, description="差引支給額（負値も許容 - 控除超過の場合）"
+    )
     billing_amount: float = Field(0, ge=0, description="請求金額")
 
-    @field_validator('period')
+    @field_validator("period")
     @classmethod
     def validate_period(cls, v: str) -> str:
         """Validate period format is YYYY年M月 or YYYY年MM月"""
-        if not re.match(r'^\d{4}年\d{1,2}月$', v):
-            raise ValueError('Period must be in format YYYY年M月 (例: 2025年1月)')
+        if not re.match(r"^\d{4}年\d{1,2}月$", v):
+            raise ValueError("Period must be in format YYYY年M月 (例: 2025年1月)")
         return v
 
-    @field_validator('employee_id')
+    @field_validator("employee_id")
     @classmethod
     def validate_employee_id(cls, v: str) -> str:
         """Validate employee_id is not empty"""
         if not v or not v.strip():
-            raise ValueError('Employee ID cannot be empty')
+            raise ValueError("Employee ID cannot be empty")
         return v.strip()
+
 
 class PayrollRecordCreate(PayrollRecordBase):
     # Optional calculated fields - will be calculated if not provided
@@ -104,6 +125,7 @@ class PayrollRecordCreate(PayrollRecordBase):
     dispatch_company: Optional[str] = None
     # Employee name from Excel (氏名)
     employee_name: Optional[str] = None
+
 
 class PayrollRecord(PayrollRecordBase):
     id: Optional[int] = None

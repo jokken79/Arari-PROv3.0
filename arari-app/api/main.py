@@ -5,16 +5,25 @@ FastAPI + SQLite backend for profit management system
 
 # Load environment variables from .env file
 from dotenv import load_dotenv
-load_dotenv()
-
-from fastapi import FastAPI, UploadFile, File, HTTPException, Depends
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
-from contextlib import asynccontextmanager
-from pydantic import BaseModel
-import uvicorn
-import tempfile
+import sys
 import os
+import sqlite3
+import tempfile
+from contextlib import asynccontextmanager
+from datetime import datetime
+from io import BytesIO
+from pathlib import Path
+import json
+import uvicorn
+import webbrowser
+import logging # Import logging
+
+from fastapi import FastAPI, UploadFile, File, HTTPException, Depends, Header
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse, Response, StreamingResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel
+from typing import List, Optional
 
 from database import init_db, get_db
 from models import Employee, PayrollRecord, EmployeeCreate, PayrollRecordCreate
@@ -22,20 +31,42 @@ from services import PayrollService, ExcelParser
 from salary_parser import SalaryStatementParser
 from employee_parser import DBGenzaiXParser
 from template_manager import TemplateManager, create_template_from_excel
-from typing import List, Optional
-import sqlite3
-from datetime import datetime
-from io import BytesIO
-from pathlib import Path
-from fastapi.responses import Response
+from auth import AuthService, validate_token
+from alerts import AlertService
+from audit import AuditService
+from reports import ReportService
+from budget import BudgetService
+from notifications import NotificationService
+from search import SearchService
+from validation import ValidationService
+from backup import BackupService
+from roi import ROIService
+
+load_dotenv() 
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup: Initialize database
     init_db()
     print("[OK] Database initialized")
+    
+    # Configure logging
+    log_dir = Path("logs")
+    log_dir.mkdir(exist_ok=True)
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s - %(levelname)s - %(message)s",
+        handlers=[
+            logging.FileHandler(log_dir / "arari_pro.log"),
+            logging.StreamHandler()
+        ]
+    )
+    logging.info("Application startup complete.")
+    
     yield
     # Shutdown
+    logging.info("Application shutdown.")
     print("[SHUTDOWN] Closing application...")
 
 app = FastAPI(
@@ -62,7 +93,7 @@ app.add_middleware(
 async def health_check():
     return {"status": "healthy", "version": "2.0.0"}
 
-# ============== Employees ==============
+# ============== Employees ============== 
 
 @app.get("/api/employees", response_model=List[Employee])
 async def get_employees(
@@ -111,7 +142,7 @@ async def delete_employee(employee_id: str, db: sqlite3.Connection = Depends(get
         raise HTTPException(status_code=404, detail="Employee not found")
     return {"message": "Employee deleted successfully"}
 
-# ============== Payroll Records ==============
+# ============== Payroll Records ============== 
 
 @app.get("/api/payroll", response_model=List[PayrollRecord])
 async def get_payroll_records(
@@ -140,7 +171,7 @@ async def create_payroll_record(
     db.commit()  # Explicit commit after single record creation
     return result
 
-# ============== Statistics ==============
+# ============== Statistics ============== 
 
 @app.get("/api/statistics")
 async def get_statistics(
@@ -176,7 +207,7 @@ async def get_profit_trend(
     service = PayrollService(db)
     return service.get_profit_trend(months=months)
 
-# ============== Sync Employees ==============
+# ============== Sync Employees ============== 
 
 @app.post("/api/sync-employees")
 async def sync_employees(db: sqlite3.Connection = Depends(get_db)):
@@ -199,7 +230,7 @@ async def sync_employees(db: sqlite3.Connection = Depends(get_db)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
 
-# ============== Import Employees Endpoint ==============
+# ============== Import Employees Endpoint ============== 
 
 @app.post("/api/import-employees")
 async def import_employees(
@@ -250,7 +281,6 @@ async def import_employees(
                     billing_rate=emp.billing_rate,
                     status=emp.status,
                     hire_date=emp.hire_date,
-                    # NEW FIELDS - 2025-12-11
                     employee_type=emp.employee_type,
                     gender=emp.gender,
                     birth_date=emp.birth_date,
@@ -290,10 +320,6 @@ async def upload_payroll_file(
     db: sqlite3.Connection = Depends(get_db)
 ):
     """Upload and parse a payroll file (Excel or CSV) with Streaming Log"""
-    from fastapi.responses import StreamingResponse
-    import json
-    import os
-    import tempfile
     from fastapi.concurrency import run_in_threadpool
 
     async def log_generator():
@@ -311,7 +337,7 @@ async def upload_payroll_file(
                 }) + "\n"
                 return
 
-            # Validate file size (max 50MB)
+            # Validate file size (max 50MB) 
             MAX_FILE_SIZE = 50 * 1024 * 1024 
             content = await file.read()
             
@@ -466,7 +492,7 @@ async def upload_payroll_file(
 
     return StreamingResponse(log_generator(), media_type="application/x-ndjson")
 
-# ============== Export ==============
+# ============== Export ============== 
 
 @app.get("/api/export/employees")
 async def export_employees(db: sqlite3.Connection = Depends(get_db)):
@@ -768,7 +794,7 @@ async def sync_from_folder(
 
 # NOTE: Duplicate endpoint removed - using /api/import-employees defined at line ~216
 
-# ============== SETTINGS ==============
+# ============== SETTINGS ============== 
 
 @app.get("/api/settings")
 async def get_settings(db: sqlite3.Connection = Depends(get_db)):
@@ -832,7 +858,7 @@ async def toggle_company_status(
     return {"status": "success", "company": company_name, "active": active}
 
 
-# ============== TEMPLATES ==============
+# ============== TEMPLATES ============== 
 
 @app.get("/api/templates")
 async def list_templates(include_inactive: bool = False):
@@ -971,9 +997,9 @@ async def create_template_manually(payload: dict):
 
     return {"status": "success", "message": f"Template '{factory_identifier}' created"}
 
-# ============== AUTH ENDPOINTS ==============
+# ============== AUTH ENDPOINTS ============== 
 
-from auth import AuthService, validate_token, has_permission
+from auth import AuthService, validate_token
 from fastapi import Header
 
 @app.post("/api/auth/login")
@@ -1052,7 +1078,7 @@ async def create_user(payload: dict, db: sqlite3.Connection = Depends(get_db)):
 
     return result
 
-# ============== ALERTS ENDPOINTS ==============
+# ============== ALERTS ENDPOINTS ============== 
 
 from alerts import AlertService
 
@@ -1120,7 +1146,7 @@ async def update_alert_threshold(
     service.update_threshold(key, float(value))
     return {"status": "updated", "key": key, "value": value}
 
-# ============== AUDIT ENDPOINTS ==============
+# ============== AUDIT ENDPOINTS ============== 
 
 from audit import AuditService
 
@@ -1155,7 +1181,7 @@ async def get_entity_history(
     service = AuditService(db)
     return service.get_entity_history(entity_type, entity_id)
 
-# ============== REPORTS ENDPOINTS ==============
+# ============== REPORTS ENDPOINTS ============== 
 
 from reports import ReportService
 from fastapi.responses import Response
@@ -1221,7 +1247,7 @@ async def get_report_history(limit: int = 50, db: sqlite3.Connection = Depends(g
     service = ReportService(db)
     return service.get_report_history(limit)
 
-# ============== BUDGET ENDPOINTS ==============
+# ============== BUDGET ENDPOINTS ============== 
 
 from budget import BudgetService
 
@@ -1289,7 +1315,7 @@ async def delete_budget(budget_id: int, db: sqlite3.Connection = Depends(get_db)
 
     return result
 
-# ============== NOTIFICATIONS ENDPOINTS ==============
+# ============== NOTIFICATIONS ENDPOINTS ============== 
 
 from notifications import NotificationService
 
@@ -1341,7 +1367,7 @@ async def update_notification_preferences(
     service = NotificationService(db)
     return service.update_preferences(user_id, **payload)
 
-# ============== SEARCH ENDPOINTS ==============
+# ============== SEARCH ENDPOINTS ============== 
 
 from search import SearchService
 
@@ -1411,7 +1437,7 @@ async def get_filter_options(db: sqlite3.Connection = Depends(get_db)):
     service = SearchService(db)
     return service.get_filter_options()
 
-# ============== VALIDATION ENDPOINTS ==============
+# ============== VALIDATION ENDPOINTS ============== 
 
 from validation import ValidationService
 
@@ -1445,7 +1471,7 @@ async def auto_fix_issues(
     fix_types = payload.get("fix_types") if payload else None
     return service.auto_fix(fix_types)
 
-# ============== BACKUP ENDPOINTS ==============
+# ============== BACKUP ENDPOINTS ============== 
 
 from backup import BackupService
 
@@ -1501,7 +1527,7 @@ async def delete_backup_file(filename: str):
 
     return result
 
-# ============== ROI ENDPOINTS ==============
+# ============== ROI ENDPOINTS ============== 
 
 from roi import ROIService
 
@@ -1538,7 +1564,10 @@ async def get_roi_trend(months: int = 6, db: sqlite3.Connection = Depends(get_db
     return service.get_roi_trend(months)
 
 @app.get("/api/roi/recommendations")
-async def get_roi_recommendations(period: Optional[str] = None, db: sqlite3.Connection = Depends(get_db)):
+async def get_roi_recommendations(
+    period: Optional[str] = None,
+    db: sqlite3.Connection = Depends(get_db)
+):
     """Get ROI improvement recommendations"""
     service = ROIService(db)
     return service.get_recommendations(period)
@@ -1553,7 +1582,7 @@ async def compare_roi_periods(
     service = ROIService(db)
     return service.compare_periods(period1, period2)
 
-# ============== CACHE ENDPOINTS ==============
+# ============== CACHE ENDPOINTS ============== 
 
 from cache import CacheService
 
@@ -1578,10 +1607,38 @@ async def clear_cache(payload: dict = None, db: sqlite3.Connection = Depends(get
         "persistent_cleared": persistent_cleared
     }
 
-# ============== Run Server ==============
+def configure_static_files():
+    """Configures static file serving for bundled executable."""
+    # Determine the base path for bundled data
+    if getattr(sys, 'frozen', False):
+        # We are running in a bundled app (PyInstaller)
+        BASE_DIR = sys._MEIPASS
+    else:
+        # We are running in a normal Python environment (development or tests)
+        # Assume 'out' is a sibling to 'api' within 'arari-app'
+        BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 
+    STATIC_PATH = os.path.join(BASE_DIR, 'out')
 
-# ============== RESET DATA ==============
+    if os.path.exists(STATIC_PATH):
+        # Mount the static assets directory for Next.js
+        app.mount("/_next", StaticFiles(directory=os.path.join(STATIC_PATH, '_next')), name="next-static")
+
+        # Catch-all route to serve the frontend's index.html
+        @app.get("/{full_path:path}", include_in_schema=False)
+        async def serve_react_app(full_path: str):
+            index_path = os.path.join(STATIC_PATH, 'index.html')
+            # Check if it's explicitly asking for a file
+            if os.path.exists(os.path.join(STATIC_PATH, full_path)):
+                return FileResponse(os.path.join(STATIC_PATH, full_path))
+            # Otherwise, serve index.html for client-side routing
+            if os.path.exists(index_path):
+                return FileResponse(index_path)
+            raise HTTPException(status_code=404, detail="Frontend not found")
+    else:
+        print(f"[WARN] Static files path not found: {STATIC_PATH}. Frontend will not be served.")
+
+# ============== RESET DATA ============== 
 
 @app.delete("/api/reset-db")
 async def reset_database(
@@ -1619,10 +1676,20 @@ async def reset_database(
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Failed to delete data: {str(e)}")
 
-if __name__ == "__main__":
-    uvicorn.run(
-        "main:app",
-        host="0.0.0.0",
-        port=8000,
-        reload=True
-    )
+# Call static file configuration if not in a test environment and not explicitly frozen
+if __name__ == "__main__" or getattr(sys, 'frozen', False):
+    configure_static_files()
+    if __name__ == "__main__":
+        import webbrowser
+        # Open browser after a short delay
+        def open_browser():
+            webbrowser.open("http://127.0.0.1:8000")
+        
+        # Run uvicorn
+        uvicorn.run(
+            "main:app",
+            host="127.0.0.1",
+            port=8000,
+            reload=False, # IMPORTANT: Set reload to False for production
+            lifespan="on" # Ensure lifespan events are triggered
+        )

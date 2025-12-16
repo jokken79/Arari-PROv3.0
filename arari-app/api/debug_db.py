@@ -1,9 +1,8 @@
-
-import sqlite3
 import os
-import json
+import sqlite3
 
 DB_PATH = "arari_pro.db"
+
 
 def check_db():
     if not os.path.exists(DB_PATH):
@@ -15,7 +14,7 @@ def check_db():
     cursor = conn.cursor()
 
     print("=== DATA INTEGRITY CHECK ===")
-    
+
     # 1. Check Employees with Billing Rate
     cursor.execute("SELECT COUNT(*) FROM employees WHERE billing_rate > 0")
     emp_with_rate = cursor.fetchone()[0]
@@ -35,12 +34,17 @@ def check_db():
     cursor.execute("SELECT COUNT(*) FROM payroll_records WHERE period = ?", (period,))
     sept_count = cursor.fetchone()[0]
     print(f"Records in {period}: {sept_count}")
-    
+
     if sept_count > 0:
-        cursor.execute("SELECT SUM(billing_amount), SUM(total_company_cost), SUM(gross_profit) FROM payroll_records WHERE period = ?", (period,))
+        cursor.execute(
+            "SELECT SUM(billing_amount), SUM(total_company_cost), SUM(gross_profit) FROM payroll_records WHERE period = ?",
+            (period,),
+        )
         sums = cursor.fetchone()
-        print(f"Stats for {period}: Revenue={sums[0]}, Cost={sums[1]}, Profit={sums[2]}")
-        
+        print(
+            f"Stats for {period}: Revenue={sums[0]}, Cost={sums[1]}, Profit={sums[2]}"
+        )
+
     # 4. Sample check
     print("\nSample Employee (First found):")
     cursor.execute("SELECT employee_id, name, billing_rate FROM employees LIMIT 1")
@@ -48,11 +52,14 @@ def check_db():
     print(emp)
 
     print("\nSample Payroll Record (First found):")
-    cursor.execute("SELECT employee_id, period, billing_amount, gross_profit FROM payroll_records LIMIT 1")
+    cursor.execute(
+        "SELECT employee_id, period, billing_amount, gross_profit FROM payroll_records LIMIT 1"
+    )
     pay = dict(cursor.fetchone())
     print(pay)
 
     conn.close()
+
 
 if __name__ == "__main__":
     check_db()

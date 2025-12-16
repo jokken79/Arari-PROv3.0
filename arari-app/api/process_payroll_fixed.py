@@ -1,16 +1,17 @@
-"""
+r"""
 Process all payroll Excel files from D:\給料明細
 FIXED VERSION: Adds db.commit() to persist records
 """
-import sys
-import os
-from pathlib import Path
+
 import sqlite3
+import sys
+from pathlib import Path
+
 from salary_parser import SalaryStatementParser
 from services import PayrollService
 
-if hasattr(sys.stdout, 'reconfigure'):
-    sys.stdout.reconfigure(encoding='utf-8')
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8")
 
 # Set folder path
 folder_path = r"D:\給料明細"
@@ -18,13 +19,13 @@ path = Path(folder_path)
 
 # Find all .xlsm files
 xlsm_files = sorted(list(path.glob("*.xlsm")))
-xlsm_files = [f for f in xlsm_files if not f.name.startswith('~$')]  # Skip temp files
+xlsm_files = [f for f in xlsm_files if not f.name.startswith("~$")]  # Skip temp files
 
 print(f"Procesando {len(xlsm_files)} archivos .xlsm...")
-print("="*80)
+print("=" * 80)
 
 # Connect to database
-db = sqlite3.connect('arari_pro.db')
+db = sqlite3.connect("arari_pro.db")
 db.row_factory = sqlite3.Row
 
 service = PayrollService(db)
@@ -71,17 +72,17 @@ for idx, file_path in enumerate(xlsm_files, 1):
 db.commit()
 db.close()
 
-print("\n" + "="*80)
-print(f"PROCESO COMPLETADO")
+print("\n" + "=" * 80)
+print("PROCESO COMPLETADO")
 print(f"   Archivos procesados: {files_processed}/{len(xlsm_files)}")
 print(f"   Total registros guardados: {total_saved}")
-print(f"   COMMITTED a la base de datos")
-print("="*80)
+print("   COMMITTED a la base de datos")
+print("=" * 80)
 
 # Verify final count
-db_verify = sqlite3.connect('arari_pro.db')
+db_verify = sqlite3.connect("arari_pro.db")
 cursor = db_verify.cursor()
-cursor.execute('SELECT COUNT(*) FROM payroll_records')
+cursor.execute("SELECT COUNT(*) FROM payroll_records")
 final_count = cursor.fetchone()[0]
 db_verify.close()
 

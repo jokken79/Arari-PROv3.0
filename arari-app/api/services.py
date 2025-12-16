@@ -2,14 +2,13 @@
 Business logic services for 粗利 PRO
 """
 
-import sqlite3
-from typing import List, Optional, Dict, Any
-from models import (
-    Employee, EmployeeCreate,
-    PayrollRecord, PayrollRecordCreate
-)
-import io
 import csv
+import io
+import sqlite3
+from typing import Any, Dict, List, Optional
+
+from models import EmployeeCreate, PayrollRecordCreate
+
 
 class PayrollService:
     """Service class for payroll and employee operations"""
@@ -25,7 +24,7 @@ class PayrollService:
         cursor = self.db.cursor()
         cursor.execute("SELECT value FROM settings WHERE key = ?", (key,))
         row = cursor.fetchone()
-        return row['value'] if row else default
+        return row["value"] if row else default
 
     def get_all_settings(self) -> List[Dict]:
         """Get all settings"""
@@ -37,36 +36,45 @@ class PayrollService:
         """Update or create a setting"""
         cursor = self.db.cursor()
         if description:
-            cursor.execute("""
+            cursor.execute(
+                """
                 INSERT INTO settings (key, value, description, updated_at)
                 VALUES (?, ?, ?, CURRENT_TIMESTAMP)
                 ON CONFLICT(key) DO UPDATE SET
                     value = excluded.value,
                     description = excluded.description,
                     updated_at = CURRENT_TIMESTAMP
-            """, (key, value, description))
+            """,
+                (key, value, description),
+            )
         else:
-            cursor.execute("""
+            cursor.execute(
+                """
                 INSERT INTO settings (key, value, updated_at)
                 VALUES (?, ?, CURRENT_TIMESTAMP)
                 ON CONFLICT(key) DO UPDATE SET
                     value = excluded.value,
                     updated_at = CURRENT_TIMESTAMP
-            """, (key, value))
+            """,
+                (key, value),
+            )
         self.db.commit()
         return cursor.rowcount > 0
 
     def get_insurance_rates(self) -> Dict[str, float]:
         """Get current insurance rates from settings"""
         return {
-            'employment_insurance_rate': float(self.get_setting('employment_insurance_rate', '0.0090')),
-            'workers_comp_rate': float(self.get_setting('workers_comp_rate', '0.003')),
+            "employment_insurance_rate": float(
+                self.get_setting("employment_insurance_rate", "0.0090")
+            ),
+            "workers_comp_rate": float(self.get_setting("workers_comp_rate", "0.003")),
         }
 
     def get_ignored_companies(self) -> List[str]:
         """Get list of ignored/deactivated companies"""
         import json
-        val = self.get_setting('ignored_companies', '[]')
+
+        val = self.get_setting("ignored_companies", "[]")
         try:
             return json.loads(val)
         except:
@@ -75,20 +83,28 @@ class PayrollService:
     def set_company_active(self, company_name: str, active: bool) -> bool:
         """Set company active/inactive status"""
         import json
+
         ignored = self.get_ignored_companies()
-        
+
         if active:
             if company_name in ignored:
                 ignored.remove(company_name)
         else:
             if company_name not in ignored:
                 ignored.append(company_name)
-                
-        return self.update_setting('ignored_companies', json.dumps(ignored), "Ignored companies list")
+
+        return self.update_setting(
+            "ignored_companies", json.dumps(ignored), "Ignored companies list"
+        )
 
     # ============== Employee Operations ==============
 
-    def get_employees(self, search: Optional[str] = None, company: Optional[str] = None, employee_type: Optional[str] = None) -> List[Dict]:
+    def get_employees(
+        self,
+        search: Optional[str] = None,
+        company: Optional[str] = None,
+        employee_type: Optional[str] = None,
+    ) -> List[Dict]:
         """Get all employees with optional filtering by search, company, and employee_type"""
         cursor = self.db.cursor()
 
@@ -104,7 +120,9 @@ class PayrollService:
         params = []
 
         if search:
-            query += " AND (e.employee_id LIKE ? OR e.name LIKE ? OR e.name_kana LIKE ?)"
+            query += (
+                " AND (e.employee_id LIKE ? OR e.name LIKE ? OR e.name_kana LIKE ?)"
+            )
             search_param = f"%{search}%"
             params.extend([search_param, search_param, search_param])
 
@@ -124,7 +142,8 @@ class PayrollService:
     def get_employee(self, employee_id: str) -> Optional[Dict]:
         """Get a single employee by ID"""
         cursor = self.db.cursor()
-        cursor.execute("""
+        cursor.execute(
+            """
             SELECT e.*,
                    (e.billing_rate - e.hourly_rate) as profit_per_hour,
                    CASE WHEN e.billing_rate > 0
@@ -132,61 +151,71 @@ class PayrollService:
                         ELSE 0 END as margin_rate
             FROM employees e
             WHERE e.employee_id = ?
-        """, (employee_id,))
+        """,
+            (employee_id,),
+        )
         row = cursor.fetchone()
         return dict(row) if row else None
 
     def create_employee(self, employee: EmployeeCreate) -> Dict:
         """Create a new employee"""
         cursor = self.db.cursor()
-        cursor.execute("""
+        cursor.execute(
+            """
             INSERT INTO employees (employee_id, name, name_kana, dispatch_company, department,
                                    hourly_rate, billing_rate, status, hire_date,
                                    employee_type, gender, birth_date, termination_date)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, (
-            employee.employee_id,
-            employee.name,
-            employee.name_kana,
-            employee.dispatch_company,
-            employee.department,
-            employee.hourly_rate,
-            employee.billing_rate,
-            employee.status,
-            employee.hire_date,
-            getattr(employee, 'employee_type', 'haken'),
-            getattr(employee, 'gender', None),
-            getattr(employee, 'birth_date', None),
-            getattr(employee, 'termination_date', None),
-        ))
+        """,
+            (
+                employee.employee_id,
+                employee.name,
+                employee.name_kana,
+                employee.dispatch_company,
+                employee.department,
+                employee.hourly_rate,
+                employee.billing_rate,
+                employee.status,
+                employee.hire_date,
+                getattr(employee, "employee_type", "haken"),
+                getattr(employee, "gender", None),
+                getattr(employee, "birth_date", None),
+                getattr(employee, "termination_date", None),
+            ),
+        )
         self.db.commit()
         return self.get_employee(employee.employee_id)
 
-    def update_employee(self, employee_id: str, employee: EmployeeCreate) -> Optional[Dict]:
+    def update_employee(
+        self, employee_id: str, employee: EmployeeCreate
+    ) -> Optional[Dict]:
         """Update an existing employee"""
         cursor = self.db.cursor()
-        cursor.execute("""
+        cursor.execute(
+            """
             UPDATE employees
             SET name = ?, name_kana = ?, dispatch_company = ?, department = ?,
                 hourly_rate = ?, billing_rate = ?, status = ?, hire_date = ?,
                 employee_type = ?, gender = ?, birth_date = ?, termination_date = ?,
                 updated_at = CURRENT_TIMESTAMP
             WHERE employee_id = ?
-        """, (
-            employee.name,
-            employee.name_kana,
-            employee.dispatch_company,
-            employee.department,
-            employee.hourly_rate,
-            employee.billing_rate,
-            employee.status,
-            employee.hire_date,
-            getattr(employee, 'employee_type', 'haken'),
-            getattr(employee, 'gender', None),
-            getattr(employee, 'birth_date', None),
-            getattr(employee, 'termination_date', None),
-            employee_id
-        ))
+        """,
+            (
+                employee.name,
+                employee.name_kana,
+                employee.dispatch_company,
+                employee.department,
+                employee.hourly_rate,
+                employee.billing_rate,
+                employee.status,
+                employee.hire_date,
+                getattr(employee, "employee_type", "haken"),
+                getattr(employee, "gender", None),
+                getattr(employee, "birth_date", None),
+                getattr(employee, "termination_date", None),
+                employee_id,
+            ),
+        )
         self.db.commit()
         return self.get_employee(employee_id) if cursor.rowcount > 0 else None
 
@@ -199,7 +228,9 @@ class PayrollService:
 
     # ============== Payroll Operations ==============
 
-    def get_payroll_records(self, period: Optional[str] = None, employee_id: Optional[str] = None) -> List[Dict]:
+    def get_payroll_records(
+        self, period: Optional[str] = None, employee_id: Optional[str] = None
+    ) -> List[Dict]:
         """Get payroll records with optional filtering"""
         cursor = self.db.cursor()
 
@@ -227,10 +258,12 @@ class PayrollService:
     def get_available_periods(self) -> List[str]:
         """Get list of available periods"""
         cursor = self.db.cursor()
-        cursor.execute("""
+        cursor.execute(
+            """
             SELECT DISTINCT period FROM payroll_records ORDER BY period DESC
-        """)
-        return [row['period'] for row in cursor.fetchall()]
+        """
+        )
+        return [row["period"] for row in cursor.fetchall()]
 
     # Insurance rates (2025年度) - configurable constants
     EMPLOYMENT_INSURANCE_RATE = 0.0090  # 雇用保険（会社負担）0.90% ← 2025年度
@@ -239,13 +272,15 @@ class PayrollService:
     # Billing multipliers (for factory billing)
     # These are what the factory pays us, NOT what we pay the employee
     BILLING_MULTIPLIERS = {
-        'overtime_normal': 1.25,      # 残業 ≤60h: ×1.25
-        'overtime_over_60h': 1.5,     # 残業 >60h: ×1.5
-        'night': 0.25,                # 深夜: +0.25 (extra on top of regular or overtime)
-        'holiday': 1.35,              # 休日: ×1.35
+        "overtime_normal": 1.25,  # 残業 ≤60h: ×1.25
+        "overtime_over_60h": 1.5,  # 残業 >60h: ×1.5
+        "night": 0.25,  # 深夜: +0.25 (extra on top of regular or overtime)
+        "holiday": 1.35,  # 休日: ×1.35
     }
 
-    def calculate_billing_amount(self, record: PayrollRecordCreate, employee: Dict) -> float:
+    def calculate_billing_amount(
+        self, record: PayrollRecordCreate, employee: Dict
+    ) -> float:
         """
         Calculate billing amount based on hours and employee's 単価 (billing_rate)
 
@@ -263,44 +298,48 @@ class PayrollService:
         Returns:
             Calculated billing amount
         """
-        tanka = employee.get('billing_rate', 0)
+        tanka = employee.get("billing_rate", 0)
         if tanka <= 0:
             return 0.0
 
         # Get hours from record
-        work_hours = getattr(record, 'work_hours', 0) or 0
-        overtime_hours = getattr(record, 'overtime_hours', 0) or 0
-        overtime_over_60h = getattr(record, 'overtime_over_60h', 0) or 0
-        night_hours = getattr(record, 'night_hours', 0) or 0
-        holiday_hours = getattr(record, 'holiday_hours', 0) or 0
+        work_hours = getattr(record, "work_hours", 0) or 0
+        overtime_hours = getattr(record, "overtime_hours", 0) or 0
+        overtime_over_60h = getattr(record, "overtime_over_60h", 0) or 0
+        night_hours = getattr(record, "night_hours", 0) or 0
+        holiday_hours = getattr(record, "holiday_hours", 0) or 0
 
         # Calculate billing components
         # 基本時間 (normal hours)
         base_billing = work_hours * tanka
 
         # 残業 ≤60h: ×1.25
-        overtime_billing = overtime_hours * tanka * self.BILLING_MULTIPLIERS['overtime_normal']
+        overtime_billing = (
+            overtime_hours * tanka * self.BILLING_MULTIPLIERS["overtime_normal"]
+        )
 
         # 残業 >60h: ×1.5 (60H過残業)
-        overtime_over_60h_billing = overtime_over_60h * tanka * self.BILLING_MULTIPLIERS['overtime_over_60h']
+        overtime_over_60h_billing = (
+            overtime_over_60h * tanka * self.BILLING_MULTIPLIERS["overtime_over_60h"]
+        )
 
         # 深夜: +0.25 extra (factory pays extra for night work)
-        night_billing = night_hours * tanka * self.BILLING_MULTIPLIERS['night']
+        night_billing = night_hours * tanka * self.BILLING_MULTIPLIERS["night"]
 
         # 休日: ×1.35
-        holiday_billing = holiday_hours * tanka * self.BILLING_MULTIPLIERS['holiday']
+        holiday_billing = holiday_hours * tanka * self.BILLING_MULTIPLIERS["holiday"]
 
         # Other Allowances (皆勤手当, 深夜残業, etc.) are passed through to billing
         # EXCLUDING: Transport and Non-Billable (業務手当) which are in separate fields
-        other_allowances_billing = getattr(record, 'other_allowances', 0) or 0
+        other_allowances_billing = getattr(record, "other_allowances", 0) or 0
 
         total_billing = (
-            base_billing +
-            overtime_billing +
-            overtime_over_60h_billing +
-            night_billing +
-            holiday_billing +
-            other_allowances_billing
+            base_billing
+            + overtime_billing
+            + overtime_over_60h_billing
+            + night_billing
+            + holiday_billing
+            + other_allowances_billing
         )
 
         return round(total_billing)
@@ -312,18 +351,18 @@ class PayrollService:
         if not employee:
             raise ValueError(f"Employee {record.employee_id} not found")
 
-        hourly_rate = employee['hourly_rate']
-        billing_rate = employee['billing_rate']
+        hourly_rate = employee["hourly_rate"]
+        billing_rate = employee["billing_rate"]
 
         # Get new hour fields with defaults
-        night_hours = getattr(record, 'night_hours', 0) or 0
-        holiday_hours = getattr(record, 'holiday_hours', 0) or 0
-        overtime_over_60h = getattr(record, 'overtime_over_60h', 0) or 0
+        night_hours = getattr(record, "night_hours", 0) or 0
+        holiday_hours = getattr(record, "holiday_hours", 0) or 0
+        overtime_over_60h = getattr(record, "overtime_over_60h", 0) or 0
 
         # Get new pay fields with defaults
-        night_pay = getattr(record, 'night_pay', 0) or 0
-        holiday_pay = getattr(record, 'holiday_pay', 0) or 0
-        overtime_over_60h_pay = getattr(record, 'overtime_over_60h_pay', 0) or 0
+        night_pay = getattr(record, "night_pay", 0) or 0
+        holiday_pay = getattr(record, "holiday_pay", 0) or 0
+        overtime_over_60h_pay = getattr(record, "overtime_over_60h_pay", 0) or 0
 
         # Calculate billing_amount if not provided or is 0
         billing_amount = record.billing_amount
@@ -336,17 +375,19 @@ class PayrollService:
 
         # 社会保険（会社負担）= 本人負担と同額 (労使折半)
         # NOTE: 社会保険 = 健康保険 + 厚生年金 (both employer and employee pay equal amounts)
-        welfare_pension = getattr(record, 'welfare_pension', 0) or 0
-        company_social_insurance = record.company_social_insurance or (record.social_insurance + welfare_pension)
+        welfare_pension = getattr(record, "welfare_pension", 0) or 0
+        company_social_insurance = record.company_social_insurance or (
+            record.social_insurance + welfare_pension
+        )
 
         # 雇用保険（会社負担）- Rate from settings (2025年度: 0.90%)
         company_employment_insurance = record.company_employment_insurance or round(
-            record.gross_salary * rates['employment_insurance_rate']
+            record.gross_salary * rates["employment_insurance_rate"]
         )
 
         # 労災保険（会社負担100%）- Rate from settings (製造業: 0.3%)
-        company_workers_comp = getattr(record, 'company_workers_comp', None) or round(
-            record.gross_salary * rates['workers_comp_rate']
+        company_workers_comp = getattr(record, "company_workers_comp", None) or round(
+            record.gross_salary * rates["workers_comp_rate"]
         )
 
         # ================================================================
@@ -363,44 +404,53 @@ class PayrollService:
         #
         # Where 法定福利費(会社負担) = 健康保険(会社) + 厚生年金(会社) + 雇用保険 + 労災保険
         # ================================================================
-        paid_leave_amount = getattr(record, 'paid_leave_amount', 0) or 0
+        paid_leave_amount = getattr(record, "paid_leave_amount", 0) or 0
 
         # NOTE: paid_leave_amount is already in gross_salary - DO NOT add again
         # NOTE: Smart check for Transport Allowance exclusion
         # In some Excel formats, Transport Allowance (14,002) is NOT included in Gross Pay (325,587),
         # even though the UI might say so. We need to check if we need to add it to Company Cost.
-        
+
         # Calculate sum of known components
-        base_salary = getattr(record, 'base_salary', 0) or 0
-        overtime_pay = getattr(record, 'overtime_pay', 0) or 0
-        night_pay = getattr(record, 'night_pay', 0) or 0
-        holiday_pay = getattr(record, 'holiday_pay', 0) or 0
-        overtime_over_60h_pay = getattr(record, 'overtime_over_60h_pay', 0) or 0
-        paid_leave_amount = getattr(record, 'paid_leave_amount', 0) or 0
-        other_allowances = getattr(record, 'other_allowances', 0) or 0
-        transport_allowance = getattr(record, 'transport_allowance', 0) or 0
-        non_billable_allowances = getattr(record, 'non_billable_allowances', 0) or 0
-        
+        base_salary = getattr(record, "base_salary", 0) or 0
+        overtime_pay = getattr(record, "overtime_pay", 0) or 0
+        night_pay = getattr(record, "night_pay", 0) or 0
+        holiday_pay = getattr(record, "holiday_pay", 0) or 0
+        overtime_over_60h_pay = getattr(record, "overtime_over_60h_pay", 0) or 0
+        paid_leave_amount = getattr(record, "paid_leave_amount", 0) or 0
+        other_allowances = getattr(record, "other_allowances", 0) or 0
+        transport_allowance = getattr(record, "transport_allowance", 0) or 0
+        non_billable_allowances = getattr(record, "non_billable_allowances", 0) or 0
+
         # Sum WITHOUT Transport
         sum_without_transport = (
-            base_salary + overtime_pay + night_pay + holiday_pay +
-            overtime_over_60h_pay + paid_leave_amount + other_allowances +
-            non_billable_allowances 
+            base_salary
+            + overtime_pay
+            + night_pay
+            + holiday_pay
+            + overtime_over_60h_pay
+            + paid_leave_amount
+            + other_allowances
+            + non_billable_allowances
         )
-        
+
         # Check if Gross matches Sum WITHOUT Transport (tolerance for rounding)
         # If Gross is close to Sum Without Transport, then Transport is NOT in Gross.
         # We must ADD it to Company Cost.
         is_transport_excluded = abs(record.gross_salary - sum_without_transport) <= 100
-        
-        transport_cost_adder = transport_allowance if (is_transport_excluded and transport_allowance > 0) else 0
+
+        transport_cost_adder = (
+            transport_allowance
+            if (is_transport_excluded and transport_allowance > 0)
+            else 0
+        )
 
         total_company_cost = record.total_company_cost or round(
-            record.gross_salary +
-            company_social_insurance +
-            company_employment_insurance +
-            company_workers_comp +
-            transport_cost_adder
+            record.gross_salary
+            + company_social_insurance
+            + company_employment_insurance
+            + company_workers_comp
+            + transport_cost_adder
         )
 
         # Calculate profit
@@ -412,10 +462,11 @@ class PayrollService:
         cursor = self.db.cursor()
 
         # Get non_billable_allowances from record
-        non_billable_allowances = getattr(record, 'non_billable_allowances', 0) or 0
+        non_billable_allowances = getattr(record, "non_billable_allowances", 0) or 0
 
         # Use INSERT OR REPLACE to handle updates for same employee+period
-        cursor.execute("""
+        cursor.execute(
+            """
             INSERT OR REPLACE INTO payroll_records (
                 employee_id, period, work_days, work_hours, overtime_hours,
                 night_hours, holiday_hours, overtime_over_60h,
@@ -427,29 +478,63 @@ class PayrollService:
                 other_deductions, net_salary, billing_amount, company_social_insurance,
                 company_employment_insurance, company_workers_comp, total_company_cost, gross_profit, profit_margin
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, (
-            record.employee_id, record.period, record.work_days, record.work_hours,
-            record.overtime_hours, night_hours, holiday_hours, overtime_over_60h,
-            record.paid_leave_hours, record.paid_leave_days, paid_leave_amount,
-            record.base_salary, record.overtime_pay, night_pay, holiday_pay, overtime_over_60h_pay,
-            record.transport_allowance, record.other_allowances, non_billable_allowances, record.gross_salary,
-            record.social_insurance, welfare_pension, record.employment_insurance, record.income_tax, record.resident_tax,
-            record.rent_deduction, record.utilities_deduction, record.meal_deduction, record.advance_payment, record.year_end_adjustment,
-            record.other_deductions, record.net_salary, billing_amount,
-            company_social_insurance, company_employment_insurance, company_workers_comp,
-            total_company_cost, gross_profit, profit_margin
-        ))
+        """,
+            (
+                record.employee_id,
+                record.period,
+                record.work_days,
+                record.work_hours,
+                record.overtime_hours,
+                night_hours,
+                holiday_hours,
+                overtime_over_60h,
+                record.paid_leave_hours,
+                record.paid_leave_days,
+                paid_leave_amount,
+                record.base_salary,
+                record.overtime_pay,
+                night_pay,
+                holiday_pay,
+                overtime_over_60h_pay,
+                record.transport_allowance,
+                record.other_allowances,
+                non_billable_allowances,
+                record.gross_salary,
+                record.social_insurance,
+                welfare_pension,
+                record.employment_insurance,
+                record.income_tax,
+                record.resident_tax,
+                record.rent_deduction,
+                record.utilities_deduction,
+                record.meal_deduction,
+                record.advance_payment,
+                record.year_end_adjustment,
+                record.other_deductions,
+                record.net_salary,
+                billing_amount,
+                company_social_insurance,
+                company_employment_insurance,
+                company_workers_comp,
+                total_company_cost,
+                gross_profit,
+                profit_margin,
+            ),
+        )
 
         # NOTE: Commit is handled by the calling endpoint to allow transactions
         # self.db.commit()  # Removed - caller must commit
 
         # Return the created record as a dictionary
-        cursor.execute("""
+        cursor.execute(
+            """
             SELECT p.*, e.name as employee_name, e.dispatch_company
             FROM payroll_records p
             LEFT JOIN employees e ON p.employee_id = e.employee_id
             WHERE p.employee_id = ? AND p.period = ?
-        """, (record.employee_id, record.period))
+        """,
+            (record.employee_id, record.period),
+        )
 
         row = cursor.fetchone()
 
@@ -458,8 +543,10 @@ class PayrollService:
             result = dict(row)
             # Ensure we return floats for numeric values to match test expectations
             numeric_fields = [
-                'company_social_insurance', 'company_employment_insurance',
-                'total_company_cost', 'billing_amount'
+                "company_social_insurance",
+                "company_employment_insurance",
+                "total_company_cost",
+                "billing_amount",
             ]
             for field in numeric_fields:
                 if field in result and result[field] is not None:
@@ -490,17 +577,20 @@ class PayrollService:
         cursor.execute("SELECT COUNT(*) FROM employees WHERE status = 'active'")
         active_employees = cursor.fetchone()[0]
 
-        cursor.execute("""
+        cursor.execute(
+            """
             SELECT COUNT(DISTINCT dispatch_company) 
             FROM employees 
             WHERE dispatch_company NOT IN (
                 SELECT value FROM json_each((SELECT value FROM settings WHERE key = 'ignored_companies'))
             )
-        """)
+        """
+        )
         total_companies = cursor.fetchone()[0]
 
         # Period statistics
-        cursor.execute("""
+        cursor.execute(
+            """
             SELECT
                 AVG(gross_profit) as average_profit,
                 AVG(profit_margin) as average_margin,
@@ -513,11 +603,14 @@ class PayrollService:
             AND e.dispatch_company NOT IN (
                 SELECT value FROM json_each((SELECT value FROM settings WHERE key = 'ignored_companies'))
             )
-        """, (period,))
+        """,
+            (period,),
+        )
         stats = cursor.fetchone()
 
         # Profit trend (last 6 periods) - Sort properly handling Japanese period format
-        cursor.execute("""
+        cursor.execute(
+            """
             SELECT
                 period,
                 SUM(billing_amount) as revenue,
@@ -534,14 +627,18 @@ class PayrollService:
                 CAST(SUBSTR(period, 1, 4) AS INTEGER) DESC,
                 CAST(REPLACE(REPLACE(SUBSTR(period, 6), '月', ''), '年', '') AS INTEGER) DESC
             LIMIT 6
-        """)
-        profit_trend = [dict(row) for row in cursor.fetchall()][::-1]  # Reverse for chronological order
+        """
+        )
+        profit_trend = [dict(row) for row in cursor.fetchall()][
+            ::-1
+        ]  # Reverse for chronological order
 
         # Profit distribution
         profit_distribution = self._calculate_profit_distribution(period)
 
         # Top companies
-        cursor.execute("""
+        cursor.execute(
+            """
             SELECT
                 e.dispatch_company as company_name,
                 COUNT(DISTINCT e.employee_id) as employee_count,
@@ -558,11 +655,14 @@ class PayrollService:
             GROUP BY e.dispatch_company
             ORDER BY total_monthly_profit DESC
             LIMIT 5
-        """, (period,))
+        """,
+            (period,),
+        )
         top_companies = [dict(row) for row in cursor.fetchall()]
 
         # Recent payrolls
-        cursor.execute("""
+        cursor.execute(
+            """
             SELECT p.*, e.name as employee_name, e.dispatch_company
             FROM payroll_records p
             LEFT JOIN employees e ON p.employee_id = e.employee_id
@@ -572,23 +672,25 @@ class PayrollService:
             )
             ORDER BY p.gross_profit DESC
             LIMIT 10
-        """, (period,))
+        """,
+            (period,),
+        )
         recent_payrolls = [dict(row) for row in cursor.fetchall()]
 
         return {
             "total_employees": total_employees,
             "active_employees": active_employees,
             "total_companies": total_companies,
-            "average_profit": stats['average_profit'] or 0,
-            "average_margin": stats['average_margin'] or 0,
-            "total_monthly_revenue": stats['total_revenue'] or 0,
-            "total_monthly_cost": stats['total_cost'] or 0,
-            "total_monthly_profit": stats['total_profit'] or 0,
+            "average_profit": stats["average_profit"] or 0,
+            "average_margin": stats["average_margin"] or 0,
+            "total_monthly_revenue": stats["total_revenue"] or 0,
+            "total_monthly_cost": stats["total_cost"] or 0,
+            "total_monthly_profit": stats["total_profit"] or 0,
             "profit_trend": profit_trend,
             "profit_distribution": profit_distribution,
             "top_companies": top_companies,
             "recent_payrolls": recent_payrolls,
-            "current_period": period
+            "current_period": period,
         }
 
     def _calculate_profit_distribution(self, period: str) -> List[Dict]:
@@ -603,13 +705,14 @@ class PayrollService:
         cursor = self.db.cursor()
 
         ranges = [
-            ("<10%", -999999999, 10),    # Critical - below break-even risk
-            ("10-15%", 10, 15),          # Below target - needs improvement
-            ("15-18%", 15, 18),          # On target - good
-            (">18%", 18, 999999999),     # Excellent - very profitable
+            ("<10%", -999999999, 10),  # Critical - below break-even risk
+            ("10-15%", 10, 15),  # Below target - needs improvement
+            ("15-18%", 15, 18),  # On target - good
+            (">18%", 18, 999999999),  # Excellent - very profitable
         ]
 
-        cursor.execute("""
+        cursor.execute(
+            """
         SELECT COUNT(*) 
         FROM payroll_records p
         LEFT JOIN employees e ON p.employee_id = e.employee_id
@@ -617,12 +720,15 @@ class PayrollService:
         AND e.dispatch_company NOT IN (
             SELECT value FROM json_each((SELECT value FROM settings WHERE key = 'ignored_companies'))
         )
-    """, (period,))
+    """,
+            (period,),
+        )
         total = cursor.fetchone()[0]
 
         distribution = []
         for range_name, min_val, max_val in ranges:
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT COUNT(*) 
                 FROM payroll_records p
                 LEFT JOIN employees e ON p.employee_id = e.employee_id
@@ -632,14 +738,18 @@ class PayrollService:
                 AND e.dispatch_company NOT IN (
                     SELECT value FROM json_each((SELECT value FROM settings WHERE key = 'ignored_companies'))
                 )
-            """, (period, min_val, max_val))
+            """,
+                (period, min_val, max_val),
+            )
             count = cursor.fetchone()[0]
             percentage = (count / total * 100) if total > 0 else 0
-            distribution.append({
-                "range": range_name,
-                "count": count,
-                "percentage": round(percentage, 1)
-            })
+            distribution.append(
+                {
+                    "range": range_name,
+                    "count": count,
+                    "percentage": round(percentage, 1),
+                }
+            )
 
         return distribution
 
@@ -658,10 +768,12 @@ class PayrollService:
             "profit_distribution": [],
             "top_companies": [],
             "recent_payrolls": [],
-            "current_period": None
+            "current_period": None,
         }
 
-    def get_monthly_statistics(self, year: Optional[int] = None, month: Optional[int] = None) -> List[Dict]:
+    def get_monthly_statistics(
+        self, year: Optional[int] = None, month: Optional[int] = None
+    ) -> List[Dict]:
         """Get monthly statistics"""
         cursor = self.db.cursor()
 
@@ -697,7 +809,8 @@ class PayrollService:
         cursor.execute("SELECT MAX(period) FROM payroll_records")
         period = cursor.fetchone()[0]
 
-        cursor.execute("""
+        cursor.execute(
+            """
             SELECT
                 e.dispatch_company as company_name,
                 COUNT(DISTINCT e.employee_id) as employee_count,
@@ -711,21 +824,24 @@ class PayrollService:
             LEFT JOIN payroll_records p ON e.employee_id = p.employee_id AND p.period = ?
             GROUP BY e.dispatch_company
             ORDER BY total_monthly_profit DESC
-        """, (period,))
-        
+        """,
+            (period,),
+        )
+
         result = [dict(row) for row in cursor.fetchall()]
 
         # Add 'is_active' flag
         ignored = self.get_ignored_companies()
         for c in result:
-            c['is_active'] = c['company_name'] not in ignored
-            
+            c["is_active"] = c["company_name"] not in ignored
+
         return result
 
     def get_profit_trend(self, months: int = 6) -> List[Dict]:
         """Get profit trend for last N months"""
         cursor = self.db.cursor()
-        cursor.execute("""
+        cursor.execute(
+            """
             SELECT
                 period,
                 SUM(billing_amount) as revenue,
@@ -736,7 +852,9 @@ class PayrollService:
             GROUP BY period
             ORDER BY period DESC
             LIMIT ?
-        """, (months,))
+        """,
+            (months,),
+        )
         return [dict(row) for row in cursor.fetchall()][::-1]
 
 
@@ -745,58 +863,58 @@ class ExcelParser:
 
     # Column mappings (Japanese -> internal)
     COLUMN_MAPPINGS = {
-        '社員番号': 'employee_id',
-        '従業員番号': 'employee_id',
-        'ID': 'employee_id',
-        '対象期間': 'period',
-        '期間': 'period',
-        '月': 'period',
-        '出勤日数': 'work_days',
-        '労働時間': 'work_hours',
-        '勤務時間': 'work_hours',
-        '残業時間': 'overtime_hours',
-        '深夜時間': 'night_hours',
-        '深夜': 'night_hours',
-        '休日時間': 'holiday_hours',
-        '休日': 'holiday_hours',
-        '60H過残業': 'overtime_over_60h',
-        '60時間超': 'overtime_over_60h',
-        '有給時間': 'paid_leave_hours',
-        '有給日数': 'paid_leave_days',
-        '有給金額': 'paid_leave_amount',
-        '有給支給額': 'paid_leave_amount',
-        '有給手当': 'paid_leave_amount',
-        '有休金額': 'paid_leave_amount',
-        '有休支給': 'paid_leave_amount',
-        '基本給': 'base_salary',
-        '残業代': 'overtime_pay',
-        '残業手当': 'overtime_pay',
-        '深夜手当': 'night_pay',
-        '休日手当': 'holiday_pay',
-        '60H過手当': 'overtime_over_60h_pay',
-        '通勤費': 'transport_allowance',
-        '交通費': 'transport_allowance',
-        'その他手当': 'other_allowances',
-        '総支給額': 'gross_salary',
-        '社会保険料': 'social_insurance',
-        '社会保険': 'social_insurance',
-        '雇用保険料': 'employment_insurance',
-        '雇用保険': 'employment_insurance',
-        '所得税': 'income_tax',
-        '住民税': 'resident_tax',
-        'その他控除': 'other_deductions',
-        '差引支給額': 'net_salary',
-        '手取り': 'net_salary',
-        '請求金額': 'billing_amount',
-        '請求額': 'billing_amount',
-        '売上': 'billing_amount',
+        "社員番号": "employee_id",
+        "従業員番号": "employee_id",
+        "ID": "employee_id",
+        "対象期間": "period",
+        "期間": "period",
+        "月": "period",
+        "出勤日数": "work_days",
+        "労働時間": "work_hours",
+        "勤務時間": "work_hours",
+        "残業時間": "overtime_hours",
+        "深夜時間": "night_hours",
+        "深夜": "night_hours",
+        "休日時間": "holiday_hours",
+        "休日": "holiday_hours",
+        "60H過残業": "overtime_over_60h",
+        "60時間超": "overtime_over_60h",
+        "有給時間": "paid_leave_hours",
+        "有給日数": "paid_leave_days",
+        "有給金額": "paid_leave_amount",
+        "有給支給額": "paid_leave_amount",
+        "有給手当": "paid_leave_amount",
+        "有休金額": "paid_leave_amount",
+        "有休支給": "paid_leave_amount",
+        "基本給": "base_salary",
+        "残業代": "overtime_pay",
+        "残業手当": "overtime_pay",
+        "深夜手当": "night_pay",
+        "休日手当": "holiday_pay",
+        "60H過手当": "overtime_over_60h_pay",
+        "通勤費": "transport_allowance",
+        "交通費": "transport_allowance",
+        "その他手当": "other_allowances",
+        "総支給額": "gross_salary",
+        "社会保険料": "social_insurance",
+        "社会保険": "social_insurance",
+        "雇用保険料": "employment_insurance",
+        "雇用保険": "employment_insurance",
+        "所得税": "income_tax",
+        "住民税": "resident_tax",
+        "その他控除": "other_deductions",
+        "差引支給額": "net_salary",
+        "手取り": "net_salary",
+        "請求金額": "billing_amount",
+        "請求額": "billing_amount",
+        "売上": "billing_amount",
     }
 
     def parse(self, content: bytes, file_ext: str) -> List[PayrollRecordCreate]:
         """Parse file content and return list of PayrollRecordCreate objects"""
-        if file_ext == '.csv':
+        if file_ext == ".csv":
             return self._parse_csv(content)
-        elif file_ext in ['.xlsx', '.xlsm', '.xls']:
+        elif file_ext in [".xlsx", ".xlsm", ".xls"]:
             return self._parse_excel(content)
         else:
             raise ValueError(f"Unsupported file type: {file_ext}")
@@ -806,7 +924,7 @@ class ExcelParser:
         records = []
 
         # Try different encodings
-        for encoding in ['utf-8', 'shift_jis', 'cp932']:
+        for encoding in ["utf-8", "shift_jis", "cp932"]:
             try:
                 text = content.decode(encoding)
                 break
@@ -827,8 +945,9 @@ class ExcelParser:
     def _parse_excel(self, content: bytes) -> List[PayrollRecordCreate]:
         """Parse Excel content"""
         try:
-            import openpyxl
             from io import BytesIO
+
+            import openpyxl
 
             wb = openpyxl.load_workbook(BytesIO(content), data_only=True)
             ws = wb.active
@@ -846,7 +965,9 @@ class ExcelParser:
             return records
 
         except ImportError:
-            raise ValueError("openpyxl is required to parse Excel files. Install with: pip install openpyxl")
+            raise ValueError(
+                "openpyxl is required to parse Excel files. Install with: pip install openpyxl"
+            )
 
     def _map_row_to_record(self, row: dict) -> Optional[PayrollRecordCreate]:
         """Map a row dictionary to PayrollRecordCreate"""
@@ -859,44 +980,48 @@ class ExcelParser:
                     mapped[internal_col] = self._convert_value(value, internal_col)
 
         # Validate required fields
-        if not mapped.get('employee_id') or not mapped.get('period'):
+        if not mapped.get("employee_id") or not mapped.get("period"):
             return None
 
         # Filter out invalid employee IDs (0, 000000)
-        if hasattr(mapped.get('employee_id'), 'isdigit') and mapped['employee_id'].isdigit() and int(mapped['employee_id']) == 0:
+        if (
+            hasattr(mapped.get("employee_id"), "isdigit")
+            and mapped["employee_id"].isdigit()
+            and int(mapped["employee_id"]) == 0
+        ):
             return None
 
         # Set defaults for missing fields
         defaults = {
-            'work_days': 0,
-            'work_hours': 0,
-            'overtime_hours': 0,
-            'night_hours': 0,
-            'holiday_hours': 0,
-            'overtime_over_60h': 0,
-            'paid_leave_hours': 0,
-            'paid_leave_days': 0,
-            'paid_leave_amount': 0,
-            'base_salary': 0,
-            'overtime_pay': 0,
-            'night_pay': 0,
-            'holiday_pay': 0,
-            'overtime_over_60h_pay': 0,
-            'transport_allowance': 0,
-            'other_allowances': 0,
-            'gross_salary': 0,
-            'social_insurance': 0,
-            'employment_insurance': 0,
-            'income_tax': 0,
-            'resident_tax': 0,
-            'rent_deduction': 0,
-            'utilities_deduction': 0,
-            'meal_deduction': 0,
-            'advance_payment': 0,
-            'year_end_adjustment': 0,
-            'other_deductions': 0,
-            'net_salary': 0,
-            'billing_amount': 0,
+            "work_days": 0,
+            "work_hours": 0,
+            "overtime_hours": 0,
+            "night_hours": 0,
+            "holiday_hours": 0,
+            "overtime_over_60h": 0,
+            "paid_leave_hours": 0,
+            "paid_leave_days": 0,
+            "paid_leave_amount": 0,
+            "base_salary": 0,
+            "overtime_pay": 0,
+            "night_pay": 0,
+            "holiday_pay": 0,
+            "overtime_over_60h_pay": 0,
+            "transport_allowance": 0,
+            "other_allowances": 0,
+            "gross_salary": 0,
+            "social_insurance": 0,
+            "employment_insurance": 0,
+            "income_tax": 0,
+            "resident_tax": 0,
+            "rent_deduction": 0,
+            "utilities_deduction": 0,
+            "meal_deduction": 0,
+            "advance_payment": 0,
+            "year_end_adjustment": 0,
+            "other_deductions": 0,
+            "net_salary": 0,
+            "billing_amount": 0,
         }
 
         for key, default_value in defaults.items():
@@ -910,14 +1035,14 @@ class ExcelParser:
         if value is None:
             return None
 
-        if field in ['employee_id', 'period']:
+        if field in ["employee_id", "period"]:
             return str(value).strip()
 
         # Numeric fields
         try:
             if isinstance(value, str):
                 # Remove currency symbols and commas
-                value = value.replace('¥', '').replace(',', '').replace(' ', '').strip()
+                value = value.replace("¥", "").replace(",", "").replace(" ", "").strip()
             return float(value)
         except (ValueError, TypeError):
             return 0

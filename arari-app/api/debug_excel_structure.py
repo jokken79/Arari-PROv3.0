@@ -1,20 +1,22 @@
 """Debug Excel structure to find correct columns"""
-import openpyxl
+
 from pathlib import Path
+
+import openpyxl
 
 excel_path = Path(r"D:\給料明細\給与明細(派遣社員)2025.1(0217支給).xlsm")
 wb = openpyxl.load_workbook(excel_path, data_only=False)
 sheet = wb[wb.sheetnames[1]]  # PMI sheet
 
 print(f"Sheet: {sheet.title}")
-print("="*100)
+print("=" * 100)
 
 # Find first employee ID
 emp_id_found = None
 emp_col = None
 for row in range(1, 20):
     for col in range(1, 30):
-        val = str(sheet.cell(row, col).value or '')
+        val = str(sheet.cell(row, col).value or "")
         if val.isdigit() and len(val) == 6:  # Employee IDs are 6 digits
             emp_id_found = val
             emp_col = col
@@ -29,7 +31,7 @@ if not emp_col:
 
 # Print grid around employee column
 print(f"\nGrid around employee column {emp_col} (columns {emp_col-2} to {emp_col+6}):")
-print("="*100)
+print("=" * 100)
 for row in range(1, 35):
     cells = []
     for col_offset in range(-2, 7):

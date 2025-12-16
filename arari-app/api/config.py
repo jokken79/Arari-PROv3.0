@@ -6,6 +6,7 @@ Centralized configuration to avoid magic numbers throughout the codebase.
 
 # ============== Insurance Rates ==============
 
+
 class InsuranceRates:
     """Insurance rates by fiscal year (年度別保険料率)"""
 
@@ -15,28 +16,30 @@ class InsuranceRates:
 
     # 労災保険 - Workers' Compensation Insurance
     WORKERS_COMP_MANUFACTURING = 0.003  # 0.3% (製造業)
-    WORKERS_COMP_CONSTRUCTION = 0.009   # 0.9% (建設業)
-    WORKERS_COMP_OFFICE = 0.0025        # 0.25% (事務)
+    WORKERS_COMP_CONSTRUCTION = 0.009  # 0.9% (建設業)
+    WORKERS_COMP_OFFICE = 0.0025  # 0.25% (事務)
 
 
 # ============== Business Rules ==============
+
 
 class BusinessRules:
     """Business rules and limits for 製造派遣"""
 
     # Target margin rates by industry
     TARGET_MARGIN_MANUFACTURING = 15.0  # 製造派遣目標 10-18%
-    TARGET_MARGIN_OFFICE = 25.0         # 事務派遣目標 20-25%
-    TARGET_MARGIN_IT = 30.0             # IT派遣目標 25-35%
+    TARGET_MARGIN_OFFICE = 25.0  # 事務派遣目標 20-25%
+    TARGET_MARGIN_IT = 30.0  # IT派遣目標 25-35%
 
     # Operational limits
-    MAX_OVERTIME_HOURS_MONTH = 100      # 月間残業上限
-    MAX_WORK_HOURS_MONTH = 400          # 月間労働時間上限
-    MAX_PAID_LEAVE_DAYS_YEAR = 25       # 年間有給日数上限
-    MAX_WORK_DAYS_MONTH = 31            # 月間出勤日数上限
+    MAX_OVERTIME_HOURS_MONTH = 100  # 月間残業上限
+    MAX_WORK_HOURS_MONTH = 400  # 月間労働時間上限
+    MAX_PAID_LEAVE_DAYS_YEAR = 25  # 年間有給日数上限
+    MAX_WORK_DAYS_MONTH = 31  # 月間出勤日数上限
 
 
 # ============== Billing Multipliers ==============
+
 
 class BillingMultipliers:
     """
@@ -44,14 +47,15 @@ class BillingMultipliers:
     (派遣先への請求倍率)
     """
 
-    BASE = 1.0              # 通常労働時間
+    BASE = 1.0  # 通常労働時間
     OVERTIME_NORMAL = 1.25  # 残業 ≤60h: ×1.25
-    OVERTIME_OVER_60H = 1.5 # 残業 >60h: ×1.5
-    NIGHT = 0.25            # 深夜: +0.25 (extra on top of regular or overtime)
-    HOLIDAY = 1.35          # 休日: ×1.35
+    OVERTIME_OVER_60H = 1.5  # 残業 >60h: ×1.5
+    NIGHT = 0.25  # 深夜: +0.25 (extra on top of regular or overtime)
+    HOLIDAY = 1.35  # 休日: ×1.35
 
 
 # ============== File Upload Limits ==============
+
 
 class UploadLimits:
     """File upload restrictions"""
@@ -59,10 +63,11 @@ class UploadLimits:
     MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024  # 50MB
     MAX_FILE_SIZE_MB = 50
 
-    ALLOWED_EXTENSIONS = ['.xlsx', '.xlsm', '.xls', '.csv']
+    ALLOWED_EXTENSIONS = [".xlsx", ".xlsm", ".xls", ".csv"]
 
 
 # ============== Validation Limits ==============
+
 
 class ValidationLimits:
     """Field validation limits for Pydantic models"""
@@ -90,6 +95,7 @@ class ValidationLimits:
 
 # ============== Database Configuration ==============
 
+
 class DatabaseConfig:
     """Database connection and query settings"""
 
@@ -106,6 +112,7 @@ class DatabaseConfig:
 
 # ============== API Configuration ==============
 
+
 class APIConfig:
     """API server configuration"""
 
@@ -120,6 +127,7 @@ class APIConfig:
 
 
 # ============== Application Version ==============
+
 
 class AppVersion:
     """Application version info"""

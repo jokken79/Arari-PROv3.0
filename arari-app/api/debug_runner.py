@@ -1,5 +1,6 @@
 import sys
 import traceback
+
 from verify_name_lookup import verify
 
 if __name__ == "__main__":
@@ -8,4 +9,4 @@ if __name__ == "__main__":
         try:
             verify()
         except:
-             traceback.print_exc(file=f)
+            traceback.print_exc(file=f)

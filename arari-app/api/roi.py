@@ -4,8 +4,7 @@ Calculates ROI and profitability metrics by client
 """
 
 import sqlite3
-from datetime import datetime
-from typing import List, Dict, Any, Optional
+from typing import Any, Dict, List
 
 
 class ROIService:
@@ -15,8 +14,9 @@ class ROIService:
         self.conn = conn
         self.cursor = conn.cursor()
 
-    def calculate_client_roi(self, company: str = None,
-                             period: str = None) -> List[Dict[str, Any]]:
+    def calculate_client_roi(
+        self, company: str = None, period: str = None
+    ) -> List[Dict[str, Any]]:
         """Calculate ROI by client (派遣先)"""
 
         sql = """
@@ -50,8 +50,17 @@ class ROIService:
 
         results = []
         for row in self.cursor.fetchall():
-            (company_name, emp_count, revenue, cost, profit,
-             margin, hours, billing_rate, hourly_rate) = row
+            (
+                company_name,
+                emp_count,
+                revenue,
+                cost,
+                profit,
+                margin,
+                hours,
+                billing_rate,
+                hourly_rate,
+            ) = row
 
             # Calculate ROI
             roi = (profit / cost * 100) if cost and cost > 0 else 0
@@ -60,32 +69,37 @@ class ROIService:
             profit_per_hour = profit / hours if hours and hours > 0 else 0
 
             # Calculate profit per employee
-            profit_per_employee = profit / emp_count if emp_count and emp_count > 0 else 0
+            profit_per_employee = (
+                profit / emp_count if emp_count and emp_count > 0 else 0
+            )
 
             # Calculate efficiency (actual margin vs target 15%)
             efficiency = (margin / 15 * 100) if margin else 0
 
-            results.append({
-                "company": company_name,
-                "employee_count": emp_count,
-                "total_revenue": revenue or 0,
-                "total_cost": cost or 0,
-                "total_profit": profit or 0,
-                "avg_margin": margin or 0,
-                "total_hours": hours or 0,
-                "avg_billing_rate": billing_rate or 0,
-                "avg_hourly_rate": hourly_rate or 0,
-                "roi": roi,
-                "profit_per_hour": profit_per_hour,
-                "profit_per_employee": profit_per_employee,
-                "efficiency_pct": min(efficiency, 200),  # Cap at 200%
-                "status": self._get_status(margin)
-            })
+            results.append(
+                {
+                    "company": company_name,
+                    "employee_count": emp_count,
+                    "total_revenue": revenue or 0,
+                    "total_cost": cost or 0,
+                    "total_profit": profit or 0,
+                    "avg_margin": margin or 0,
+                    "total_hours": hours or 0,
+                    "avg_billing_rate": billing_rate or 0,
+                    "avg_hourly_rate": hourly_rate or 0,
+                    "roi": roi,
+                    "profit_per_hour": profit_per_hour,
+                    "profit_per_employee": profit_per_employee,
+                    "efficiency_pct": min(efficiency, 200),  # Cap at 200%
+                    "status": self._get_status(margin),
+                }
+            )
 
         return results
 
-    def calculate_employee_roi(self, employee_id: str = None,
-                               period: str = None) -> List[Dict[str, Any]]:
+    def calculate_employee_roi(
+        self, employee_id: str = None, period: str = None
+    ) -> List[Dict[str, Any]]:
         """Calculate ROI by employee"""
 
         sql = """
@@ -122,8 +136,20 @@ class ROIService:
 
         results = []
         for row in self.cursor.fetchall():
-            (emp_id, name, company, billing_rate, hourly_rate,
-             revenue, cost, profit, margin, work_hours, overtime, period_val) = row
+            (
+                emp_id,
+                name,
+                company,
+                billing_rate,
+                hourly_rate,
+                revenue,
+                cost,
+                profit,
+                margin,
+                work_hours,
+                overtime,
+                period_val,
+            ) = row
 
             # Calculate ROI
             roi = (profit / cost * 100) if cost and cost > 0 else 0
@@ -133,26 +159,32 @@ class ROIService:
             profit_per_hour = profit / total_hours if total_hours > 0 else 0
 
             # Rate efficiency
-            rate_efficiency = ((billing_rate - hourly_rate) / billing_rate * 100) if billing_rate else 0
+            rate_efficiency = (
+                ((billing_rate - hourly_rate) / billing_rate * 100)
+                if billing_rate
+                else 0
+            )
 
-            results.append({
-                "employee_id": emp_id,
-                "name": name,
-                "company": company,
-                "period": period_val,
-                "billing_rate": billing_rate or 0,
-                "hourly_rate": hourly_rate or 0,
-                "revenue": revenue or 0,
-                "cost": cost or 0,
-                "profit": profit or 0,
-                "margin": margin or 0,
-                "work_hours": work_hours or 0,
-                "overtime_hours": overtime or 0,
-                "roi": roi,
-                "profit_per_hour": profit_per_hour,
-                "rate_efficiency": rate_efficiency,
-                "status": self._get_status(margin)
-            })
+            results.append(
+                {
+                    "employee_id": emp_id,
+                    "name": name,
+                    "company": company,
+                    "period": period_val,
+                    "billing_rate": billing_rate or 0,
+                    "hourly_rate": hourly_rate or 0,
+                    "revenue": revenue or 0,
+                    "cost": cost or 0,
+                    "profit": profit or 0,
+                    "margin": margin or 0,
+                    "work_hours": work_hours or 0,
+                    "overtime_hours": overtime or 0,
+                    "roi": roi,
+                    "profit_per_hour": profit_per_hour,
+                    "rate_efficiency": rate_efficiency,
+                    "status": self._get_status(margin),
+                }
+            )
 
         return results
 
@@ -188,7 +220,7 @@ class ROIService:
                 "overall_roi": 0,
                 "profit_per_hour": 0,
                 "profit_per_employee": 0,
-                "status": "no_data"
+                "status": "no_data",
             }
 
         revenue, cost, profit, margin, emp_count, hours = row
@@ -220,13 +252,14 @@ class ROIService:
             "profitable_clients": profitable_clients,
             "underperforming_clients": underperforming_clients,
             "status": self._get_status(margin),
-            "target_margin": 15.0
+            "target_margin": 15.0,
         }
 
     def get_roi_trend(self, months: int = 6) -> List[Dict[str, Any]]:
         """Get ROI trend over time"""
 
-        self.cursor.execute("""
+        self.cursor.execute(
+            """
             SELECT
                 period,
                 SUM(billing_amount) as revenue,
@@ -238,7 +271,9 @@ class ROIService:
             GROUP BY period
             ORDER BY period DESC
             LIMIT ?
-        """, (months,))
+        """,
+            (months,),
+        )
 
         results = []
         for row in self.cursor.fetchall():
@@ -246,15 +281,17 @@ class ROIService:
 
             roi = (profit / cost * 100) if cost and cost > 0 else 0
 
-            results.append({
-                "period": period,
-                "revenue": revenue or 0,
-                "cost": cost or 0,
-                "profit": profit or 0,
-                "margin": margin or 0,
-                "roi": roi,
-                "employee_count": emp_count or 0
-            })
+            results.append(
+                {
+                    "period": period,
+                    "revenue": revenue or 0,
+                    "cost": cost or 0,
+                    "profit": profit or 0,
+                    "margin": margin or 0,
+                    "roi": roi,
+                    "employee_count": emp_count or 0,
+                }
+            )
 
         # Reverse to chronological order
         return list(reversed(results))
@@ -270,33 +307,35 @@ class ROIService:
             if client["margin"] < 10:
                 # Critical - suggest rate increase
                 current_rate = client["avg_billing_rate"]
-                target_rate = self._calculate_target_rate(
-                    client["avg_hourly_rate"], 15
-                )
+                target_rate = self._calculate_target_rate(client["avg_hourly_rate"], 15)
                 increase_needed = target_rate - current_rate
 
-                recommendations.append({
-                    "priority": "high",
-                    "type": "rate_increase",
-                    "client": client["company"],
-                    "current_margin": client["margin"],
-                    "target_margin": 15,
-                    "current_rate": current_rate,
-                    "suggested_rate": target_rate,
-                    "increase_needed": increase_needed,
-                    "message": f"{client['company']}: 単価を ¥{current_rate:,.0f} → ¥{target_rate:,.0f} (+¥{increase_needed:,.0f}) に引き上げを推奨"
-                })
+                recommendations.append(
+                    {
+                        "priority": "high",
+                        "type": "rate_increase",
+                        "client": client["company"],
+                        "current_margin": client["margin"],
+                        "target_margin": 15,
+                        "current_rate": current_rate,
+                        "suggested_rate": target_rate,
+                        "increase_needed": increase_needed,
+                        "message": f"{client['company']}: 単価を ¥{current_rate:,.0f} → ¥{target_rate:,.0f} (+¥{increase_needed:,.0f}) に引き上げを推奨",
+                    }
+                )
 
             elif client["margin"] < 15:
                 # Warning - suggest review
-                recommendations.append({
-                    "priority": "medium",
-                    "type": "review",
-                    "client": client["company"],
-                    "current_margin": client["margin"],
-                    "target_margin": 15,
-                    "message": f"{client['company']}: マージン {client['margin']:.1f}% - コスト見直しまたは単価交渉を検討"
-                })
+                recommendations.append(
+                    {
+                        "priority": "medium",
+                        "type": "review",
+                        "client": client["company"],
+                        "current_margin": client["margin"],
+                        "target_margin": 15,
+                        "message": f"{client['company']}: マージン {client['margin']:.1f}% - コスト見直しまたは単価交渉を検討",
+                    }
+                )
 
         # Sort by priority
         priority_order = {"high": 0, "medium": 1, "low": 2}
@@ -349,12 +388,16 @@ class ROIService:
             "period1_data": summary1,
             "period2_data": summary2,
             "changes": {
-                "revenue": calc_change(summary1["total_revenue"], summary2["total_revenue"]),
+                "revenue": calc_change(
+                    summary1["total_revenue"], summary2["total_revenue"]
+                ),
                 "cost": calc_change(summary1["total_cost"], summary2["total_cost"]),
-                "profit": calc_change(summary1["total_profit"], summary2["total_profit"]),
+                "profit": calc_change(
+                    summary1["total_profit"], summary2["total_profit"]
+                ),
                 "margin": summary1["avg_margin"] - summary2["avg_margin"],
                 "roi": summary1["overall_roi"] - summary2["overall_roi"],
-                "employees": summary1["employee_count"] - summary2["employee_count"]
+                "employees": summary1["employee_count"] - summary2["employee_count"],
             },
-            "improved": summary1["total_profit"] > summary2["total_profit"]
+            "improved": summary1["total_profit"] > summary2["total_profit"],
         }

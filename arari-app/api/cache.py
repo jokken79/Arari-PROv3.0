@@ -3,14 +3,12 @@ CacheAgent - Caching System
 In-memory and persistent caching for 粗利 PRO
 """
 
-import sqlite3
-from datetime import datetime, timedelta
-from typing import Any, Optional, Dict, Callable
 import json
-import hashlib
-from functools import wraps
+import sqlite3
 import threading
-
+from datetime import datetime, timedelta
+from functools import wraps
+from typing import Any, Callable, Dict, Optional
 
 # In-memory cache
 _cache: Dict[str, Dict[str, Any]] = {}
@@ -21,7 +19,8 @@ def init_cache_tables(conn: sqlite3.Connection):
     """Initialize persistent cache tables"""
     cursor = conn.cursor()
 
-    cursor.execute("""
+    cursor.execute(
+        """
         CREATE TABLE IF NOT EXISTS cache_store (
             cache_key TEXT PRIMARY KEY,
             value TEXT NOT NULL,
@@ -29,12 +28,15 @@ def init_cache_tables(conn: sqlite3.Connection):
             created_at TEXT DEFAULT CURRENT_TIMESTAMP,
             hit_count INTEGER DEFAULT 0
         )
-    """)
+    """
+    )
 
-    cursor.execute("""
+    cursor.execute(
+        """
         CREATE INDEX IF NOT EXISTS idx_cache_expires
         ON cache_store(expires_at)
-    """)
+    """
+    )
 
     conn.commit()
 
@@ -75,14 +77,16 @@ class CacheService:
     def set(self, key: str, value: Any, ttl: int = None) -> None:
         """Set value in in-memory cache"""
         ttl = ttl or self.default_ttl
-        expires_at = (datetime.now() + timedelta(seconds=ttl)).isoformat() if ttl else None
+        expires_at = (
+            (datetime.now() + timedelta(seconds=ttl)).isoformat() if ttl else None
+        )
 
         with _cache_lock:
             _cache[key] = {
                 "value": value,
                 "expires_at": expires_at,
                 "created_at": datetime.now().isoformat(),
-                "hits": 0
+                "hits": 0,
             }
 
     def delete(self, key: str) -> bool:
@@ -98,6 +102,7 @@ class CacheService:
         with _cache_lock:
             if pattern:
                 import re
+
                 regex = re.compile(pattern.replace("*", ".*"))
                 keys_to_delete = [k for k in _cache.keys() if regex.match(k)]
                 for key in keys_to_delete:
@@ -117,7 +122,8 @@ class CacheService:
             # Count expired
             now = datetime.now()
             expired = sum(
-                1 for e in _cache.values()
+                1
+                for e in _cache.values()
                 if e.get("expires_at") and datetime.fromisoformat(e["expires_at"]) < now
             )
 
@@ -125,7 +131,7 @@ class CacheService:
                 "total_entries": total_entries,
                 "active_entries": total_entries - expired,
                 "expired_entries": expired,
-                "total_hits": total_hits
+                "total_hits": total_hits,
             }
 
     # ==================== Persistent Cache ====================
@@ -136,9 +142,12 @@ class CacheService:
             return None
 
         cursor = self.conn.cursor()
-        cursor.execute("""
+        cursor.execute(
+            """
             SELECT value, expires_at FROM cache_store WHERE cache_key = ?
-        """, (key,))
+        """,
+            (key,),
+        )
 
         row = cursor.fetchone()
         if not row:
@@ -153,9 +162,12 @@ class CacheService:
             return None
 
         # Update hit count
-        cursor.execute("""
+        cursor.execute(
+            """
             UPDATE cache_store SET hit_count = hit_count + 1 WHERE cache_key = ?
-        """, (key,))
+        """,
+            (key,),
+        )
         self.conn.commit()
 
         return json.loads(value)
@@ -166,13 +178,18 @@ class CacheService:
             return
 
         ttl = ttl or self.default_ttl
-        expires_at = (datetime.now() + timedelta(seconds=ttl)).isoformat() if ttl else None
+        expires_at = (
+            (datetime.now() + timedelta(seconds=ttl)).isoformat() if ttl else None
+        )
 
         cursor = self.conn.cursor()
-        cursor.execute("""
+        cursor.execute(
+            """
             INSERT OR REPLACE INTO cache_store (cache_key, value, expires_at)
             VALUES (?, ?, ?)
-        """, (key, json.dumps(value), expires_at))
+        """,
+            (key, json.dumps(value), expires_at),
+        )
         self.conn.commit()
 
     def delete_persistent(self, key: str) -> bool:
@@ -195,7 +212,9 @@ class CacheService:
         if pattern:
             # Convert glob pattern to SQL LIKE
             sql_pattern = pattern.replace("*", "%")
-            cursor.execute("DELETE FROM cache_store WHERE cache_key LIKE ?", (sql_pattern,))
+            cursor.execute(
+                "DELETE FROM cache_store WHERE cache_key LIKE ?", (sql_pattern,)
+            )
         else:
             cursor.execute("DELETE FROM cache_store")
 
@@ -208,10 +227,13 @@ class CacheService:
             return 0
 
         cursor = self.conn.cursor()
-        cursor.execute("""
+        cursor.execute(
+            """
             DELETE FROM cache_store
             WHERE expires_at IS NOT NULL AND expires_at < ?
-        """, (datetime.now().isoformat(),))
+        """,
+            (datetime.now().isoformat(),),
+        )
         self.conn.commit()
         return cursor.rowcount
 
@@ -225,10 +247,13 @@ class CacheService:
         cursor.execute("SELECT COUNT(*) FROM cache_store")
         total = cursor.fetchone()[0]
 
-        cursor.execute("""
+        cursor.execute(
+            """
             SELECT COUNT(*) FROM cache_store
             WHERE expires_at IS NOT NULL AND expires_at < ?
-        """, (datetime.now().isoformat(),))
+        """,
+            (datetime.now().isoformat(),),
+        )
         expired = cursor.fetchone()[0]
 
         cursor.execute("SELECT SUM(hit_count) FROM cache_store")
@@ -238,12 +263,14 @@ class CacheService:
             "total_entries": total,
             "active_entries": total - expired,
             "expired_entries": expired,
-            "total_hits": total_hits
+            "total_hits": total_hits,
         }
 
     # ==================== Cache Decorator ====================
 
-    def cached(self, key_prefix: str = "", ttl: int = None, use_persistent: bool = False):
+    def cached(
+        self, key_prefix: str = "", ttl: int = None, use_persistent: bool = False
+    ):
         """
         Decorator for caching function results
 
@@ -252,6 +279,7 @@ class CacheService:
             def get_statistics(period):
                 ...
         """
+
         def decorator(func: Callable):
             @wraps(func)
             def wrapper(*args, **kwargs):
@@ -281,10 +309,12 @@ class CacheService:
                 return result
 
             return wrapper
+
         return decorator
 
 
 # ==================== Cached Statistics Functions ====================
+
 
 def cache_key_for_stats(period: str = None) -> str:
     """Generate cache key for statistics"""
@@ -319,6 +349,7 @@ def invalidate_employee_cache(cache_service: CacheService, employee_id: str = No
 
 # ==================== Pre-computed Statistics ====================
 
+
 class StatisticsCache:
     """Pre-computed statistics for fast dashboard loading"""
 
@@ -332,7 +363,8 @@ class StatisticsCache:
 
         # This would normally call the statistics service
         # For now, just return a placeholder
-        cursor.execute("""
+        cursor.execute(
+            """
             SELECT
                 COUNT(*) as employee_count,
                 SUM(billing_amount) as total_revenue,
@@ -340,7 +372,9 @@ class StatisticsCache:
                 AVG(profit_margin) as avg_margin
             FROM payroll_records
             WHERE period = ?
-        """, (period,))
+        """,
+            (period,),
+        )
 
         row = cursor.fetchone()
         stats = {
@@ -349,7 +383,7 @@ class StatisticsCache:
             "total_revenue": row[1] or 0,
             "total_profit": row[2] or 0,
             "avg_margin": row[3] or 0,
-            "computed_at": datetime.now().isoformat()
+            "computed_at": datetime.now().isoformat(),
         }
 
         # Cache for 10 minutes

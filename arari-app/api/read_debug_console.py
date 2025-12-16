@@ -1,4 +1,3 @@
-
 def read_filtered():
     content = ""
     try:
@@ -7,9 +6,13 @@ def read_filtered():
     except:
         with open("debug_console.txt", "r", encoding="utf-8", errors="ignore") as f:
             content = f.read()
-            
+
     for line in content.splitlines():
-        if any(x in line for x in ["Header", "Row", "Sheet", "Found", "Analysing", "Sample"]):
+        if any(
+            x in line
+            for x in ["Header", "Row", "Sheet", "Found", "Analysing", "Sample"]
+        ):
             print(line)
+
 
 read_filtered()

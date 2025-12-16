@@ -1,30 +1,44 @@
+import os
+import sys
+
 import pytest
 from fastapi.testclient import TestClient
-import sys
-import os
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from services import PayrollService
 from models import EmployeeCreate, PayrollRecordCreate
+from services import PayrollService
+
 
 @pytest.fixture
 def seed_data(db_session):
     """Seed the database with test data."""
     service = PayrollService(db_session)
-    
+
     # Create employees
-    emp1 = EmployeeCreate(employee_id='EMP001', name='Empleado 1', dispatch_company='Empresa A', hourly_rate=1000, billing_rate=1500)
-    emp2 = EmployeeCreate(employee_id='EMP002', name='Empleado 2', dispatch_company='Empresa B', hourly_rate=1200, billing_rate=1800)
+    emp1 = EmployeeCreate(
+        employee_id="EMP001",
+        name="Empleado 1",
+        dispatch_company="Empresa A",
+        hourly_rate=1000,
+        billing_rate=1500,
+    )
+    emp2 = EmployeeCreate(
+        employee_id="EMP002",
+        name="Empleado 2",
+        dispatch_company="Empresa B",
+        hourly_rate=1200,
+        billing_rate=1800,
+    )
     service.create_employee(emp1)
     service.create_employee(emp2)
 
     # Create payroll records
-    pr1 = PayrollRecordCreate(employee_id='EMP001', period='2025年1月', work_hours=160)
-    pr2 = PayrollRecordCreate(employee_id='EMP002', period='2025年1月', work_hours=160)
+    pr1 = PayrollRecordCreate(employee_id="EMP001", period="2025年1月", work_hours=160)
+    pr2 = PayrollRecordCreate(employee_id="EMP002", period="2025年1月", work_hours=160)
     service.create_payroll_record(pr1)
     service.create_payroll_record(pr2)
-    
+
     db_session.commit()
 
 
