@@ -1,7 +1,9 @@
 FROM node:18-alpine as build
 WORKDIR /usr/src/app
 COPY arari-app/package.json arari-app/package-lock.json* ./
-RUN npm ci --prefer-offline --no-audit --no-fund
+RUN npm ci --prefer-offline --no-audit --no-fund --force
+ARG NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 COPY arari-app/ /usr/src/app
 RUN npm run build
 
