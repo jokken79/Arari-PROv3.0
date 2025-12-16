@@ -48,6 +48,7 @@ export default function SettingsPage() {
     message?: string
     stats?: any
   } | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState('payroll');
 
   // Insurance settings state
   const [insuranceSettings, setInsuranceSettings] = useState<InsuranceSettings>({
@@ -394,7 +395,8 @@ export default function SettingsPage() {
                         className="w-20 text-center"
                         aria-label="目標マージン率（パーセント）"
                       />
-                      <span className="text-sm text-muted-foreground">%</span>
+                      <span className="text-sm text-muted-foreground">%
+                      </span>
                     </div>
 
                     {/* Save Button */}
@@ -516,40 +518,83 @@ export default function SettingsPage() {
                   </div>
 
                   <div className="pt-4 border-t space-y-2">
-                    <p className="text-sm font-medium text-muted-foreground">その他のオプション</p>
-                    <div className="flex flex-wrap gap-2">
-                      <Button variant="outline" disabled>
-                        データをバックアップ
-                      </Button>
-                      <Button variant="outline" disabled>
-                        バックアップから復元
-                      </Button>
-                      <Button
-                        variant="outline"
-                        className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                        aria-label="すべてのデータを削除"
-                        onClick={async () => {
-                          if (!confirm('本当にすべてのデータを削除しますか？\nこの操作は取り消せません。\n\nAre you sure you want to delete ALL data? This cannot be undone.')) {
-                            return
-                          }
-
-                          try {
-                            const res = await fetch(`${API_URL}/api/reset-db`, { method: 'DELETE' })
-                            if (res.ok) {
-                              alert('データを削除しました。\nData deleted successfully.')
-                              // Reload to refresh UI state if needed
-                              window.location.reload()
-                            } else {
-                              alert('削除に失敗しました。\nFailed to delete data.')
+                    <p className="text-sm font-medium text-muted-foreground">データリセット</p>
+                    <div className="p-4 rounded-lg bg-red-50 border border-red-200 dark:bg-red-950/20 dark:border-red-900">
+                      <div className="space-y-3">
+                        <p className="font-medium text-red-900 dark:text-red-100">
+                          実行するリセットを選択してください
+                        </p>
+                        <div className="flex flex-col gap-2">
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <input
+                              type="radio"
+                              name="deleteTarget"
+                              value="payroll"
+                              checked={deleteTarget === 'payroll'}
+                              onChange={(e) => setDeleteTarget(e.target.value)}
+                            />
+                            給与明細データのみを削除
+                          </label>
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <input
+                              type="radio"
+                              name="deleteTarget"
+                              value="employees"
+                              checked={deleteTarget === 'employees'}
+                              onChange={(e) => setDeleteTarget(e.target.value)}
+                            />
+                            社員データと関連する給与明細を削除
+                          </label>
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <input
+                              type="radio"
+                              name="deleteTarget"
+                              value="all"
+                              checked={deleteTarget === 'all'}
+                              onChange={(e) => setDeleteTarget(e.target.value)}
+                            />
+                            すべてのデータを削除 (社員と給与明細)
+                          </label>
+                        </div>
+                        <Button
+                          variant="destructive"
+                          className="w-full"
+                          aria-label="選択したデータを削除"
+                          onClick={async () => {
+                            let confirmMessage = '';
+                            switch (deleteTarget) {
+                              case 'payroll':
+                                confirmMessage = '本当にすべての給与明細データを削除しますか？\nこの操作は取り消せません。';
+                                break;
+                              case 'employees':
+                                confirmMessage = '本当にすべての社員データと関連する給与明細を削除しますか？\nこの操作は取り消せません。';
+                                break;
+                              case 'all':
+                                confirmMessage = '本当にすべてのデータを削除しますか？\nこの操作は取り消せません。';
+                                break;
                             }
-                          } catch (e) {
-                            console.error(e)
-                            alert('エラーが発生しました。\nAn error occurred.')
-                          }
-                        }}
-                      >
-                        すべてのデータを削除
-                      </Button>
+
+                            if (!confirm(confirmMessage)) {
+                              return;
+                            }
+
+                            try {
+                              const res = await fetch(`${API_URL}/api/reset-db?target=${deleteTarget}`, { method: 'DELETE' });
+                              if (res.ok) {
+                                alert('データを削除しました。\nData deleted successfully.');
+                                window.location.reload();
+                              } else {
+                                alert('削除に失敗しました。\nFailed to delete data.');
+                              }
+                            } catch (e) {
+                              console.error(e);
+                              alert('エラーが発生しました。\nAn error occurred.');
+                            }
+                          }}
+                        >
+                          選択したデータを削除
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 </CardContent>

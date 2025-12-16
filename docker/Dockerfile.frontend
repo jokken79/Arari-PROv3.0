@@ -1,0 +1,13 @@
+FROM node:18-alpine as build
+WORKDIR /usr/src/app
+COPY arari-app/package.json arari-app/package-lock.json* ./
+RUN npm ci --prefer-offline --no-audit --no-fund
+COPY arari-app/ /usr/src/app
+RUN npm run build
+
+FROM node:18-alpine
+WORKDIR /usr/src/app
+ENV NODE_ENV=production
+COPY --from=build /usr/src/app .
+EXPOSE 3000
+CMD ["npm", "run", "start"]

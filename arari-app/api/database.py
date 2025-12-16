@@ -10,9 +10,10 @@ from contextlib import contextmanager
 # Database file path
 DB_PATH = Path(__file__).parent / "arari_pro.db"
 
-def get_connection():
+def get_connection(db_path=None):
     """Create a new database connection"""
-    conn = sqlite3.connect(str(DB_PATH), check_same_thread=False)
+    path = db_path if db_path else str(DB_PATH)
+    conn = sqlite3.connect(path, check_same_thread=False)
     conn.row_factory = sqlite3.Row
     # Enable foreign key constraints (disabled by default in SQLite)
     conn.execute("PRAGMA foreign_keys = ON")
@@ -26,9 +27,13 @@ def get_db():
     finally:
         conn.close()
 
-def init_db():
+def init_db(conn=None):
     """Initialize the database with tables"""
-    conn = get_connection()
+    close_conn = False
+    if conn is None:
+        conn = get_connection()
+        close_conn = True
+
     cursor = conn.cursor()
 
     # Create employees table
@@ -286,8 +291,8 @@ def init_db():
 
     # NO sample data - start with clean database
     # Users will upload their own payroll files
-
-    conn.close()
+    if close_conn:
+        conn.close()
 
 def insert_sample_data(conn):
     """Insert sample data for demonstration"""

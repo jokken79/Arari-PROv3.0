@@ -2,7 +2,7 @@
 Pydantic models for API request/response validation
 """
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, ConfigDict
 from typing import Optional, List
 from datetime import datetime
 import re
@@ -37,8 +37,7 @@ class Employee(EmployeeBase):
     profit_per_hour: Optional[float] = None
     margin_rate: Optional[float] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 # ============== Payroll Record Models ==============
 
@@ -120,62 +119,4 @@ class PayrollRecord(PayrollRecordBase):
     employee_name: Optional[str] = None
     dispatch_company: Optional[str] = None
 
-    class Config:
-        from_attributes = True
-
-# ============== Statistics Models ==============
-
-class DashboardStats(BaseModel):
-    total_employees: int
-    active_employees: int
-    total_companies: int
-    average_profit: float
-    average_margin: float
-    total_monthly_revenue: float
-    total_monthly_cost: float
-    total_monthly_profit: float
-    profit_trend: List[dict]
-    profit_distribution: List[dict]
-    top_companies: List[dict]
-    recent_payrolls: List[dict]
-
-class CompanyStats(BaseModel):
-    company_name: str
-    employee_count: int
-    average_hourly_rate: float
-    average_billing_rate: float
-    average_profit: float
-    average_margin: float
-    total_monthly_profit: float
-
-class MonthlyStats(BaseModel):
-    period: str
-    year: int
-    month: int
-    total_employees: int
-    total_revenue: float
-    total_cost: float
-    total_profit: float
-    average_margin: float
-    total_social_insurance: float
-    total_paid_leave_cost: float
-
-# ============== Upload Response Models ==============
-
-class UploadResponse(BaseModel):
-    success: bool
-    filename: str
-    total_records: int
-    saved_records: int
-    skipped_count: Optional[int] = None
-    error_count: Optional[int] = None
-    skipped_details: Optional[List[dict]] = None
-    errors: Optional[List[str]] = None
-
-# ============== API Response Models ==============
-
-class APIResponse(BaseModel):
-    success: bool
-    message: Optional[str] = None
-    data: Optional[dict] = None
-    error: Optional[str] = None
+    model_config = ConfigDict(from_attributes=True)

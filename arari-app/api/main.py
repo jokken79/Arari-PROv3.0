@@ -1584,18 +1584,37 @@ async def clear_cache(payload: dict = None, db: sqlite3.Connection = Depends(get
 # ============== RESET DATA ==============
 
 @app.delete("/api/reset-db")
-async def reset_database(db: sqlite3.Connection = Depends(get_db)):
-    """Delete ALL data (employees and payroll records)"""
+async def reset_database(
+    db: sqlite3.Connection = Depends(get_db),
+    target: str = "all"
+):
+    """
+    Delete data from the database based on the target.
+    - `payroll`: Deletes only payroll records.
+    - `employees`: Deletes employees and their associated payroll records.
+    - `all`: Deletes all data (default).
+    """
+    if target not in ["payroll", "employees", "all"]:
+        raise HTTPException(status_code=400, detail="El parámetro 'target' no es válido. Los valores permitidos son 'payroll', 'employees', 'all'.")
+
     try:
         cursor = db.cursor()
         
-        # Delete data in correct order
-        cursor.execute("DELETE FROM payroll_records")
-        cursor.execute("DELETE FROM employees")
-        
+        if target == "payroll":
+            cursor.execute("DELETE FROM payroll_records")
+            message = "Todos los registros de nómina han sido eliminados."
+        elif target == "employees":
+            cursor.execute("DELETE FROM payroll_records")
+            cursor.execute("DELETE FROM employees")
+            message = "Todos los empleados y sus registros de nómina han sido eliminados."
+        elif target == "all":
+            cursor.execute("DELETE FROM payroll_records")
+            cursor.execute("DELETE FROM employees")
+            message = "Todos los datos han sido eliminados."
+
         db.commit()
         
-        return {"status": "success", "message": "All data has been deleted"}
+        return {"status": "success", "message": message}
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Failed to delete data: {str(e)}")
