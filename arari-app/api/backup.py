@@ -322,8 +322,8 @@ class BackupService:
                 if metadata.exists():
                     metadata.unlink()
                 deleted += 1
-            except:
-                pass
+            except (OSError, PermissionError):
+                pass  # Skip files that can't be deleted
 
         return {"kept": min(len(backups), keep), "deleted": deleted}
 

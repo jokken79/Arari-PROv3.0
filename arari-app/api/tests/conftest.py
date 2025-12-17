@@ -39,3 +39,52 @@ def test_client(db_session):
     """
     client = TestClient(app)
     yield client
+
+
+@pytest.fixture(scope="function")
+def auth_headers(test_client):
+    """
+    Provides authentication headers with a valid admin token.
+    Login with default admin credentials and return the token.
+    """
+    response = test_client.post(
+        "/api/auth/login",
+        json={"username": "Admin", "password": "admin123"}
+    )
+    assert response.status_code == 200, f"Login failed: {response.json()}"
+    token = response.json().get("token")
+    return {"Authorization": f"Bearer {token}"}
+
+
+@pytest.fixture(scope="function")
+def authenticated_client(test_client, auth_headers):
+    """
+    Create an authenticated TestClient that includes auth headers by default.
+    """
+    # Store original methods
+    original_post = test_client.post
+    original_put = test_client.put
+    original_delete = test_client.delete
+
+    def post_with_auth(*args, headers=None, **kwargs):
+        merged_headers = {**auth_headers, **(headers or {})}
+        return original_post(*args, headers=merged_headers, **kwargs)
+
+    def put_with_auth(*args, headers=None, **kwargs):
+        merged_headers = {**auth_headers, **(headers or {})}
+        return original_put(*args, headers=merged_headers, **kwargs)
+
+    def delete_with_auth(*args, headers=None, **kwargs):
+        merged_headers = {**auth_headers, **(headers or {})}
+        return original_delete(*args, headers=merged_headers, **kwargs)
+
+    test_client.post = post_with_auth
+    test_client.put = put_with_auth
+    test_client.delete = delete_with_auth
+
+    yield test_client
+
+    # Restore original methods
+    test_client.post = original_post
+    test_client.put = original_put
+    test_client.delete = original_delete

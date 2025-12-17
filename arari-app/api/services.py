@@ -77,7 +77,7 @@ class PayrollService:
         val = self.get_setting("ignored_companies", "[]")
         try:
             return json.loads(val)
-        except:
+        except (json.JSONDecodeError, TypeError):
             return []
 
     def set_company_active(self, company_name: str, active: bool) -> bool:
