@@ -2,6 +2,11 @@
   "name": "arari-pro-v2",
   "version": "2.0.0",
   "private": true,
+  "packageManager": "npm@10.9.2",
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -9,7 +14,8 @@
     "lint": "next lint",
     "lint:python": "python -m ruff check api",
     "format": "python -m black api",
-    "test": "jest"
+    "test": "echo \"No tests implemented yet. Run 'npm run test:setup' to create test structure.\" && exit 0",
+    "test:setup": "echo \"TODO: Implement test setup with Jest + React Testing Library\""
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.2",
