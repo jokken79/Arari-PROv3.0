@@ -4,6 +4,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Download, FileSpreadsheet, Building2, User, Calendar, Filter } from 'lucide-react';
+import { API_BASE_URL } from '@/lib/api';
 
 interface Employee {
     employee_id: string;
@@ -33,7 +34,7 @@ export default function WageLedgerPage({ params }: { params: { id: string } }) {
     const [exporting, setExporting] = useState(false);
     const [exportType, setExportType] = useState<'format_b' | 'format_c'>('format_b');
 
-    const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+    const API_URL = API_BASE_URL;
 
     useEffect(() => {
         fetchData();

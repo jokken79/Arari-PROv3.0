@@ -1,11 +1,13 @@
+'use client'
+
 import { formatYen } from '@/lib/utils'
 import { PayrollRecord, Employee } from '@/types'
 import { Clock, Sun, Moon, Gift, CreditCard } from 'lucide-react'
 import { DetailRow, DeductionRow, formatHours } from './PayrollSlipHelpers'
 
 /**
- * NOTE: Converted to Server Component - no hooks or event handlers used
- * This component only performs calculations and renders JSX based on props
+ * NOTE: Marked as 'use client' for consistency with Next.js 'output: export' mode.
+ * This component performs calculations and renders JSX based on props.
  */
 
 interface SalaryDetailsColumnProps {

@@ -24,6 +24,7 @@ import {
   Wallet,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { API_BASE_URL } from '@/lib/api'
 import { Button } from '@/components/ui/button'
 import {
   Tooltip,
@@ -122,8 +123,7 @@ export function Sidebar({ isOpen = true, onClose }: SidebarProps) {
   useEffect(() => {
     const fetchProfitStats = async () => {
       try {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
-        const response = await fetch(`${apiUrl}/api/statistics`)
+        const response = await fetch(`${API_BASE_URL}/api/statistics`)
         if (response.ok) {
           const data = await response.json()
 

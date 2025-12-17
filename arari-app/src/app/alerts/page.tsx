@@ -21,8 +21,9 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { formatYen, formatPercent } from '@/lib/utils'
+import { API_BASE_URL } from '@/lib/api'
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+const API_URL = API_BASE_URL
 
 interface Alert {
   id: number
