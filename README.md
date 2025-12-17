@@ -2,10 +2,10 @@
 
 **Profit Margin Management System for Dispatch Employees**
 
-[![Tests](https://img.shields.io/badge/tests-47%20passed-brightgreen)](./arari-app/api/tests)
+[![Tests](https://img.shields.io/badge/tests-48%20passed-brightgreen)](./arari-app/api/tests)
 [![Frontend](https://img.shields.io/badge/frontend-7.8%2F10-blue)](./arari-app/src)
 [![Backend](https://img.shields.io/badge/backend-6.2%2F10-yellow)](./arari-app/api)
-[![Security](https://img.shields.io/badge/security-review%20needed-orange)](./CLAUDE.md)
+[![Security](https://img.shields.io/badge/security-auth%20implemented-green)](./CLAUDE.md)
 
 派遣社員の利益率・マージンを可視化するダッシュボードアプリケーション。
 製造派遣（製造業向け人材派遣）に特化した粗利計算システム。
@@ -20,7 +20,7 @@
 | **総コード行数** | ~20,000 LOC |
 | **コンポーネント数** | 45 React components |
 | **APIエンドポイント** | 80+ endpoints |
-| **テスト** | 47 backend tests passed |
+| **テスト** | 48 backend tests passed |
 
 ---
 
@@ -61,7 +61,7 @@
 | **フロントエンド** | 7.8/10 | ✅ 良好 |
 | **バックエンド** | 6.2/10 | ⚠️ 改善が必要 |
 | **テストカバレッジ** | ~15% | ⚠️ 拡充が必要 |
-| **セキュリティ** | 要レビュー | ⚠️ 本番前に対応必要 |
+| **セキュリティ** | 7.5/10 | ✅ 認証実装済み |
 | **アクセシビリティ** | 8.2/10 | ✅ WCAG 2.1 AA準拠 |
 
 ### フロントエンド詳細 (7.8/10)
@@ -91,30 +91,42 @@
 ### テスト状況
 
 ```
-Backend Tests:  47/47 passed ✅
+Backend Tests:  48/48 passed ✅
 Frontend Tests: 1/1 passed ✅ (Header component)
 
 テストファイル:
 ├── test_business_rules.py    - 6 tests (請求・コスト計算)
 ├── test_login.py             - 3 tests (認証)
 ├── test_main.py              - 1 test (ヘルスチェック)
-├── test_reset_db.py          - 5 tests (DB管理)
-├── test_api_endpoints.py     - 14 tests (API) [NEW]
-├── test_salary_calculations.py - 18 tests (給与計算) [NEW]
+├── test_reset_db.py          - 6 tests (DB管理 + 認証テスト) [UPDATED]
+├── test_api_endpoints.py     - 14 tests (API) [UPDATED]
+├── test_salary_calculations.py - 18 tests (給与計算)
 ```
 
-### セキュリティ課題
+### セキュリティ状態
 
 | 課題 | 重大度 | 状態 |
 |------|--------|------|
-| デフォルト管理者パスワード | 🔴 CRITICAL | 未対応 |
-| 認証なしのエンドポイント | 🔴 CRITICAL | 未対応 |
-| レート制限なし | 🟠 HIGH | 未対応 |
-| CORS設定 | 🟡 MEDIUM | 開発用OK |
+| デフォルト管理者パスワード | 🟠 HIGH | ⚠️ 本番前に変更必須 (Admin/admin123) |
+| 認証なしのエンドポイント | ✅ FIXED | 全mutatingエンドポイント保護済み |
+| レート制限 | ✅ FIXED | ログイン5回/分制限実装済み |
+| CORS設定 | 🟡 MEDIUM | 開発用OK（本番で要変更） |
 | SQL Injection | ✅ FIXED | パラメータ化済み |
 | Path Traversal | ✅ FIXED | バリデーション済み |
 
-> ⚠️ **本番環境では必ずセキュリティ対応を行ってください**
+### 認証システム (実装済み)
+
+| エンドポイント | 認証レベル |
+|---------------|-----------|
+| GET endpoints | 認証不要 (読み取りのみ) |
+| POST/PUT/DELETE employees | `require_auth` |
+| POST payroll, upload, import | `require_auth` |
+| PUT/DELETE templates | `require_admin` |
+| PUT settings, alert thresholds | `require_admin` |
+| POST/DELETE backups, reset-db | `require_admin` |
+| POST cache/clear, validation/fix | `require_admin` |
+
+> ⚠️ **本番環境ではデフォルトパスワードを必ず変更してください**
 
 ---
 
@@ -309,6 +321,15 @@ npm test
 
 ## 📋 変更履歴
 
+### 2025-12-17 - v2.1 セキュリティ強化・認証実装
+- 全mutatingエンドポイントに認証追加
+- レート制限実装（ログイン5回/分）
+- auth_dependencies.py新規作成
+- 監査ログ機能追加
+- bare exception修正
+- print()をloggingに統一
+- 48件のバックエンドテスト（全パス）
+
 ### 2025-12-17 - v2.0 品質分析・テスト拡充
 - 47件のバックエンドテスト追加・全パス
 - 給与計算テスト18件追加
@@ -345,9 +366,9 @@ npm test
 
 ## ⚠️ 本番環境へのデプロイ前チェックリスト
 
-- [ ] デフォルト管理者パスワードを変更
-- [ ] 全エンドポイントに認証を追加
-- [ ] レート制限を実装
+- [ ] デフォルト管理者パスワードを変更 (現在: Admin/admin123)
+- [x] 全エンドポイントに認証を追加 ✅ 実装済み
+- [x] レート制限を実装 ✅ 実装済み (5回/分)
 - [ ] CORS設定を本番用に変更
 - [ ] HTTPS有効化
 - [ ] 環境変数をシークレット管理に移行
