@@ -22,12 +22,12 @@ import uvicorn
 import webbrowser
 import logging # Import logging
 
-from fastapi import FastAPI, UploadFile, File, HTTPException, Depends, Header
+from fastapi import FastAPI, UploadFile, File, HTTPException, Depends, Header, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response, StreamingResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 
 from database import init_db, get_db
 from models import Employee, PayrollRecord, EmployeeCreate, PayrollRecordCreate
@@ -45,6 +45,16 @@ from search import SearchService
 from validation import ValidationService
 from backup import BackupService
 from roi import ROIService
+from auth_dependencies import (
+    require_auth,
+    require_admin,
+    require_manager_or_admin,
+    require_permission,
+    rate_limit_login,
+    clear_rate_limit,
+    log_action,
+    get_current_user
+)
 
 load_dotenv() 
 
@@ -148,7 +158,7 @@ def start_frontend_in_thread(app_dir: Path, port: int):
 async def lifespan(app: FastAPI):
     # Startup: Initialize database
     init_db()
-    print("[OK] Database initialized")
+    logging.info("Database initialized successfully")
     
     # Configure logging
     log_dir = Path("logs")
@@ -237,8 +247,7 @@ async def lifespan(app: FastAPI):
             frontend_process.kill()
         logging.info("Frontend process terminated.")
 
-    logging.info("Application shutdown.")
-    print("[SHUTDOWN] Closing application...")
+    logging.info("Application shutdown complete")
 
 app = FastAPI(
     title="粗利 PRO API",
@@ -287,30 +296,43 @@ async def get_employee(employee_id: str, db: sqlite3.Connection = Depends(get_db
     return employee
 
 @app.post("/api/employees", response_model=Employee)
-async def create_employee(employee: EmployeeCreate, db: sqlite3.Connection = Depends(get_db)):
-    """Create a new employee"""
+async def create_employee(
+    employee: EmployeeCreate,
+    db: sqlite3.Connection = Depends(get_db),
+    current_user: Dict[str, Any] = Depends(require_auth)
+):
+    """Create a new employee (requires authentication)"""
     service = PayrollService(db)
-    return service.create_employee(employee)
+    result = service.create_employee(employee)
+    log_action(db, current_user, "create", "employee", employee.employee_id, f"Created employee: {employee.name}")
+    return result
 
 @app.put("/api/employees/{employee_id}", response_model=Employee)
 async def update_employee(
     employee_id: str,
     employee: EmployeeCreate,
-    db: sqlite3.Connection = Depends(get_db)
+    db: sqlite3.Connection = Depends(get_db),
+    current_user: Dict[str, Any] = Depends(require_auth)
 ):
-    """Update an existing employee"""
+    """Update an existing employee (requires authentication)"""
     service = PayrollService(db)
     updated = service.update_employee(employee_id, employee)
     if not updated:
         raise HTTPException(status_code=404, detail="Employee not found")
+    log_action(db, current_user, "update", "employee", employee_id, f"Updated employee: {employee.name}")
     return updated
 
 @app.delete("/api/employees/{employee_id}")
-async def delete_employee(employee_id: str, db: sqlite3.Connection = Depends(get_db)):
-    """Delete an employee"""
+async def delete_employee(
+    employee_id: str,
+    db: sqlite3.Connection = Depends(get_db),
+    current_user: Dict[str, Any] = Depends(require_admin)
+):
+    """Delete an employee (requires admin)"""
     service = PayrollService(db)
     if not service.delete_employee(employee_id):
         raise HTTPException(status_code=404, detail="Employee not found")
+    log_action(db, current_user, "delete", "employee", employee_id, "Employee deleted")
     return {"message": "Employee deleted successfully"}
 
 # ============== Payroll Records ============== 
@@ -334,12 +356,14 @@ async def get_available_periods(db: sqlite3.Connection = Depends(get_db)):
 @app.post("/api/payroll", response_model=PayrollRecord)
 async def create_payroll_record(
     record: PayrollRecordCreate,
-    db: sqlite3.Connection = Depends(get_db)
+    db: sqlite3.Connection = Depends(get_db),
+    current_user: Dict[str, Any] = Depends(require_auth)
 ):
-    """Create a new payroll record"""
+    """Create a new payroll record (requires authentication)"""
     service = PayrollService(db)
     result = service.create_payroll_record(record)
-    db.commit()  # Explicit commit after single record creation
+    db.commit()
+    log_action(db, current_user, "create", "payroll", f"{record.employee_id}_{record.period}", "Created payroll record")
     return result
 
 # ============== Statistics ============== 
@@ -381,8 +405,11 @@ async def get_profit_trend(
 # ============== Sync Employees ============== 
 
 @app.post("/api/sync-employees")
-async def sync_employees(db: sqlite3.Connection = Depends(get_db)):
-    """Sync/update employees from ChinginGenerator database"""
+async def sync_employees(
+    db: sqlite3.Connection = Depends(get_db),
+    current_user: Dict[str, Any] = Depends(require_auth)
+):
+    """Sync/update employees from ChinginGenerator database (requires authentication)"""
     try:
         from migrate_employees import migrate_employees_sync
         success, stats = migrate_employees_sync(db)
@@ -406,11 +433,12 @@ async def sync_employees(db: sqlite3.Connection = Depends(get_db)):
 @app.post("/api/import-employees")
 async def import_employees(
     file: UploadFile = File(...),
-    db: sqlite3.Connection = Depends(get_db)
+    db: sqlite3.Connection = Depends(get_db),
+    current_user: Dict[str, Any] = Depends(require_auth)
 ):
     """
     Dedicated endpoint for importing employees from Excel (DBGenzaiX format).
-    Used by EmployeeUploader.tsx
+    Used by EmployeeUploader.tsx (requires authentication)
     """
     allowed_extensions = ['.xlsx', '.xlsm', '.xls']
     file_ext = '.' + file.filename.split('.')[-1].lower() if '.' in file.filename else ''
@@ -435,7 +463,7 @@ async def import_employees(
         try:
             parser = DBGenzaiXParser()
             employees, stats = parser.parse_employees(tmp_path)
-            print(f"[INFO] /api/import-employees: Parsed {len(employees)} employees. Stats: {stats}")
+            logging.info(f"/api/import-employees: Parsed {len(employees)} employees. Stats: {stats}")
             
             service = PayrollService(db)
             added_count = 0
@@ -481,16 +509,17 @@ async def import_employees(
                 os.unlink(tmp_path)
                 
     except Exception as e:
-        print(f"[ERROR] Import failed: {e}")
+        logging.error(f"Import failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.post("/api/upload")
 async def upload_payroll_file(
     file: UploadFile = File(...),
-    db: sqlite3.Connection = Depends(get_db)
+    db: sqlite3.Connection = Depends(get_db),
+    current_user: Dict[str, Any] = Depends(require_auth)
 ):
-    """Upload and parse a payroll file (Excel or CSV) with Streaming Log"""
+    """Upload and parse a payroll file (Excel or CSV) with Streaming Log (requires authentication)"""
     from fastapi.concurrency import run_in_threadpool
 
     async def log_generator():
@@ -828,16 +857,16 @@ async def export_wage_ledger(
              raise HTTPException(status_code=400, detail="Invalid target specified")
 
     except Exception as e:
-        import traceback
-        traceback.print_exc()
+        logging.exception(f"Error in wage ledger export: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/sync-from-folder")
 async def sync_from_folder(
     payload: dict,
-    db: sqlite3.Connection = Depends(get_db)
+    db: sqlite3.Connection = Depends(get_db),
+    current_user: Dict[str, Any] = Depends(require_admin)
 ):
-    """Sync all .xlsm files from a folder path (Streaming Log)"""
+    """Sync all .xlsm files from a folder path (Streaming Log) (requires admin)"""
     from pathlib import Path
     import os
     import json
@@ -918,16 +947,9 @@ async def sync_from_folder(
                             service.create_payroll_record(record_data)
                             file_saved_count += 1
                             total_saved += 1
-                        except Exception:
-                            # total_errors += 1 # Don't count individual record errors as file errors
-                            # raise # Let's try to save valid records 
-                            pass # Skip bad records but keep others from same file? 
-                            # Reverting to original logic: if one fails, transaction rollback?
-                            # Original logic was: raise Exception to rollback file. 
-                            # Let's keep it robust: rollback whole file if critical error, 
-                            # OR better: skip bad records but save good ones?
-                            # For safety/consistency let's skip bad ones but commit good ones.
-                            pass
+                        except (ValueError, TypeError, sqlite3.Error) as record_err:
+                            # Skip bad records but keep others from same file
+                            logging.warning(f"Skipping invalid record: {record_err}")
 
                     db.commit()
                     files_processed += 1
@@ -986,9 +1008,10 @@ async def get_setting(key: str, db: sqlite3.Connection = Depends(get_db)):
 async def update_setting(
     key: str,
     payload: dict,
-    db: sqlite3.Connection = Depends(get_db)
+    db: sqlite3.Connection = Depends(get_db),
+    current_user: Dict[str, Any] = Depends(require_admin)
 ):
-    """Update a setting"""
+    """Update a setting (requires admin)"""
     service = PayrollService(db)
     value = payload.get("value")
     description = payload.get("description")
@@ -1016,9 +1039,10 @@ async def get_ignored_companies(db: sqlite3.Connection = Depends(get_db)):
 async def toggle_company_status(
     company_name: str,
     payload: dict,
-    db: sqlite3.Connection = Depends(get_db)
+    db: sqlite3.Connection = Depends(get_db),
+    current_user: Dict[str, Any] = Depends(require_auth)
 ):
-    """Toggle company active status"""
+    """Toggle company active status (requires authentication)"""
     service = PayrollService(db)
     active = payload.get("active", True)
     
@@ -1052,8 +1076,12 @@ async def get_template(factory_id: str):
     return template
 
 @app.put("/api/templates/{factory_id}")
-async def update_template(factory_id: str, payload: dict):
-    """Update a template's field positions or settings"""
+async def update_template(
+    factory_id: str,
+    payload: dict,
+    current_user: Dict[str, Any] = Depends(require_admin)
+):
+    """Update a template's field positions or settings (requires admin)"""
     template_manager = TemplateManager()
 
     # Load existing template
@@ -1088,8 +1116,12 @@ async def update_template(factory_id: str, payload: dict):
     return {"status": "success", "message": f"Template '{factory_id}' updated"}
 
 @app.delete("/api/templates/{factory_id}")
-async def delete_template(factory_id: str, hard_delete: bool = False):
-    """Delete (or deactivate) a template"""
+async def delete_template(
+    factory_id: str,
+    hard_delete: bool = False,
+    current_user: Dict[str, Any] = Depends(require_admin)
+):
+    """Delete (or deactivate) a template (requires admin)"""
     template_manager = TemplateManager()
     success = template_manager.delete_template(factory_id, hard_delete=hard_delete)
 
@@ -1133,8 +1165,11 @@ async def analyze_excel_for_templates(file: UploadFile = File(...)):
         raise HTTPException(status_code=400, detail=f"Error analyzing file: {str(e)}")
 
 @app.post("/api/templates/create")
-async def create_template_manually(payload: dict):
-    """Create a new template manually (for custom factory formats)"""
+async def create_template_manually(
+    payload: dict,
+    current_user: Dict[str, Any] = Depends(require_admin)
+):
+    """Create a new template manually (for custom factory formats) (requires admin)"""
     template_manager = TemplateManager()
 
     factory_identifier = payload.get('factory_identifier')
@@ -1174,8 +1209,13 @@ from auth import AuthService, validate_token
 from fastapi import Header
 
 @app.post("/api/auth/login")
-async def login(payload: dict, db: sqlite3.Connection = Depends(get_db)):
-    """Login and get token"""
+async def login(
+    request: Request,
+    payload: dict,
+    db: sqlite3.Connection = Depends(get_db),
+    _: None = Depends(rate_limit_login)
+):
+    """Login and get token (rate limited: 5 attempts per minute)"""
     username = payload.get("username")
     password = payload.get("password")
 
@@ -1186,10 +1226,16 @@ async def login(payload: dict, db: sqlite3.Connection = Depends(get_db)):
     result = service.login(username, password)
 
     if not result:
+        logging.warning(f"Failed login attempt for user: {username}")
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
     if "error" in result:
         raise HTTPException(status_code=403, detail=result["error"])
+
+    # Clear rate limit on successful login
+    client_ip = request.client.host if request.client else "unknown"
+    clear_rate_limit(client_ip, "login")
+    logging.info(f"User logged in: {username}")
 
     return result
 
@@ -1227,14 +1273,21 @@ async def get_current_user_info(
     return user
 
 @app.get("/api/users")
-async def get_users(db: sqlite3.Connection = Depends(get_db)):
-    """Get all users"""
+async def get_users(
+    db: sqlite3.Connection = Depends(get_db),
+    current_user: Dict[str, Any] = Depends(require_admin)
+):
+    """Get all users (requires admin)"""
     service = AuthService(db)
     return service.get_users()
 
 @app.post("/api/users")
-async def create_user(payload: dict, db: sqlite3.Connection = Depends(get_db)):
-    """Create new user"""
+async def create_user(
+    payload: dict,
+    db: sqlite3.Connection = Depends(get_db),
+    current_user: Dict[str, Any] = Depends(require_admin)
+):
+    """Create new user (requires admin)"""
     service = AuthService(db)
     result = service.create_user(
         username=payload.get("username"),
@@ -1247,6 +1300,7 @@ async def create_user(payload: dict, db: sqlite3.Connection = Depends(get_db)):
     if "error" in result:
         raise HTTPException(status_code=400, detail=result["error"])
 
+    log_action(db, current_user, "create", "user", payload.get("username", ""), "Created new user")
     return result
 
 # ============== ALERTS ENDPOINTS ============== 
@@ -1273,9 +1327,10 @@ async def get_alerts_summary(db: sqlite3.Connection = Depends(get_db)):
 @app.post("/api/alerts/scan")
 async def scan_for_alerts(
     period: Optional[str] = None,
-    db: sqlite3.Connection = Depends(get_db)
+    db: sqlite3.Connection = Depends(get_db),
+    current_user: Dict[str, Any] = Depends(require_auth)
 ):
-    """Scan data and generate alerts"""
+    """Scan data and generate alerts (requires authentication)"""
     service = AlertService(db)
     return service.scan_for_alerts(period=period)
 
@@ -1283,14 +1338,15 @@ async def scan_for_alerts(
 async def resolve_alert(
     alert_id: int,
     payload: dict = None,
-    db: sqlite3.Connection = Depends(get_db)
+    db: sqlite3.Connection = Depends(get_db),
+    current_user: Dict[str, Any] = Depends(require_auth)
 ):
-    """Resolve an alert"""
+    """Resolve an alert (requires authentication)"""
     service = AlertService(db)
     payload = payload or {}
     success = service.resolve_alert(
         alert_id,
-        resolved_by=payload.get("resolved_by"),
+        resolved_by=current_user.get("username"),
         notes=payload.get("notes")
     )
     if not success:
@@ -1307,9 +1363,10 @@ async def get_alert_thresholds(db: sqlite3.Connection = Depends(get_db)):
 async def update_alert_threshold(
     key: str,
     payload: dict,
-    db: sqlite3.Connection = Depends(get_db)
+    db: sqlite3.Connection = Depends(get_db),
+    current_user: Dict[str, Any] = Depends(require_admin)
 ):
-    """Update alert threshold"""
+    """Update alert threshold (requires admin)"""
     service = AlertService(db)
     value = payload.get("value")
     if value is None:
@@ -1433,8 +1490,12 @@ async def get_budgets(
     return service.get_budgets(period=period, entity_type=entity_type)
 
 @app.post("/api/budgets")
-async def create_budget(payload: dict, db: sqlite3.Connection = Depends(get_db)):
-    """Create a new budget"""
+async def create_budget(
+    payload: dict,
+    db: sqlite3.Connection = Depends(get_db),
+    current_user: Dict[str, Any] = Depends(require_auth)
+):
+    """Create a new budget (requires authentication)"""
     service = BudgetService(db)
     result = service.create_budget(
         period=payload.get("period"),
@@ -1476,8 +1537,12 @@ async def get_budget_summary(year: Optional[int] = None, db: sqlite3.Connection 
     return service.get_budget_summary(year)
 
 @app.delete("/api/budgets/{budget_id}")
-async def delete_budget(budget_id: int, db: sqlite3.Connection = Depends(get_db)):
-    """Delete a budget"""
+async def delete_budget(
+    budget_id: int,
+    db: sqlite3.Connection = Depends(get_db),
+    current_user: Dict[str, Any] = Depends(require_auth)
+):
+    """Delete a budget (requires authentication)"""
     service = BudgetService(db)
     result = service.delete_budget(budget_id)
 
@@ -1508,16 +1573,24 @@ async def get_unread_count(user_id: Optional[int] = None, db: sqlite3.Connection
     return {"unread_count": service.get_unread_count(user_id)}
 
 @app.put("/api/notifications/{notification_id}/read")
-async def mark_notification_read(notification_id: int, db: sqlite3.Connection = Depends(get_db)):
-    """Mark notification as read"""
+async def mark_notification_read(
+    notification_id: int,
+    db: sqlite3.Connection = Depends(get_db),
+    current_user: Dict[str, Any] = Depends(require_auth)
+):
+    """Mark notification as read (requires authentication)"""
     service = NotificationService(db)
     if service.mark_as_read(notification_id):
         return {"status": "marked_as_read"}
     raise HTTPException(status_code=404, detail="Notification not found")
 
 @app.put("/api/notifications/read-all")
-async def mark_all_read(user_id: int, db: sqlite3.Connection = Depends(get_db)):
-    """Mark all notifications as read"""
+async def mark_all_read(
+    user_id: int,
+    db: sqlite3.Connection = Depends(get_db),
+    current_user: Dict[str, Any] = Depends(require_auth)
+):
+    """Mark all notifications as read (requires authentication)"""
     service = NotificationService(db)
     count = service.mark_all_read(user_id)
     return {"marked_count": count}
@@ -1532,9 +1605,10 @@ async def get_notification_preferences(user_id: int, db: sqlite3.Connection = De
 async def update_notification_preferences(
     user_id: int,
     payload: dict,
-    db: sqlite3.Connection = Depends(get_db)
+    db: sqlite3.Connection = Depends(get_db),
+    current_user: Dict[str, Any] = Depends(require_auth)
 ):
-    """Update notification preferences"""
+    """Update notification preferences (requires authentication)"""
     service = NotificationService(db)
     return service.update_preferences(user_id, **payload)
 
@@ -1635,9 +1709,10 @@ async def validate_payroll_data(db: sqlite3.Connection = Depends(get_db)):
 @app.post("/api/validation/fix")
 async def auto_fix_issues(
     payload: dict = None,
-    db: sqlite3.Connection = Depends(get_db)
+    db: sqlite3.Connection = Depends(get_db),
+    current_user: Dict[str, Any] = Depends(require_admin)
 ):
-    """Auto-fix certain data issues"""
+    """Auto-fix certain data issues (requires admin)"""
     service = ValidationService(db)
     fix_types = payload.get("fix_types") if payload else None
     return service.auto_fix(fix_types)
@@ -1653,8 +1728,11 @@ async def list_backups():
     return service.list_backups()
 
 @app.post("/api/backups")
-async def create_backup(payload: dict = None):
-    """Create a new backup"""
+async def create_backup(
+    payload: dict = None,
+    current_user: Dict[str, Any] = Depends(require_admin)
+):
+    """Create a new backup (requires admin)"""
     service = BackupService()
     description = payload.get("description") if payload else None
     result = service.create_backup(description)
@@ -1671,8 +1749,11 @@ async def get_backup_stats():
     return service.get_backup_stats()
 
 @app.post("/api/backups/{filename}/restore")
-async def restore_backup(filename: str):
-    """Restore from backup"""
+async def restore_backup(
+    filename: str,
+    current_user: Dict[str, Any] = Depends(require_admin)
+):
+    """Restore from backup (requires admin)"""
     service = BackupService()
     result = service.restore_backup(filename)
 
@@ -1688,8 +1769,11 @@ async def verify_backup(filename: str):
     return service.verify_backup(filename)
 
 @app.delete("/api/backups/{filename}")
-async def delete_backup_file(filename: str):
-    """Delete a backup"""
+async def delete_backup_file(
+    filename: str,
+    current_user: Dict[str, Any] = Depends(require_admin)
+):
+    """Delete a backup (requires admin)"""
     service = BackupService()
     result = service.delete_backup(filename)
 
@@ -1767,8 +1851,12 @@ async def get_cache_stats(db: sqlite3.Connection = Depends(get_db)):
     }
 
 @app.post("/api/cache/clear")
-async def clear_cache(payload: dict = None, db: sqlite3.Connection = Depends(get_db)):
-    """Clear cache"""
+async def clear_cache(
+    payload: dict = None,
+    db: sqlite3.Connection = Depends(get_db),
+    current_user: Dict[str, Any] = Depends(require_admin)
+):
+    """Clear cache (requires admin)"""
     service = CacheService(db)
     pattern = payload.get("pattern") if payload else None
     memory_cleared = service.clear(pattern)
@@ -1785,10 +1873,11 @@ async def clear_cache(payload: dict = None, db: sqlite3.Connection = Depends(get
 @app.delete("/api/reset-db")
 async def reset_database(
     db: sqlite3.Connection = Depends(get_db),
-    target: str = "all"
+    target: str = "all",
+    current_user: Dict[str, Any] = Depends(require_admin)
 ):
     """
-    Delete data from the database based on the target.
+    Delete data from the database based on the target (ADMIN ONLY).
     - `payroll`: Deletes only payroll records.
     - `employees`: Deletes employees and their associated payroll records.
     - `all`: Deletes all data (default).
@@ -1798,7 +1887,7 @@ async def reset_database(
 
     try:
         cursor = db.cursor()
-        
+
         if target == "payroll":
             cursor.execute("DELETE FROM payroll_records")
             message = "Todos los registros de nómina han sido eliminados."
@@ -1812,10 +1901,14 @@ async def reset_database(
             message = "Todos los datos han sido eliminados."
 
         db.commit()
-        
+
+        log_action(db, current_user, "delete", "database", target, f"Reset database: {target}")
+        logging.warning(f"Database reset by {current_user.get('username')}: target={target}")
+
         return {"status": "success", "message": message}
-    except Exception as e:
+    except sqlite3.Error as e:
         db.rollback()
+        logging.error(f"Database reset failed: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to delete data: {str(e)}")
 
 if __name__ == "__main__":

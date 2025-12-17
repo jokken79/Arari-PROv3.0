@@ -25,8 +25,8 @@ def test_get_employees_empty(test_client, db_session):
     assert response.json() == []
 
 
-def test_create_employee(test_client, db_session):
-    """Test POST /api/employees creates new employee"""
+def test_create_employee(authenticated_client, db_session):
+    """Test POST /api/employees creates new employee (requires auth)"""
     employee_data = {
         "employee_id": "TEST001",
         "name": "田中太郎",
@@ -38,7 +38,7 @@ def test_create_employee(test_client, db_session):
         "hire_date": "2024-01-15",
         "name_kana": "タナカタロウ",
     }
-    response = test_client.post("/api/employees", json=employee_data)
+    response = authenticated_client.post("/api/employees", json=employee_data)
     assert response.status_code == 200
     result = response.json()
     assert result["employee_id"] == "TEST001"
@@ -46,9 +46,9 @@ def test_create_employee(test_client, db_session):
     assert result["billing_rate"] == 1700
 
 
-def test_get_employee_by_id(test_client, db_session):
+def test_get_employee_by_id(authenticated_client, db_session):
     """Test GET /api/employees/{id} returns specific employee"""
-    # First create an employee
+    # First create an employee (requires auth)
     employee_data = {
         "employee_id": "EMP123",
         "name": "佐藤花子",
@@ -57,10 +57,10 @@ def test_get_employee_by_id(test_client, db_session):
         "billing_rate": 1782,
         "status": "active",
     }
-    test_client.post("/api/employees", json=employee_data)
+    authenticated_client.post("/api/employees", json=employee_data)
 
-    # Then get it
-    response = test_client.get("/api/employees/EMP123")
+    # Then get it (no auth required for GET)
+    response = authenticated_client.get("/api/employees/EMP123")
     assert response.status_code == 200
     result = response.json()
     assert result["name"] == "佐藤花子"
@@ -72,8 +72,8 @@ def test_get_employee_not_found(test_client, db_session):
     assert response.status_code == 404
 
 
-def test_update_employee(test_client, db_session):
-    """Test PUT /api/employees/{id} updates employee"""
+def test_update_employee(authenticated_client, db_session):
+    """Test PUT /api/employees/{id} updates employee (requires auth)"""
     # Create employee
     employee_data = {
         "employee_id": "UPD001",
@@ -83,7 +83,7 @@ def test_update_employee(test_client, db_session):
         "billing_rate": 1600,
         "status": "active",
     }
-    test_client.post("/api/employees", json=employee_data)
+    authenticated_client.post("/api/employees", json=employee_data)
 
     # Update employee
     updated_data = {
@@ -94,15 +94,15 @@ def test_update_employee(test_client, db_session):
         "billing_rate": 1700,
         "status": "active",
     }
-    response = test_client.put("/api/employees/UPD001", json=updated_data)
+    response = authenticated_client.put("/api/employees/UPD001", json=updated_data)
     assert response.status_code == 200
     result = response.json()
     assert result["name"] == "更新後"
     assert result["hourly_rate"] == 1500
 
 
-def test_delete_employee(test_client, db_session):
-    """Test DELETE /api/employees/{id} removes employee"""
+def test_delete_employee(authenticated_client, db_session):
+    """Test DELETE /api/employees/{id} removes employee (requires admin)"""
     # Create employee
     employee_data = {
         "employee_id": "DEL001",
@@ -112,14 +112,14 @@ def test_delete_employee(test_client, db_session):
         "billing_rate": 1600,
         "status": "active",
     }
-    test_client.post("/api/employees", json=employee_data)
+    authenticated_client.post("/api/employees", json=employee_data)
 
-    # Delete employee
-    response = test_client.delete("/api/employees/DEL001")
+    # Delete employee (requires admin)
+    response = authenticated_client.delete("/api/employees/DEL001")
     assert response.status_code == 200
 
     # Verify deleted
-    response = test_client.get("/api/employees/DEL001")
+    response = authenticated_client.get("/api/employees/DEL001")
     assert response.status_code == 404
 
 
@@ -137,9 +137,9 @@ def test_get_statistics_empty(test_client, db_session):
     assert "active_employees" in result or "total_employees" in result
 
 
-def test_get_statistics_with_data(test_client, db_session):
+def test_get_statistics_with_data(authenticated_client, db_session):
     """Test GET /api/statistics returns correct counts"""
-    # Create employees
+    # Create employees (requires auth)
     for i in range(3):
         employee_data = {
             "employee_id": f"STAT{i:03d}",
@@ -149,17 +149,17 @@ def test_get_statistics_with_data(test_client, db_session):
             "billing_rate": 1700,
             "status": "active",
         }
-        create_resp = test_client.post("/api/employees", json=employee_data)
+        create_resp = authenticated_client.post("/api/employees", json=employee_data)
         assert create_resp.status_code == 200
 
     # Verify employees were created
-    emp_response = test_client.get("/api/employees")
+    emp_response = authenticated_client.get("/api/employees")
     assert emp_response.status_code == 200
     employees = emp_response.json()
     assert len(employees) == 3
 
     # Statistics endpoint should work
-    response = test_client.get("/api/statistics")
+    response = authenticated_client.get("/api/statistics")
     assert response.status_code == 200
     result = response.json()
     # Statistics may use different counting logic (e.g., only counts employees with payroll records)
@@ -180,8 +180,8 @@ def test_get_payroll_empty(test_client, db_session):
     assert response.json() == []
 
 
-def test_create_payroll_record(test_client, db_session):
-    """Test POST /api/payroll creates new record"""
+def test_create_payroll_record(authenticated_client, db_session):
+    """Test POST /api/payroll creates new record (requires auth)"""
     # First create employee
     employee_data = {
         "employee_id": "PAY001",
@@ -191,7 +191,7 @@ def test_create_payroll_record(test_client, db_session):
         "billing_rate": 1700,
         "status": "active",
     }
-    test_client.post("/api/employees", json=employee_data)
+    authenticated_client.post("/api/employees", json=employee_data)
 
     # Create payroll record
     payroll_data = {
@@ -206,7 +206,7 @@ def test_create_payroll_record(test_client, db_session):
         "social_insurance": 15000,
         "welfare_pension": 28000,
     }
-    response = test_client.post("/api/payroll", json=payroll_data)
+    response = authenticated_client.post("/api/payroll", json=payroll_data)
     assert response.status_code == 200
     result = response.json()
     assert result["employee_id"] == "PAY001"
@@ -255,9 +255,9 @@ def test_get_settings(test_client, db_session):
         assert "employment_insurance_rate" in result
 
 
-def test_update_setting(test_client, db_session):
-    """Test PUT /api/settings/{key} updates a setting"""
-    response = test_client.put(
+def test_update_setting(authenticated_client, db_session):
+    """Test PUT /api/settings/{key} updates a setting (requires admin)"""
+    response = authenticated_client.put(
         "/api/settings/target_margin",
         json={"value": "15"}
     )
@@ -269,9 +269,9 @@ def test_update_setting(test_client, db_session):
 # ================================================================
 
 
-def test_search_employees(test_client, db_session):
+def test_search_employees(authenticated_client, db_session):
     """Test GET /api/search/employees with query"""
-    # Create test employee
+    # Create test employee (requires auth)
     employee_data = {
         "employee_id": "SRCH001",
         "name": "検索テスト太郎",
@@ -280,9 +280,9 @@ def test_search_employees(test_client, db_session):
         "billing_rate": 1700,
         "status": "active",
     }
-    test_client.post("/api/employees", json=employee_data)
+    authenticated_client.post("/api/employees", json=employee_data)
 
-    response = test_client.get("/api/search/employees?q=検索")
+    response = authenticated_client.get("/api/search/employees?q=検索")
     assert response.status_code == 200
     result = response.json()
     # API returns paginated response or list

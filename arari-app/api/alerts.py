@@ -162,7 +162,7 @@ class AlertService:
         try:
             self.cursor.execute("SELECT threshold_key, value FROM alert_thresholds")
             return {row[0]: row[1] for row in self.cursor.fetchall()}
-        except:
+        except (sqlite3.Error, sqlite3.OperationalError):
             return DEFAULT_THRESHOLDS.copy()
 
     def update_threshold(self, key: str, value: float, description: str = None) -> bool:
