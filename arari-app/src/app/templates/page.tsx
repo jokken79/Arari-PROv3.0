@@ -24,9 +24,10 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
+import { API_BASE_URL } from '@/lib/api'
 
 // API base URL - FastAPI backend
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+const API_URL = API_BASE_URL
 
 interface Template {
   id: number

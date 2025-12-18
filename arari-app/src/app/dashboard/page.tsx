@@ -33,6 +33,7 @@ import { useDashboardStats, useEmployees, usePayrollRecords, usePayrollPeriods }
 import { useQuery } from '@tanstack/react-query'
 import { formatYen, formatPercent, formatNumber } from '@/lib/utils'
 import { cn } from '@/lib/utils'
+import { API_BASE_URL } from '@/lib/api'
 
 export default function DashboardPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -115,8 +116,7 @@ export default function DashboardPage() {
   const { data: targetMarginData } = useQuery({
     queryKey: ['settings', 'target_margin'],
     queryFn: async () => {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
-      const response = await fetch(`${apiUrl}/api/settings/target_margin`)
+      const response = await fetch(`${API_BASE_URL}/api/settings/target_margin`)
       if (!response.ok) throw new Error('Failed to fetch target margin')
       const data = await response.json()
       return data.value ? Number(data.value) : 15

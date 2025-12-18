@@ -26,11 +26,11 @@ import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { useTheme } from '@/components/ui/theme-provider'
 import { cn } from '@/lib/utils'
-import { syncApi } from '@/lib/api'
+import { syncApi, API_BASE_URL } from '@/lib/api'
 
 // API base URL - FastAPI backend (port 8000)
 import { useAppStore } from '@/store/appStore'
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+const API_URL = API_BASE_URL
 
 interface InsuranceSettings {
   employment_insurance_rate: string

@@ -17,6 +17,7 @@ import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
 import { cn } from '@/lib/utils'
 // import { uploadApi } from '@/lib/api' // Bypassing for streaming support
+import { API_BASE_URL } from '@/lib/api'
 import { useAppStore } from '@/store/appStore'
 
 interface UploadedFileInfo {
@@ -97,8 +98,7 @@ export function FileUploader() {
       const formData = new FormData()
       formData.append('file', fileInfo.file)
 
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
-      const response = await fetch(`${apiUrl}/api/upload`, {
+      const response = await fetch(`${API_BASE_URL}/api/upload`, {
         method: 'POST',
         body: formData,
       })

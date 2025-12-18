@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
+import { API_BASE_URL } from '@/lib/api'
 import { useAppStore } from '@/store/appStore'
 
 type LogEntry = {
@@ -48,8 +49,7 @@ export function FolderSync() {
     setStats(null)
 
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
-      const response = await fetch(`${apiUrl}/api/sync-from-folder`, {
+      const response = await fetch(`${API_BASE_URL}/api/sync-from-folder`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
