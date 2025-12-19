@@ -7,6 +7,7 @@ echo ========================================
 echo ========================================
 echo.
 
+cd /d "%~dp0\.."
 echo [STEP 1/1] Building executable with PyInstaller...
 python -m PyInstaller --noconfirm --onefile --name ArariPRO --console --add-data "arari-app;arari-app" --hidden-import="babel.numbers" arari-app/api/main.py
 

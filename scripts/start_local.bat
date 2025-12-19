@@ -22,6 +22,7 @@ if not "%BACKEND_PORT%"=="" set CUSTOM_PORTS=true
 if not "%FRONTEND_PORT%"=="" set CUSTOM_PORTS=true
 
 :: Run Morfeo
+cd /d "%~dp0\..\arari-app"
 python morfeo.py start
 
 pause

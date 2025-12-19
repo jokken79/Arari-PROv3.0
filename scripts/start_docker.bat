@@ -12,7 +12,7 @@ echo    3. Rebuild and Start Application
 echo.
 set /p choice="Enter your choice (1, 2, or 3): "
 
-cd /d "%~dp0"
+cd /d "%~dp0\..\docker"
 
 if "%choice%"=="3" (
     :: Load NEXT_PUBLIC_API_URL from .env file
