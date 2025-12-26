@@ -326,6 +326,51 @@ Key endpoints:
 - `/upload` - Excel file upload
 - `/auth/login` - Authentication
 
+## Production Deployment (2025-12-26)
+
+### Live URLs
+
+| Service | URL |
+|---------|-----|
+| **Frontend** | https://arari-pr-ov2-0.vercel.app |
+| **Backend** | https://arari-prov20-production.up.railway.app |
+| **API Base** | https://arari-prov20-production.up.railway.app/api/ |
+
+### Production Credentials
+- **Username**: `admin`
+- **Password**: `admin123`
+- **Email**: `admin@arari-pro.local`
+
+### Dashboards
+| Service | Dashboard URL |
+|---------|---------------|
+| Railway | https://railway.com/project/d24d035e-263e-4761-b726-c0362dbd1263 |
+| Vercel | https://vercel.com/jokken79s-projects/arari-pr-ov2-0 |
+
+### Railway Environment Variables
+```env
+DATABASE_URL=${{Postgres.DATABASE_URL}}
+ADMIN_USERNAME=admin
+ADMIN_PASSWORD=admin123
+ADMIN_EMAIL=admin@arari-pro.local
+FRONTEND_URL=https://arari-pr-ov2-0.vercel.app
+```
+
+### Vercel Environment Variables
+```env
+NEXT_PUBLIC_API_URL=https://arari-prov20-production.up.railway.app
+NEXT_PUBLIC_ENABLE_AUTH=true
+NEXT_PUBLIC_ENABLE_NOTIFICATIONS=true
+```
+
+### Deployment Notes
+- Both services auto-deploy on push to `main` branch
+- Railway: ~2-3 min build time
+- Vercel: ~1-2 min build time
+- CORS is configured via `FRONTEND_URL` environment variable
+- Database: PostgreSQL (Railway managed)
+- See `DEPLOY.md` for full deployment guide
+
 ## Tech Stack
 
 | Layer | Technology |
