@@ -113,6 +113,8 @@ export function FileUploader() {
         const formData = new FormData()
         formData.append('file', fileInfo.file)
 
+        addLog({ type: 'info', message: `Uploading ${(fileInfo.size / 1024 / 1024).toFixed(1)}MB to server...` })
+
         // Add abort controller for timeout handling
         const controller = new AbortController()
         const timeoutId = setTimeout(() => controller.abort(), 300000) // 5 minute timeout
@@ -125,12 +127,16 @@ export function FileUploader() {
 
         clearTimeout(timeoutId)
 
+        addLog({ type: 'info', message: `Server responded with status: ${response.status}` })
+
         if (!response.ok) {
           throw new Error(`Upload failed: ${response.statusText}`)
         }
 
         const reader = response.body?.getReader()
         if (!reader) throw new Error('ReadableStream not supported')
+
+        addLog({ type: 'info', message: 'Reading server stream...' })
 
         const decoder = new TextDecoder()
         let buffer = ''
