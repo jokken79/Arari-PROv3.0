@@ -532,6 +532,8 @@ async def upload_payroll_file(
     db: sqlite3.Connection = Depends(get_db)
 ):
     """Upload and parse a payroll file (Excel or CSV) with Streaming Log"""
+    import asyncio
+    import concurrent.futures
     from fastapi.concurrency import run_in_threadpool
 
     async def log_generator():
@@ -544,23 +546,28 @@ async def upload_payroll_file(
 
             if file_ext not in allowed_extensions:
                 yield json.dumps({
-                    "type": "error", 
+                    "type": "error",
                     "message": f"Invalid extension. Allowed: {', '.join(allowed_extensions)}"
                 }) + "\n"
                 return
 
-            # Validate file size (max 50MB) 
-            MAX_FILE_SIZE = 50 * 1024 * 1024 
+            # Validate file size (max 50MB)
+            MAX_FILE_SIZE = 50 * 1024 * 1024
             content = await file.read()
-            
+
             if len(content) > MAX_FILE_SIZE:
                  yield json.dumps({
-                    "type": "error", 
+                    "type": "error",
                     "message": f"File too large (>50MB). Size: {len(content) / 1024 / 1024:.2f}MB"
                 }) + "\n"
                  return
 
             yield json.dumps({"type": "info", "message": "File read successfully. Detecting type..."}) + "\n"
+
+            # Shared resources for keepalive mechanism (prevents timeout on large files)
+            loop = asyncio.get_event_loop()
+            executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+            keepalive_interval = 5  # seconds
 
             # ---------------------------------------------------------
             # CASE A: Payroll File (給与明細)
@@ -568,9 +575,31 @@ async def upload_payroll_file(
             if file_ext in ['.xlsm', '.xlsx'] and ('給与' in file.filename or '給料' in file.filename or '明細' in file.filename):
                 yield json.dumps({"type": "info", "message": "Detected: Payroll Statement (給与明細)"}) + "\n"
                 yield json.dumps({"type": "progress", "message": "Parsing Excel file (this may take a moment)..."}) + "\n"
-                
+
                 parser = SalaryStatementParser(use_intelligent_mode=True)
-                records = await run_in_threadpool(parser.parse, content)
+
+                # Run parser in thread with keepalive messages to prevent timeout
+                future = loop.run_in_executor(executor, parser.parse, content)
+
+                elapsed = 0
+                while not future.done():
+                    try:
+                        # Wait up to keepalive_interval seconds for result
+                        records = await asyncio.wait_for(asyncio.shield(future), timeout=keepalive_interval)
+                        break
+                    except asyncio.TimeoutError:
+                        # Not done yet, yield keepalive message immediately
+                        elapsed += keepalive_interval
+                        yield json.dumps({
+                            "type": "progress",
+                            "message": f"Processing Excel... ({elapsed}s elapsed)"
+                        }) + "\n"
+                else:
+                    # Future completed between checks
+                    records = future.result()
+
+                if records is None:
+                    records = []
                 
                 yield json.dumps({"type": "info", "message": f"Parsed {len(records)} records. Saving to database..."}) + "\n"
                 
@@ -616,16 +645,32 @@ async def upload_payroll_file(
             # ---------------------------------------------------------
             elif file_ext in ['.xlsx', '.xlsm', '.xls'] and ('社員' in file.filename or 'Employee' in file.filename or '台帳' in file.filename):
                 yield json.dumps({"type": "info", "message": "Detected: Employee Master (社員台帳)"}) + "\n"
-                
+
                 with tempfile.NamedTemporaryFile(delete=False, suffix=file_ext) as tmp:
                     tmp.write(content)
                     tmp_path = tmp.name
-                
+
                 try:
                     parser = DBGenzaiXParser()
                     yield json.dumps({"type": "progress", "message": "Parsing Employees..."}) + "\n"
-                    
-                    employees, stats = await run_in_threadpool(parser.parse_employees, tmp_path)
+
+                    # Run parser in thread with keepalive messages to prevent timeout
+                    emp_future = loop.run_in_executor(executor, parser.parse_employees, tmp_path)
+                    elapsed = 0
+                    employees = None
+                    stats = None
+                    while not emp_future.done():
+                        try:
+                            employees, stats = await asyncio.wait_for(asyncio.shield(emp_future), timeout=keepalive_interval)
+                            break
+                        except asyncio.TimeoutError:
+                            elapsed += keepalive_interval
+                            yield json.dumps({
+                                "type": "progress",
+                                "message": f"Parsing employees... ({elapsed}s elapsed)"
+                            }) + "\n"
+                    else:
+                        employees, stats = emp_future.result()
                     yield json.dumps({"type": "info", "message": f"Found {len(employees)} employees."}) + "\n"
 
                     service = PayrollService(db)
@@ -676,25 +721,44 @@ async def upload_payroll_file(
                         os.unlink(tmp_path)
 
             else:
-                 # Fallback (Generic)
-                 yield json.dumps({"type": "info", "message": "Detected: Generic Excel/CSV"}) + "\n"
-                 parser = ExcelParser()
-                 records = await run_in_threadpool(parser.parse, content)
-                 
-                 service = PayrollService(db)
-                 saved_count = 0
-                 # Simple save loop
-                 for i, r in enumerate(records):
-                     service.create_payroll_record(r)
-                     saved_count += 1
-                     if (i+1) % 50 == 0:
-                         yield json.dumps({"type": "progress", "message": f"Saving {i+1}..."}) + "\n"
-                 
-                 yield json.dumps({
-                        "type": "success",
-                        "message": f"Saved {saved_count} records.",
-                        "stats": {"saved": saved_count}
-                    }) + "\n"
+                # Fallback (Generic)
+                yield json.dumps({"type": "info", "message": "Detected: Generic Excel/CSV"}) + "\n"
+                parser = ExcelParser()
+
+                # Run parser in thread with keepalive messages to prevent timeout
+                gen_future = loop.run_in_executor(executor, parser.parse, content)
+                elapsed = 0
+                records = None
+                while not gen_future.done():
+                    try:
+                        records = await asyncio.wait_for(asyncio.shield(gen_future), timeout=keepalive_interval)
+                        break
+                    except asyncio.TimeoutError:
+                        elapsed += keepalive_interval
+                        yield json.dumps({
+                            "type": "progress",
+                            "message": f"Processing... ({elapsed}s elapsed)"
+                        }) + "\n"
+                else:
+                    records = gen_future.result()
+
+                if records is None:
+                    records = []
+
+                service = PayrollService(db)
+                saved_count = 0
+                # Simple save loop
+                for i, r in enumerate(records):
+                    service.create_payroll_record(r)
+                    saved_count += 1
+                    if (i+1) % 50 == 0:
+                        yield json.dumps({"type": "progress", "message": f"Saving {i+1}..."}) + "\n"
+
+                yield json.dumps({
+                    "type": "success",
+                    "message": f"Saved {saved_count} records.",
+                    "stats": {"saved": saved_count}
+                }) + "\n"
 
             # Final Completion Signal
             yield json.dumps({"type": "complete", "message": "Processing Finished."}) + "\n"
