@@ -279,6 +279,8 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*"],  # Allow client to read response headers
+    max_age=3600,  # Cache preflight requests for 1 hour
 )
 
 # ============== Health Check ============== 
@@ -763,10 +765,19 @@ async def upload_payroll_file(
             # Final Completion Signal
             yield json.dumps({"type": "complete", "message": "Processing Finished."}) + "\n"
 
+            # Clean up executor
+            executor.shutdown(wait=False)
+
         except Exception as e:
             yield json.dumps({"type": "error", "message": f"Critical Error: {str(e)}"}) + "\n"
 
-    return StreamingResponse(log_generator(), media_type="application/x-ndjson")
+    # Add explicit headers for CORS and streaming compatibility
+    headers = {
+        "Cache-Control": "no-cache",
+        "X-Accel-Buffering": "no",  # Disable nginx buffering
+        "Connection": "keep-alive",
+    }
+    return StreamingResponse(log_generator(), media_type="application/x-ndjson", headers=headers)
 
 # ============== Export ============== 
 
