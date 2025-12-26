@@ -71,10 +71,14 @@ export function FileUploader() {
       if (!nextFile) return
 
       setIsUploading(true)
-      // Clear logs only if it's the first file of a batch? 
+      // Clear logs only if it's the first file of a batch?
       // Or keep appending? Let's keep appending with a separator for clarity.
-      if (files.filter(f => f.status === 'success' || f.status === 'error').length === 0) {
+      const completedCount = files.filter(f => f.status === 'success' || f.status === 'error').length
+      if (completedCount === 0) {
         setLogs([])
+      } else {
+        // Add a small delay between uploads to prevent connection issues
+        await new Promise(resolve => setTimeout(resolve, 1000))
       }
 
       try {
@@ -98,10 +102,19 @@ export function FileUploader() {
       const formData = new FormData()
       formData.append('file', fileInfo.file)
 
+      // Add abort controller for timeout handling
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 300000) // 5 minute timeout
+
       const response = await fetch(`${API_BASE_URL}/api/upload`, {
         method: 'POST',
         body: formData,
+        signal: controller.signal,
+        cache: 'no-store',
+        keepalive: false, // Don't keep connection alive between requests
       })
+
+      clearTimeout(timeoutId)
 
       if (!response.ok) {
         throw new Error(`Upload failed: ${response.statusText}`)
@@ -176,7 +189,16 @@ export function FileUploader() {
       await refreshFromBackend()
 
     } catch (err) {
-      const errMsg = err instanceof Error ? err.message : 'Unknown error'
+      let errMsg = 'Unknown error'
+      if (err instanceof Error) {
+        if (err.name === 'AbortError') {
+          errMsg = 'Upload timed out (5 min limit)'
+        } else if (err.message === 'Load failed' || err.message === 'Failed to fetch') {
+          errMsg = 'Connection error - please check your network and try again'
+        } else {
+          errMsg = err.message
+        }
+      }
       addLog({ type: 'error', message: `Error uploading ${fileInfo.name}: ${errMsg}` })
 
       setFiles(prev => prev.map(f =>
