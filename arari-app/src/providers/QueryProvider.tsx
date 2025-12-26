@@ -16,8 +16,10 @@ export function QueryProvider({ children }: { children: React.ReactNode }) {
             refetchOnWindowFocus: true,
             // コンポーネントマウント時のリフェッチを無効化（不要なリクエスト削減）
             refetchOnMount: false,
-            // リトライ回数を1回に設定
-            retry: 1,
+            // リトライ回数を3回に設定（Railway cold start対策）
+            retry: 3,
+            // リトライ間隔を指数バックオフで設定（1秒、2秒、4秒）
+            retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 8000),
           },
           mutations: {
             // ミューテーション失敗時のリトライなし

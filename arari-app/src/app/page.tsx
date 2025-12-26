@@ -354,8 +354,25 @@ export default function DashboardPage() {
   if (error) {
     return (
       <div className="flex h-screen items-center justify-center bg-background">
-        <div className="text-center text-red-500">
-          <p>エラーが発生しました: {error.message}</p>
+        <div className="text-center max-w-md mx-auto px-4">
+          <div className="mb-6">
+            <div className="h-16 w-16 rounded-full bg-red-100 dark:bg-red-900/20 flex items-center justify-center mx-auto mb-4">
+              <TrendingUp className="h-8 w-8 text-red-500" />
+            </div>
+            <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-2">接続エラー</h2>
+            <p className="text-slate-600 dark:text-slate-400 mb-4">
+              {error.message || 'サーバーに接続できませんでした。'}
+            </p>
+            <p className="text-sm text-slate-500 dark:text-slate-500">
+              サーバーが起動中の可能性があります。数秒後に再試行してください。
+            </p>
+          </div>
+          <button
+            onClick={() => refetch()}
+            className="px-6 py-3 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700 transition-colors"
+          >
+            再接続
+          </button>
         </div>
       </div>
     )

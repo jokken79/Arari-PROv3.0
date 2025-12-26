@@ -35,7 +35,19 @@ async function fetchApi<T>(
     return { data }
   } catch (error) {
     console.error('API Error:', error)
-    return { error: error instanceof Error ? error.message : 'Unknown error' }
+    // Provide more helpful error messages for common network errors
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+    let friendlyMessage = errorMessage
+
+    if (errorMessage === 'Load failed' || errorMessage === 'Failed to fetch' || errorMessage === 'NetworkError when attempting to fetch resource.') {
+      friendlyMessage = 'サーバーに接続できません。ネットワーク接続を確認してください。'
+    } else if (errorMessage.includes('CORS')) {
+      friendlyMessage = 'サーバー接続エラーが発生しました。'
+    } else if (errorMessage.includes('timeout') || errorMessage.includes('Timeout')) {
+      friendlyMessage = '接続がタイムアウトしました。再試行してください。'
+    }
+
+    return { error: friendlyMessage }
   }
 }
 
