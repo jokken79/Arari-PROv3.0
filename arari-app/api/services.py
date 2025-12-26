@@ -19,6 +19,25 @@ def _q(query: str) -> str:
     return query
 
 
+def _get_count(row) -> int:
+    """Extract count value from a row (handles dict for PostgreSQL, tuple for SQLite)"""
+    if row is None:
+        return 0
+    if isinstance(row, dict):
+        return row.get("count", row.get("COUNT(*)", 0))
+    return row[0] if row[0] is not None else 0
+
+
+def _get_first_col(row):
+    """Extract first column value from a row (handles dict for PostgreSQL, tuple for SQLite)"""
+    if row is None:
+        return None
+    if isinstance(row, dict):
+        # Get first value from dict
+        return next(iter(row.values()), None) if row else None
+    return row[0]
+
+
 class PayrollService:
     """Service class for payroll and employee operations"""
 
@@ -641,28 +660,28 @@ class PayrollService:
         if not period:
             cursor.execute("SELECT MAX(period) FROM payroll_records")
             result = cursor.fetchone()
-            period = result[0] if result else None
+            period = _get_first_col(result)
 
         if not period:
             return self._empty_statistics()
 
         # Basic counts
         cursor.execute("SELECT COUNT(*) FROM employees")
-        total_employees = cursor.fetchone()[0]
+        total_employees = _get_count(cursor.fetchone())
 
         cursor.execute("SELECT COUNT(*) FROM employees WHERE status = 'active'")
-        active_employees = cursor.fetchone()[0]
+        active_employees = _get_count(cursor.fetchone())
 
         cursor.execute(
             """
-            SELECT COUNT(DISTINCT dispatch_company) 
-            FROM employees 
+            SELECT COUNT(DISTINCT dispatch_company)
+            FROM employees
             WHERE dispatch_company NOT IN (
                 SELECT value FROM json_each((SELECT value FROM settings WHERE key = 'ignored_companies'))
             )
         """
         )
-        total_companies = cursor.fetchone()[0]
+        total_companies = _get_count(cursor.fetchone())
 
         # Period statistics
         cursor.execute(
@@ -788,36 +807,36 @@ class PayrollService:
         ]
 
         cursor.execute(
-            """
-        SELECT COUNT(*) 
+            _q("""
+        SELECT COUNT(*)
         FROM payroll_records p
         LEFT JOIN employees e ON p.employee_id = e.employee_id
         WHERE p.period = ?
         AND e.dispatch_company NOT IN (
             SELECT value FROM json_each((SELECT value FROM settings WHERE key = 'ignored_companies'))
         )
-    """,
+    """),
             (period,),
         )
-        total = cursor.fetchone()[0]
+        total = _get_count(cursor.fetchone())
 
         distribution = []
         for range_name, min_val, max_val in ranges:
             cursor.execute(
-                """
-                SELECT COUNT(*) 
+                _q("""
+                SELECT COUNT(*)
                 FROM payroll_records p
                 LEFT JOIN employees e ON p.employee_id = e.employee_id
-                WHERE p.period = ? 
-                AND p.profit_margin >= ? 
+                WHERE p.period = ?
+                AND p.profit_margin >= ?
                 AND p.profit_margin < ?
                 AND e.dispatch_company NOT IN (
                     SELECT value FROM json_each((SELECT value FROM settings WHERE key = 'ignored_companies'))
                 )
-            """,
+            """),
                 (period, min_val, max_val),
             )
-            count = cursor.fetchone()[0]
+            count = _get_count(cursor.fetchone())
             percentage = (count / total * 100) if total > 0 else 0
             distribution.append(
                 {
@@ -883,7 +902,7 @@ class PayrollService:
 
         # Get latest period
         cursor.execute("SELECT MAX(period) FROM payroll_records")
-        period = cursor.fetchone()[0]
+        period = _get_first_col(cursor.fetchone())
 
         cursor.execute(
             """

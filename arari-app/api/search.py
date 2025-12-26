@@ -1,11 +1,30 @@
 """
 SearchAgent - Advanced Search System
 Full-text and filtered search for 粗利 PRO
+Supports both SQLite (local) and PostgreSQL (Railway production)
 """
 
 import sqlite3
 from dataclasses import dataclass
 from typing import Any, Dict, List
+
+from database import USE_POSTGRES
+
+
+def _q(query: str) -> str:
+    """Convert SQLite query to PostgreSQL if needed (? -> %s)"""
+    if USE_POSTGRES:
+        return query.replace("?", "%s")
+    return query
+
+
+def _get_count(row) -> int:
+    """Extract count value from a row (handles dict for PostgreSQL, tuple for SQLite)"""
+    if row is None:
+        return 0
+    if isinstance(row, dict):
+        return row.get("count", row.get("COUNT(*)", 0))
+    return row[0] if row[0] is not None else 0
 
 
 @dataclass
@@ -107,8 +126,8 @@ class SearchService:
 
         # Get total count before pagination
         count_sql = f"SELECT COUNT(*) FROM ({sql})"
-        self.cursor.execute(count_sql, params)
-        total_count = self.cursor.fetchone()[0]
+        self.cursor.execute(_q(count_sql), params)
+        total_count = _get_count(self.cursor.fetchone())
 
         # Sorting
         sort_fields = {
@@ -234,8 +253,8 @@ class SearchService:
 
         # Get total count
         count_sql = f"SELECT COUNT(*) FROM ({sql})"
-        self.cursor.execute(count_sql, params)
-        total_count = self.cursor.fetchone()[0]
+        self.cursor.execute(_q(count_sql), params)
+        total_count = _get_count(self.cursor.fetchone())
 
         # Sorting
         sort_fields = {

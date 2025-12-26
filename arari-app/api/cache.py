@@ -1,6 +1,7 @@
 """
 CacheAgent - Caching System
 In-memory and persistent caching for 粗利 PRO
+Supports both SQLite (local) and PostgreSQL (Railway production)
 """
 
 import json
@@ -10,12 +11,39 @@ from datetime import datetime, timedelta
 from functools import wraps
 from typing import Any, Callable, Dict, Optional
 
+from database import USE_POSTGRES
+
 # In-memory cache
 _cache: Dict[str, Dict[str, Any]] = {}
 _cache_lock = threading.Lock()
 
 
-def init_cache_tables(conn: sqlite3.Connection):
+def _q(query: str) -> str:
+    """Convert SQLite query to PostgreSQL if needed (? -> %s)"""
+    if USE_POSTGRES:
+        return query.replace("?", "%s")
+    return query
+
+
+def _get_count(row) -> int:
+    """Extract count value from a row (handles dict for PostgreSQL, tuple for SQLite)"""
+    if row is None:
+        return 0
+    if isinstance(row, dict):
+        return row.get("count", row.get("COUNT(*)", 0))
+    return row[0] if row[0] is not None else 0
+
+
+def _get_sum(row) -> int:
+    """Extract sum value from a row (handles dict for PostgreSQL, tuple for SQLite)"""
+    if row is None:
+        return 0
+    if isinstance(row, dict):
+        return row.get("total_hits", row.get("SUM(hit_count)", 0)) or 0
+    return row[0] if row[0] is not None else 0
+
+
+def init_cache_tables(conn):
     """Initialize persistent cache tables"""
     cursor = conn.cursor()
 
@@ -245,19 +273,19 @@ class CacheService:
         cursor = self.conn.cursor()
 
         cursor.execute("SELECT COUNT(*) FROM cache_store")
-        total = cursor.fetchone()[0]
+        total = _get_count(cursor.fetchone())
 
         cursor.execute(
-            """
+            _q("""
             SELECT COUNT(*) FROM cache_store
             WHERE expires_at IS NOT NULL AND expires_at < ?
-        """,
+        """),
             (datetime.now().isoformat(),),
         )
-        expired = cursor.fetchone()[0]
+        expired = _get_count(cursor.fetchone())
 
-        cursor.execute("SELECT SUM(hit_count) FROM cache_store")
-        total_hits = cursor.fetchone()[0] or 0
+        cursor.execute("SELECT SUM(hit_count) as total_hits FROM cache_store")
+        total_hits = _get_sum(cursor.fetchone())
 
         return {
             "total_entries": total,

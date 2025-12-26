@@ -1,6 +1,7 @@
 """
 NotificationAgent - Notification System
 Email and in-app notifications for 粗利 PRO
+Supports both SQLite (local) and PostgreSQL (Railway production)
 """
 
 import os
@@ -11,16 +12,37 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from typing import Any, Dict, List
 
+from database import USE_POSTGRES
 
-def init_notification_tables(conn: sqlite3.Connection):
+
+def _q(query: str) -> str:
+    """Convert SQLite query to PostgreSQL if needed (? -> %s)"""
+    if USE_POSTGRES:
+        return query.replace("?", "%s")
+    return query
+
+
+def _get_count(row) -> int:
+    """Extract count value from a row (handles dict for PostgreSQL, tuple for SQLite)"""
+    if row is None:
+        return 0
+    if isinstance(row, dict):
+        return row.get("count", row.get("COUNT(*)", 0))
+    return row[0] if row[0] is not None else 0
+
+
+def init_notification_tables(conn):
     """Initialize notification tables"""
     cursor = conn.cursor()
 
+    # SQL type mappings for cross-database compatibility
+    PK_TYPE = "SERIAL PRIMARY KEY" if USE_POSTGRES else "INTEGER PRIMARY KEY AUTOINCREMENT"
+
     # Notifications table (in-app)
     cursor.execute(
-        """
+        f"""
         CREATE TABLE IF NOT EXISTS notifications (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id {PK_TYPE},
             user_id INTEGER,
             notification_type TEXT NOT NULL,
             title TEXT NOT NULL,
@@ -37,9 +59,9 @@ def init_notification_tables(conn: sqlite3.Connection):
 
     # Email queue table
     cursor.execute(
-        """
+        f"""
         CREATE TABLE IF NOT EXISTS email_queue (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id {PK_TYPE},
             to_email TEXT NOT NULL,
             subject TEXT NOT NULL,
             body TEXT NOT NULL,
@@ -56,9 +78,9 @@ def init_notification_tables(conn: sqlite3.Connection):
 
     # Notification preferences table
     cursor.execute(
-        """
+        f"""
         CREATE TABLE IF NOT EXISTS notification_preferences (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id {PK_TYPE},
             user_id INTEGER UNIQUE NOT NULL,
             email_alerts INTEGER DEFAULT 1,
             email_reports INTEGER DEFAULT 1,
@@ -187,7 +209,7 @@ class NotificationService:
     def delete_notification(self, notification_id: int) -> bool:
         """Delete a notification"""
         self.cursor.execute(
-            "DELETE FROM notifications WHERE id = ?", (notification_id,)
+            _q("DELETE FROM notifications WHERE id = ?"), (notification_id,)
         )
         self.conn.commit()
         return self.cursor.rowcount > 0
@@ -204,18 +226,18 @@ class NotificationService:
         query += " AND (expires_at IS NULL OR expires_at > ?)"
         params.append(datetime.now().isoformat())
 
-        self.cursor.execute(query, params)
-        return self.cursor.fetchone()[0]
+        self.cursor.execute(_q(query), params)
+        return _get_count(self.cursor.fetchone())
 
     def cleanup_old_notifications(self, days: int = 90) -> int:
         """Delete old notifications"""
         cutoff = (datetime.now() - timedelta(days=days)).isoformat()
 
         self.cursor.execute(
-            """
+            _q("""
             DELETE FROM notifications
             WHERE created_at < ? OR (expires_at IS NOT NULL AND expires_at < ?)
-        """,
+        """),
             (cutoff, datetime.now().isoformat()),
         )
         self.conn.commit()
