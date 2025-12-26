@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: arari-pro-api
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: python -c "from database import init_db; init_db()" && uvicorn main:app --host 0.0.0.0 --port $PORT --timeout-keep-alive 120
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11"
+      - key: ADMIN_USERNAME
+        value: admin
+      - key: ADMIN_PASSWORD
+        value: admin123
+      - key: ADMIN_EMAIL
+        value: admin@arari-pro.local
+      - key: FRONTEND_URL
+        sync: false  # Set this manually after deploying frontend
+    healthCheckPath: /api/health
