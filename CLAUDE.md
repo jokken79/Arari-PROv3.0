@@ -28,6 +28,27 @@ cd arari-app
 npm run dev
 ```
 
+### Auto-Generated Environment Files
+`start-arari.bat` automatically creates these files:
+
+**Frontend** (`arari-app/.env.local`):
+```env
+NEXT_PUBLIC_API_URL=http://localhost:8000
+NEXT_PUBLIC_API_PORT=8000
+NEXT_PUBLIC_FRONTEND_PORT=3000
+NEXT_PUBLIC_ENABLE_AUTH=true
+```
+
+**Backend** (`arari-app/api/.env`):
+```env
+BACKEND_PORT=8000
+FRONTEND_PORT=3000
+FRONTEND_URL=http://localhost:3000
+ADMIN_USERNAME=admin
+ADMIN_PASSWORD=admin123
+ADMIN_EMAIL=admin@arari-pro.local
+```
+
 ### Run Tests
 
 ```bash
@@ -176,6 +197,49 @@ Excel files may use either `通勤手当(非)` (ASCII) or `通勤手当（非）
 ### 5. Period Sorting
 Use `comparePeriods()` from utils.ts for chronological sorting. String sort fails: "2025年10月" < "2025年2月" alphabetically.
 
+### 6. Login Token Field Name
+Backend returns `token`, NOT `access_token`:
+```typescript
+// CORRECT - useAuth.ts expects this
+interface LoginResponse {
+  token: string        // ✓ Backend sends "token"
+  token_type: string
+  user: User
+}
+
+// WRONG - would cause login to fail
+interface LoginResponse {
+  access_token: string  // ✗ Backend does NOT send this
+}
+```
+
+### 7. Login Redirect - Use Full Page Reload
+After successful login, use `window.location.href` instead of `router.push()`:
+```typescript
+// CORRECT - forces AuthGuard to re-read localStorage
+if (result.success) {
+  window.location.href = '/'  // ✓
+}
+
+// WRONG - AuthGuard won't see new token (separate hook instance)
+if (result.success) {
+  router.push('/')  // ✗ Causes redirect loop back to /login
+}
+```
+This is because `useAuth` hook creates separate state instances per component.
+
+### 8. Dashboard Period Auto-Selection
+Dashboard must auto-select a period when loaded, otherwise charts show empty:
+```typescript
+// In page.tsx - auto-select latest period
+useEffect(() => {
+  if (availablePeriods.length > 0 && !selectedPeriod) {
+    const sorted = [...availablePeriods].sort(/* chronological */)
+    setSelectedPeriod(sorted[0])  // Latest period
+  }
+}, [availablePeriods, selectedPeriod])
+```
+
 ## Database Tables
 
 ### employees
@@ -201,10 +265,55 @@ Use `comparePeriods()` from utils.ts for chronological sorting. String sort fail
 
 ## Authentication
 
-- Default credentials: `admin` / `admin123` (**CHANGE IN PRODUCTION**)
+### Environment Variables (`.env`)
+Credentials are configured in `arari-app/api/.env` (auto-created by `start-arari.bat`):
+
+```env
+ADMIN_USERNAME=admin
+ADMIN_PASSWORD=admin123
+ADMIN_EMAIL=admin@arari-pro.local
+```
+
+Frontend auth toggle in `arari-app/.env.local`:
+```env
+NEXT_PUBLIC_ENABLE_AUTH=true
+```
+
+### Default Credentials
+- **Username**: `admin`
+- **Password**: `admin123`
+- **CHANGE IN PRODUCTION!**
+
+### Auth Rules
 - GET endpoints: No auth required
 - POST/PUT/DELETE: `require_auth` or `require_admin` decorator
 - Rate limit: 5 login attempts per minute
+
+### Auth API Endpoints
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/auth/login` | POST | Login, returns `{token, user}` |
+| `/api/auth/logout` | POST | Logout, revokes token |
+| `/api/auth/me` | GET | Get current user info |
+| `/api/users` | GET | List users (admin only) |
+| `/api/users` | POST | Create user (admin only) |
+| `/api/users/change-password` | PUT | Change own password |
+| `/api/users/{id}/reset-password` | PUT | Reset user password (admin only) |
+
+### Password Change Examples
+```bash
+# Change own password (requires auth)
+curl -X PUT http://localhost:8000/api/users/change-password \
+  -H "Authorization: Bearer TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"old_password":"admin123","new_password":"newPass123"}'
+
+# Admin reset another user's password
+curl -X PUT http://localhost:8000/api/users/2/reset-password \
+  -H "Authorization: Bearer ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"new_password":"newPass123"}'
+```
 
 ## API Base URL
 
@@ -249,3 +358,10 @@ Templates are stored in `factory_templates` table with field positions and colum
 | Add new page | `arari-app/src/app/[pagename]/page.tsx` |
 | Modify employee modal | `arari-app/src/components/employees/EmployeeDetailModal.tsx` |
 | Update payroll detail view | `arari-app/src/components/payroll/` (5 files) |
+| Modify authentication | `arari-app/api/auth.py`, `arari-app/src/hooks/useAuth.ts` |
+| Change login page | `arari-app/src/app/login/page.tsx` |
+| Update auth guard | `arari-app/src/components/auth/AuthGuard.tsx` |
+| Configure startup | `start-arari.bat`, `restart-arari.bat`, `stop-arari.bat` |
+| Backend env variables | `arari-app/api/.env` |
+| Frontend env variables | `arari-app/.env.local` |
+| Global app state | `arari-app/src/store/appStore.ts` |

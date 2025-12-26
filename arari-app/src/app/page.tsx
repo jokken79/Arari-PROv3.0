@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import {
   Users,
@@ -40,12 +40,29 @@ export default function DashboardPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const {
     selectedPeriod,
+    setSelectedPeriod,
   } = useAppStore()
 
   // Fetch data using TanStack Query hooks
   const { data: rawEmployees = [] } = useEmployees()
   const { data: rawPayrollRecords = [] } = usePayrollRecords()
   const { data: availablePeriods = [] } = usePayrollPeriods()
+
+  // Auto-select latest period when periods are loaded
+  useEffect(() => {
+    if (availablePeriods.length > 0 && !selectedPeriod) {
+      // Sort periods chronologically and select the latest
+      const sortedPeriods = [...availablePeriods].sort((a, b) => {
+        const parseDate = (p: string) => {
+          const match = p.match(/(\d+)年(\d+)月/)
+          if (match) return parseInt(match[1]) * 100 + parseInt(match[2])
+          return 0
+        }
+        return parseDate(b) - parseDate(a)
+      })
+      setSelectedPeriod(sortedPeriods[0])
+    }
+  }, [availablePeriods, selectedPeriod, setSelectedPeriod])
 
   // Map to internal types (snake_case -> camelCase)
   const employees = useMemo(() => {

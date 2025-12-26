@@ -1301,6 +1301,60 @@ async def create_user(
     log_action(db, current_user, "create", "user", payload.get("username", ""), "Created new user")
     return result
 
+@app.put("/api/users/change-password")
+async def change_password(
+    payload: dict,
+    db: sqlite3.Connection = Depends(get_db),
+    current_user: Dict[str, Any] = Depends(require_auth)
+):
+    """Change current user's password"""
+    old_password = payload.get("old_password")
+    new_password = payload.get("new_password")
+
+    if not old_password or not new_password:
+        raise HTTPException(status_code=400, detail="Old and new password required")
+
+    if len(new_password) < 6:
+        raise HTTPException(status_code=400, detail="Password must be at least 6 characters")
+
+    service = AuthService(db)
+    result = service.change_password(
+        user_id=current_user.get("id"),
+        old_password=old_password,
+        new_password=new_password
+    )
+
+    if "error" in result:
+        raise HTTPException(status_code=400, detail=result["error"])
+
+    log_action(db, current_user, "update", "user", current_user.get("username", ""), "Changed password")
+    return result
+
+@app.put("/api/users/{user_id}/reset-password")
+async def reset_password(
+    user_id: int,
+    payload: dict,
+    db: sqlite3.Connection = Depends(get_db),
+    current_user: Dict[str, Any] = Depends(require_admin)
+):
+    """Reset user password (admin only)"""
+    new_password = payload.get("new_password")
+
+    if not new_password:
+        raise HTTPException(status_code=400, detail="New password required")
+
+    if len(new_password) < 6:
+        raise HTTPException(status_code=400, detail="Password must be at least 6 characters")
+
+    service = AuthService(db)
+    result = service.reset_password(user_id=user_id, new_password=new_password)
+
+    if "error" in result:
+        raise HTTPException(status_code=400, detail=result["error"])
+
+    log_action(db, current_user, "update", "user", str(user_id), "Reset password (admin)")
+    return result
+
 # ============== ALERTS ENDPOINTS ============== 
 
 from alerts import AlertService

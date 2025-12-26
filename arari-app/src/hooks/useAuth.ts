@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { API_BASE_URL } from '@/lib/api'
 
 const API_URL = API_BASE_URL
@@ -26,9 +26,10 @@ interface LoginCredentials {
 }
 
 interface LoginResponse {
-  access_token: string
+  token: string
   token_type: string
   user: User
+  expires_at?: string
 }
 
 export function useAuth() {
@@ -39,72 +40,43 @@ export function useAuth() {
     token: null,
   })
 
+  // Track if component is mounted (for SSR safety)
+  const isMounted = useRef(false)
+
   // Verify token on mount
-  const verifyToken = useCallback(async (token: string) => {
+  const verifyToken = useCallback(async (token: string): Promise<boolean> => {
     try {
+      // Add timeout to prevent hanging
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 5000)
+
       const response = await fetch(`${API_URL}/api/auth/me`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
+        signal: controller.signal,
       })
+
+      clearTimeout(timeoutId)
 
       if (response.ok) {
         const user = await response.json()
-        setAuthState({
-          isAuthenticated: true,
-          user,
-          isLoading: false,
-          token,
-        })
+        if (isMounted.current) {
+          setAuthState({
+            isAuthenticated: true,
+            user,
+            isLoading: false,
+            token,
+          })
+        }
         return true
       } else {
         // Token invalid, clear storage
-        localStorage.removeItem('auth_token')
-        localStorage.removeItem('user')
-        setAuthState({
-          isAuthenticated: false,
-          user: null,
-          isLoading: false,
-          token: null,
-        })
-        return false
-      }
-    } catch (error) {
-      console.error('Token verification failed:', error)
-      setAuthState({
-        isAuthenticated: false,
-        user: null,
-        isLoading: false,
-        token: null,
-      })
-      return false
-    }
-  }, [])
-
-  // Initialize auth state from localStorage
-  useEffect(() => {
-    const initAuth = async () => {
-      const token = localStorage.getItem('auth_token')
-      const userJson = localStorage.getItem('user')
-
-      if (token && userJson) {
-        try {
-          const user = JSON.parse(userJson)
-          // Verify token is still valid
-          const isValid = await verifyToken(token)
-          if (!isValid) {
-            // Token expired or invalid
-            setAuthState({
-              isAuthenticated: false,
-              user: null,
-              isLoading: false,
-              token: null,
-            })
-          }
-        } catch (error) {
-          console.error('Failed to parse user data:', error)
+        if (typeof window !== 'undefined') {
           localStorage.removeItem('auth_token')
           localStorage.removeItem('user')
+        }
+        if (isMounted.current) {
           setAuthState({
             isAuthenticated: false,
             user: null,
@@ -112,7 +84,11 @@ export function useAuth() {
             token: null,
           })
         }
-      } else {
+        return false
+      }
+    } catch (error) {
+      console.error('Token verification failed:', error)
+      if (isMounted.current) {
         setAuthState({
           isAuthenticated: false,
           user: null,
@@ -120,9 +96,73 @@ export function useAuth() {
           token: null,
         })
       }
+      return false
+    }
+  }, [])
+
+  // Initialize auth state from localStorage
+  useEffect(() => {
+    isMounted.current = true
+
+    const initAuth = async () => {
+      // SSR safety check
+      if (typeof window === 'undefined') {
+        return
+      }
+
+      try {
+        const token = localStorage.getItem('auth_token')
+        const userJson = localStorage.getItem('user')
+
+        if (token && userJson) {
+          try {
+            // Verify token is still valid
+            const isValid = await verifyToken(token)
+            if (!isValid && isMounted.current) {
+              // Token expired or invalid - already handled in verifyToken
+            }
+          } catch (error) {
+            console.error('Failed to parse user data:', error)
+            localStorage.removeItem('auth_token')
+            localStorage.removeItem('user')
+            if (isMounted.current) {
+              setAuthState({
+                isAuthenticated: false,
+                user: null,
+                isLoading: false,
+                token: null,
+              })
+            }
+          }
+        } else {
+          // No token found - set not authenticated immediately
+          if (isMounted.current) {
+            setAuthState({
+              isAuthenticated: false,
+              user: null,
+              isLoading: false,
+              token: null,
+            })
+          }
+        }
+      } catch (error) {
+        console.error('Auth initialization error:', error)
+        if (isMounted.current) {
+          setAuthState({
+            isAuthenticated: false,
+            user: null,
+            isLoading: false,
+            token: null,
+          })
+        }
+      }
     }
 
     initAuth()
+
+    return () => {
+      isMounted.current = false
+    }
   }, [verifyToken])
 
   // Login function
@@ -144,7 +184,7 @@ export function useAuth() {
       const data: LoginResponse = await response.json()
 
       // Store token and user in localStorage
-      localStorage.setItem('auth_token', data.access_token)
+      localStorage.setItem('auth_token', data.token)
       localStorage.setItem('user', JSON.stringify(data.user))
 
       // Update state
@@ -152,7 +192,7 @@ export function useAuth() {
         isAuthenticated: true,
         user: data.user,
         isLoading: false,
-        token: data.access_token,
+        token: data.token,
       })
 
       return { success: true }

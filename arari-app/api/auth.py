@@ -3,6 +3,7 @@ AuthAgent - Authentication & Authorization System
 JWT-based authentication with role-based access control
 """
 
+import os
 import secrets
 import sqlite3
 from datetime import datetime, timedelta
@@ -10,6 +11,9 @@ from functools import wraps
 from typing import Any, Dict, Optional
 
 import bcrypt
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # JWT-like token management (simple implementation without external deps)
 # In production, use python-jose or PyJWT
@@ -102,17 +106,19 @@ def init_auth_tables(conn: sqlite3.Connection):
     # Create default admin user if not exists
     cursor.execute("SELECT COUNT(*) FROM users WHERE LOWER(username) = 'admin'")
     if cursor.fetchone()[0] == 0:
-        default_password = "admin123"
-        password_hash = hash_password(default_password)  # Use bcrypt
+        admin_username = os.environ.get("ADMIN_USERNAME", "admin")
+        admin_password = os.environ.get("ADMIN_PASSWORD", "admin123")
+        admin_email = os.environ.get("ADMIN_EMAIL", "admin@arari-pro.local")
+        password_hash = hash_password(admin_password)  # Use bcrypt
         cursor.execute(
             """
             INSERT INTO users (username, password_hash, full_name, role, email)
             VALUES (?, ?, ?, ?, ?)
         """,
-            ("admin", password_hash, "Administrator", "admin", "admin@arari-pro.local"),
+            (admin_username, password_hash, "Administrator", "admin", admin_email),
         )
         print(
-            f"[AUTH] Created default admin user (username: admin, password: {default_password})"
+            f"[AUTH] Created default admin user (username: {admin_username})"
         )
     conn.commit()
 
@@ -367,6 +373,29 @@ class AuthService:
         revoke_all_user_tokens(self.conn, user_id)
 
         return {"status": "password_changed"}
+
+    def reset_password(self, user_id: int, new_password: str) -> Dict[str, Any]:
+        """Reset user password (admin function, no old password required)"""
+        self.cursor.execute("SELECT id, username FROM users WHERE id = ?", (user_id,))
+        row = self.cursor.fetchone()
+
+        if not row:
+            return {"error": "User not found"}
+
+        new_hash = hash_password(new_password)
+        self.cursor.execute(
+            """
+            UPDATE users SET password_hash = ?, updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+        """,
+            (new_hash, user_id),
+        )
+        self.conn.commit()
+
+        # Revoke all tokens (force re-login)
+        revoke_all_user_tokens(self.conn, user_id)
+
+        return {"status": "password_reset", "username": row[1]}
 
     def get_users(self, include_inactive: bool = False) -> list:
         """Get all users"""

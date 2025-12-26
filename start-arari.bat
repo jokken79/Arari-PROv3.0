@@ -57,12 +57,18 @@ REM Crear .env.local para frontend
 echo NEXT_PUBLIC_API_URL=http://localhost:!BACKEND_PORT!> "%~dp0arari-app\.env.local"
 echo NEXT_PUBLIC_API_PORT=!BACKEND_PORT!>> "%~dp0arari-app\.env.local"
 echo NEXT_PUBLIC_FRONTEND_PORT=!FRONTEND_PORT!>> "%~dp0arari-app\.env.local"
+echo NEXT_PUBLIC_ENABLE_AUTH=true>> "%~dp0arari-app\.env.local"
 echo  [OK] Frontend .env.local creado
 
 REM Crear .env para backend
 echo BACKEND_PORT=!BACKEND_PORT!> "%~dp0arari-app\api\.env"
 echo FRONTEND_PORT=!FRONTEND_PORT!>> "%~dp0arari-app\api\.env"
 echo FRONTEND_URL=http://localhost:!FRONTEND_PORT!>> "%~dp0arari-app\api\.env"
+echo.>> "%~dp0arari-app\api\.env"
+echo # Admin credentials (change in production!)>> "%~dp0arari-app\api\.env"
+echo ADMIN_USERNAME=admin>> "%~dp0arari-app\api\.env"
+echo ADMIN_PASSWORD=admin123>> "%~dp0arari-app\api\.env"
+echo ADMIN_EMAIL=admin@arari-pro.local>> "%~dp0arari-app\api\.env"
 echo  [OK] Backend .env creado
 
 REM Guardar puerto para restart

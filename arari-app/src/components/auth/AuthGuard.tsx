@@ -12,10 +12,16 @@ interface AuthGuardProps {
 // Routes that don't require authentication
 const PUBLIC_ROUTES = ['/login']
 
+// Normalize pathname by removing trailing slash
+const normalizePath = (path: string) => path.replace(/\/$/, '') || '/'
+
 export function AuthGuard({ children }: AuthGuardProps) {
   const { isAuthenticated, isLoading } = useAuth()
   const pathname = usePathname()
   const router = useRouter()
+
+  // Normalize pathname for comparison
+  const normalizedPathname = normalizePath(pathname)
 
   // Check if auth is enabled via environment variable
   const isAuthEnabled = process.env.NEXT_PUBLIC_ENABLE_AUTH === 'true'
@@ -27,7 +33,7 @@ export function AuthGuard({ children }: AuthGuardProps) {
     // Skip check if still loading or on public route
     if (isLoading) return
 
-    const isPublicRoute = PUBLIC_ROUTES.includes(pathname)
+    const isPublicRoute = PUBLIC_ROUTES.includes(normalizedPathname)
 
     // Redirect to login if not authenticated and trying to access protected route
     if (!isAuthenticated && !isPublicRoute) {
@@ -35,10 +41,10 @@ export function AuthGuard({ children }: AuthGuardProps) {
     }
 
     // Redirect to dashboard if authenticated and on login page
-    if (isAuthenticated && pathname === '/login') {
+    if (isAuthenticated && normalizedPathname === '/login') {
       router.push('/')
     }
-  }, [isAuthenticated, isLoading, pathname, router, isAuthEnabled])
+  }, [isAuthenticated, isLoading, normalizedPathname, router, isAuthEnabled])
 
   // If auth is disabled, render children directly
   if (!isAuthEnabled) {
@@ -58,7 +64,7 @@ export function AuthGuard({ children }: AuthGuardProps) {
   }
 
   // Don't render protected content if not authenticated (will redirect)
-  const isPublicRoute = PUBLIC_ROUTES.includes(pathname)
+  const isPublicRoute = PUBLIC_ROUTES.includes(normalizedPathname)
   if (!isAuthenticated && !isPublicRoute) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">

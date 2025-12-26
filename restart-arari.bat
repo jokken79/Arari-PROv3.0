@@ -9,6 +9,16 @@ echo       Arari PRO - Reinicio Rapido
 echo  ========================================
 echo.
 
+REM Primero detener servidores existentes
+echo  Deteniendo servidores anteriores...
+taskkill /F /IM node.exe >nul 2>&1
+taskkill /F /IM python.exe >nul 2>&1
+echo  [OK] Servidores detenidos
+echo.
+
+REM Esperar un momento
+ping -n 2 127.0.0.1 >nul
+
 REM Verificar si existe archivo de ultimo puerto
 if exist "%~dp0.last-port" (
     set /p LAST_PORT=<"%~dp0.last-port"
