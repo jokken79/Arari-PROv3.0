@@ -337,23 +337,34 @@ class AuthService:
 
         try:
             self.cursor.execute(
-                """
+                _q("""
                 INSERT INTO users (username, password_hash, role, full_name, email)
                 VALUES (?, ?, ?, ?, ?)
-            """,
+            """),
                 (username, password_hash, role, full_name, email),
             )
             self.conn.commit()
 
+            # Get the last inserted ID (different for SQLite vs PostgreSQL)
+            if USE_POSTGRES:
+                self.cursor.execute("SELECT lastval()")
+                last_id = self.cursor.fetchone()
+                user_id = last_id["lastval"] if isinstance(last_id, dict) else last_id[0]
+            else:
+                user_id = self.cursor.lastrowid
+
             return {
-                "id": self.cursor.lastrowid,
+                "id": user_id,
                 "username": username,
                 "role": role,
                 "full_name": full_name,
                 "email": email,
             }
-        except sqlite3.IntegrityError:
-            return {"error": "Username already exists"}
+        except Exception as e:
+            # Handle both SQLite and PostgreSQL unique constraint errors
+            if "UNIQUE" in str(e).upper() or "unique" in str(e).lower() or "duplicate" in str(e).lower():
+                return {"error": "Username already exists"}
+            raise
 
     def update_user(self, user_id: int, **kwargs) -> Dict[str, Any]:
         """Update user details"""
@@ -366,13 +377,15 @@ class AuthService:
         if "role" in updates and updates["role"] not in ROLES:
             return {"error": f"Invalid role. Valid roles: {list(ROLES.keys())}"}
 
-        set_clause = ", ".join(f"{k} = ?" for k in updates.keys())
+        # Build placeholder based on database type
+        ph = "%s" if USE_POSTGRES else "?"
+        set_clause = ", ".join(f"{k} = {ph}" for k in updates.keys())
         values = list(updates.values()) + [user_id]
 
         self.cursor.execute(
             f"""
             UPDATE users SET {set_clause}, updated_at = CURRENT_TIMESTAMP
-            WHERE id = ?
+            WHERE id = {ph}
         """,
             values,
         )
@@ -384,21 +397,23 @@ class AuthService:
         self, user_id: int, old_password: str, new_password: str
     ) -> Dict[str, Any]:
         """Change user password"""
-        self.cursor.execute("SELECT password_hash FROM users WHERE id = ?", (user_id,))
+        self.cursor.execute(_q("SELECT password_hash FROM users WHERE id = ?"), (user_id,))
         row = self.cursor.fetchone()
 
         if not row:
             return {"error": "User not found"}
 
-        if not verify_password(old_password, row[0]):
+        # Handle both dict (PostgreSQL) and tuple (SQLite)
+        current_hash = row["password_hash"] if isinstance(row, dict) else row[0]
+        if not verify_password(old_password, current_hash):
             return {"error": "Current password is incorrect"}
 
         new_hash = hash_password(new_password)
         self.cursor.execute(
-            """
+            _q("""
             UPDATE users SET password_hash = ?, updated_at = CURRENT_TIMESTAMP
             WHERE id = ?
-        """,
+        """),
             (new_hash, user_id),
         )
         self.conn.commit()
@@ -410,7 +425,7 @@ class AuthService:
 
     def reset_password(self, user_id: int, new_password: str) -> Dict[str, Any]:
         """Reset user password (admin function, no old password required)"""
-        self.cursor.execute("SELECT id, username FROM users WHERE id = ?", (user_id,))
+        self.cursor.execute(_q("SELECT id, username FROM users WHERE id = ?"), (user_id,))
         row = self.cursor.fetchone()
 
         if not row:
@@ -418,10 +433,10 @@ class AuthService:
 
         new_hash = hash_password(new_password)
         self.cursor.execute(
-            """
+            _q("""
             UPDATE users SET password_hash = ?, updated_at = CURRENT_TIMESTAMP
             WHERE id = ?
-        """,
+        """),
             (new_hash, user_id),
         )
         self.conn.commit()
@@ -429,7 +444,9 @@ class AuthService:
         # Revoke all tokens (force re-login)
         revoke_all_user_tokens(self.conn, user_id)
 
-        return {"status": "password_reset", "username": row[1]}
+        # Handle both dict (PostgreSQL) and tuple (SQLite)
+        username = row["username"] if isinstance(row, dict) else row[1]
+        return {"status": "password_reset", "username": username}
 
     def get_users(self, include_inactive: bool = False) -> list:
         """Get all users"""
@@ -442,19 +459,32 @@ class AuthService:
 
         self.cursor.execute(query)
 
-        return [
-            {
-                "id": row[0],
-                "username": row[1],
-                "role": row[2],
-                "full_name": row[3],
-                "email": row[4],
-                "is_active": bool(row[5]),
-                "last_login": row[6],
-                "created_at": row[7],
-            }
-            for row in self.cursor.fetchall()
-        ]
+        results = []
+        for row in self.cursor.fetchall():
+            # Handle both dict (PostgreSQL) and tuple (SQLite)
+            if isinstance(row, dict):
+                results.append({
+                    "id": row["id"],
+                    "username": row["username"],
+                    "role": row["role"],
+                    "full_name": row["full_name"],
+                    "email": row["email"],
+                    "is_active": bool(row["is_active"]),
+                    "last_login": row["last_login"],
+                    "created_at": row["created_at"],
+                })
+            else:
+                results.append({
+                    "id": row[0],
+                    "username": row[1],
+                    "role": row[2],
+                    "full_name": row[3],
+                    "email": row[4],
+                    "is_active": bool(row[5]),
+                    "last_login": row[6],
+                    "created_at": row[7],
+                })
+        return results
 
     def delete_user(self, user_id: int, hard_delete: bool = False) -> Dict[str, Any]:
         """Delete or deactivate user"""
@@ -464,25 +494,27 @@ class AuthService:
             SELECT COUNT(*) FROM users WHERE role = 'admin' AND is_active = 1
         """
         )
-        admin_count = self.cursor.fetchone()[0]
+        count_row = self.cursor.fetchone()
+        admin_count = count_row["count"] if isinstance(count_row, dict) else count_row[0]
 
-        self.cursor.execute("SELECT role FROM users WHERE id = ?", (user_id,))
+        self.cursor.execute(_q("SELECT role FROM users WHERE id = ?"), (user_id,))
         row = self.cursor.fetchone()
         if not row:
             return {"error": "User not found"}
 
-        if row[0] == "admin" and admin_count <= 1:
+        user_role = row["role"] if isinstance(row, dict) else row[0]
+        if user_role == "admin" and admin_count <= 1:
             return {"error": "Cannot delete the last admin user"}
 
         if hard_delete:
             revoke_all_user_tokens(self.conn, user_id)
-            self.cursor.execute("DELETE FROM users WHERE id = ?", (user_id,))
+            self.cursor.execute(_q("DELETE FROM users WHERE id = ?"), (user_id,))
         else:
             self.cursor.execute(
-                """
+                _q("""
                 UPDATE users SET is_active = 0, updated_at = CURRENT_TIMESTAMP
                 WHERE id = ?
-            """,
+            """),
                 (user_id,),
             )
             revoke_all_user_tokens(self.conn, user_id)
@@ -492,7 +524,7 @@ class AuthService:
 
 
 # FastAPI dependency for authentication
-def get_current_user(token: str, conn: sqlite3.Connection) -> Optional[Dict[str, Any]]:
+def get_current_user(token: str, conn) -> Optional[Dict[str, Any]]:
     """Get current user from token - use as FastAPI dependency"""
     if not token:
         return None
