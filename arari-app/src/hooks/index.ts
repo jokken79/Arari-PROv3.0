@@ -43,3 +43,6 @@ export {
   useIgnoredCompanies,
   useToggleCompany,
 } from './useSettings'
+
+// ユーティリティフック
+export { useFocusTrap } from './useFocusTrap'

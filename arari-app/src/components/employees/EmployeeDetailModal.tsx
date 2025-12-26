@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { formatYen, formatPercent, getProfitBgColor, comparePeriods } from '@/lib/utils'
 import { useAppStore } from '@/store/appStore'
+import { useFocusTrap } from '@/hooks'
 import type { Employee, PayrollRecord } from '@/types'
 
 interface EmployeeDetailModalProps {
@@ -20,6 +21,7 @@ export function EmployeeDetailModal({ employee, isOpen, onClose }: EmployeeDetai
   const { payrollRecords, useBackend, loadDataFromBackend } = useAppStore()
   const [employeeRecords, setEmployeeRecords] = useState<PayrollRecord[]>([])
   const [loading, setLoading] = useState(true)
+  const focusTrapRef = useFocusTrap(isOpen)
 
   useEffect(() => {
     if (isOpen && employee) {
@@ -49,6 +51,7 @@ export function EmployeeDetailModal({ employee, isOpen, onClose }: EmployeeDetai
     <AnimatePresence>
       {isOpen && (
         <div
+          ref={focusTrapRef}
           className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md overflow-hidden"
           role="dialog"
           aria-modal="true"

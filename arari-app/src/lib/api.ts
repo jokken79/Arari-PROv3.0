@@ -2,9 +2,11 @@
  * API client for 粗利 PRO backend
  */
 
-// Export API_BASE_URL for use in other files
-// This is the single source of truth for the backend API URL
-export const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000').trim()
+// Import centralized config
+import { API_BASE_URL as CONFIG_API_URL } from './config'
+
+// Export API_BASE_URL for backwards compatibility
+export const API_BASE_URL = CONFIG_API_URL
 
 interface ApiResponse<T> {
   data?: T

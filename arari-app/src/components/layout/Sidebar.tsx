@@ -116,9 +116,19 @@ interface ProfitStats {
 
 export function Sidebar({ isOpen = true, onClose }: SidebarProps) {
   const pathname = usePathname()
-  const [collapsed, setCollapsed] = useState(false)
+  const [collapsed, setCollapsed] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('sidebar-collapsed') === 'true'
+    }
+    return false
+  })
   const [profitStats, setProfitStats] = useState<ProfitStats | null>(null)
   const [isLoadingStats, setIsLoadingStats] = useState(true)
+
+  // Persist collapsed state to localStorage
+  useEffect(() => {
+    localStorage.setItem('sidebar-collapsed', String(collapsed))
+  }, [collapsed])
 
   useEffect(() => {
     const fetchProfitStats = async () => {

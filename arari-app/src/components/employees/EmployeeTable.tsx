@@ -1,16 +1,14 @@
 'use client'
 
-import { useState, useMemo } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { useState, useMemo, useRef } from 'react'
+import { useVirtualizer } from '@tanstack/react-virtual'
 import {
   Search,
   ChevronUp,
   ChevronDown,
-  MoreHorizontal,
   Eye,
   Edit,
   Trash2,
-  Filter,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -31,6 +29,8 @@ interface EmployeeTableProps {
 type SortField = 'employeeId' | 'name' | 'dispatchCompany' | 'hourlyRate' | 'billingRate' | 'profit' | 'margin'
 type SortDirection = 'asc' | 'desc'
 
+const ROW_HEIGHT = 60 // Fixed row height for virtualization
+
 export function EmployeeTable({
   employees,
   onView,
@@ -42,10 +42,12 @@ export function EmployeeTable({
   const [search, setSearch] = useState('')
   const [sortField, setSortField] = useState<SortField>(defaultSortField)
   const [sortDirection, setSortDirection] = useState<SortDirection>(defaultSortDirection)
-  const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set())
   const [employeeTypeFilter, setEmployeeTypeFilter] = useState<'haken' | 'ukeoi' | 'all'>('haken')
   const [showActiveOnly, setShowActiveOnly] = useState(true)
   const [selectedCompany, setSelectedCompany] = useState<string>('all')
+
+  // Ref for the scrollable container
+  const parentRef = useRef<HTMLDivElement>(null)
 
   const filteredAndSortedEmployees = useMemo(() => {
     let result = employees.filter(emp => {
@@ -128,6 +130,14 @@ export function EmployeeTable({
 
     return result
   }, [employees, search, sortField, sortDirection, employeeTypeFilter, showActiveOnly, selectedCompany])
+
+  // Setup virtualizer
+  const rowVirtualizer = useVirtualizer({
+    count: filteredAndSortedEmployees.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => ROW_HEIGHT,
+    overscan: 10, // Render 10 extra items above/below viewport
+  })
 
   // Get unique dispatch companies for haken employees
   const availableCompanies = useMemo(() => {
@@ -235,6 +245,7 @@ export function EmployeeTable({
 
       <CardContent>
         <div className="rounded-lg border overflow-hidden">
+          {/* Fixed Header */}
           <div className="overflow-x-auto">
             <table className="w-full" role="table" aria-label="従業員一覧">
               <thead>
@@ -258,97 +269,117 @@ export function EmployeeTable({
                   </th>
                 </tr>
               </thead>
-              <tbody>
-                <AnimatePresence>
-                  {filteredAndSortedEmployees.map((employee, index) => {
-                    const profit = employee.billingRate - employee.hourlyRate
-                    const margin = (profit / employee.billingRate) * 100
-
-                    return (
-                      <motion.tr
-                        key={employee.id}
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -10 }}
-                        transition={{ delay: index * 0.02 }}
-                        className="border-b last:border-0 hover:bg-muted/50 transition-colors cursor-pointer"
-                        onClick={() => onView?.(employee)}
-                      >
-                        <td className="px-4 py-3 text-sm font-mono">
-                          {employee.employeeId}
-                        </td>
-                        <td className="px-4 py-3">
-                          <div>
-                            <p className="text-sm font-medium">{employee.name}</p>
-                            <p className="text-xs text-muted-foreground">
-                              {employee.nameKana}
-                            </p>
-                          </div>
-                        </td>
-                        <td className="px-4 py-3 text-sm">{employee.dispatchCompany}</td>
-                        <td className="px-4 py-3 text-sm font-medium">
-                          {formatYen(employee.hourlyRate)}
-                        </td>
-                        <td className="px-4 py-3 text-sm font-medium">
-                          {formatYen(employee.billingRate)}
-                        </td>
-                        <td className="px-4 py-3">
-                          <span className="text-sm font-bold text-emerald-500">
-                            {formatYen(profit)}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3">
-                          <Badge className={getProfitBgColor(margin)}>
-                            {formatPercent(margin)}
-                          </Badge>
-                        </td>
-                        <td className="px-4 py-3 text-right">
-                          <div className="flex items-center justify-end gap-1">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                onView?.(employee)
-                              }}
-                              aria-label={`${employee.name}の詳細を表示`}
-                            >
-                              <Eye className="h-4 w-4" aria-hidden="true" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                onEdit?.(employee)
-                              }}
-                              aria-label={`${employee.name}を編集`}
-                            >
-                              <Edit className="h-4 w-4" aria-hidden="true" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8 text-destructive hover:text-destructive"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                onDelete?.(employee)
-                              }}
-                              aria-label={`${employee.name}を削除`}
-                            >
-                              <Trash2 className="h-4 w-4" aria-hidden="true" />
-                            </Button>
-                          </div>
-                        </td>
-                      </motion.tr>
-                    )
-                  })}
-                </AnimatePresence>
-              </tbody>
             </table>
           </div>
+
+          {/* Virtualized Body */}
+          <div
+            ref={parentRef}
+            className="overflow-auto"
+            style={{ height: Math.min(filteredAndSortedEmployees.length * ROW_HEIGHT, 600) }}
+          >
+            <div
+              style={{
+                height: `${rowVirtualizer.getTotalSize()}px`,
+                width: '100%',
+                position: 'relative',
+              }}
+            >
+              {rowVirtualizer.getVirtualItems().map((virtualRow) => {
+                const employee = filteredAndSortedEmployees[virtualRow.index]
+                const profit = employee.billingRate - employee.hourlyRate
+                const margin = (profit / employee.billingRate) * 100
+
+                return (
+                  <div
+                    key={employee.id}
+                    className="absolute top-0 left-0 w-full border-b last:border-0 hover:bg-muted/50 transition-colors cursor-pointer"
+                    style={{
+                      height: `${virtualRow.size}px`,
+                      transform: `translateY(${virtualRow.start}px)`,
+                    }}
+                    onClick={() => onView?.(employee)}
+                  >
+                    <div className="flex items-center h-full">
+                      <div className="w-28 px-4 text-sm font-mono">
+                        {employee.employeeId}
+                      </div>
+                      <div className="w-36 px-4">
+                        <p className="text-sm font-medium truncate">{employee.name}</p>
+                        <p className="text-xs text-muted-foreground truncate">
+                          {employee.nameKana}
+                        </p>
+                      </div>
+                      <div className="w-40 px-4 text-sm truncate">
+                        {employee.dispatchCompany}
+                      </div>
+                      <div className="w-28 px-4 text-sm font-medium">
+                        {formatYen(employee.hourlyRate)}
+                      </div>
+                      <div className="w-28 px-4 text-sm font-medium">
+                        {formatYen(employee.billingRate)}
+                      </div>
+                      <div className="w-28 px-4">
+                        <span className="text-sm font-bold text-emerald-500">
+                          {formatYen(profit)}
+                        </span>
+                      </div>
+                      <div className="w-32 px-4">
+                        <Badge className={getProfitBgColor(margin)}>
+                          {formatPercent(margin)}
+                        </Badge>
+                      </div>
+                      <div className="w-20 px-4 flex items-center justify-end gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            onView?.(employee)
+                          }}
+                          aria-label={`${employee.name}の詳細を表示`}
+                        >
+                          <Eye className="h-4 w-4" aria-hidden="true" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            onEdit?.(employee)
+                          }}
+                          aria-label={`${employee.name}を編集`}
+                        >
+                          <Edit className="h-4 w-4" aria-hidden="true" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-destructive hover:text-destructive"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            onDelete?.(employee)
+                          }}
+                          aria-label={`${employee.name}を削除`}
+                        >
+                          <Trash2 className="h-4 w-4" aria-hidden="true" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+
+          {/* Empty state */}
+          {filteredAndSortedEmployees.length === 0 && (
+            <div className="flex items-center justify-center py-12 text-muted-foreground">
+              {search ? `「${search}」に一致する従業員はいません` : '従業員がいません'}
+            </div>
+          )}
         </div>
       </CardContent>
     </Card>

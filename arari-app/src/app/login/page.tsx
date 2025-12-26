@@ -16,7 +16,7 @@
  * - POST /api/auth/register - Register new user (admin only)
  *
  * Default credentials (CHANGE IN PRODUCTION):
- * - Username: admin
+ * - Username: admin (lowercase)
  * - Password: admin123
  */
 
@@ -183,16 +183,15 @@ export default function LoginPage() {
               </Button>
             </form>
 
-            {/* Info Note */}
-            <div className="mt-6 p-3 rounded-lg bg-blue-50 dark:bg-blue-900/20 text-sm text-blue-700 dark:text-blue-300">
-              <p className="font-medium mb-1">デフォルト認証情報</p>
-              <p className="text-xs opacity-80">
-                ユーザー名: <strong>admin</strong> / パスワード: <strong>admin123</strong>
-              </p>
-              <p className="text-xs opacity-80 mt-1">
-                本番環境で使用する前にデフォルトパスワードを変更してください。
-              </p>
-            </div>
+            {/* Info Note - Only show in development */}
+            {process.env.NODE_ENV === 'development' && (
+              <div className="mt-6 p-3 rounded-lg bg-blue-50 dark:bg-blue-900/20 text-sm text-blue-700 dark:text-blue-300">
+                <p className="font-medium mb-1">デフォルト認証情報</p>
+                <p className="text-xs opacity-80">
+                  ユーザー名: <strong>admin</strong> / パスワード: <strong>admin123</strong>
+                </p>
+              </div>
+            )}
           </CardContent>
         </Card>
 

@@ -100,7 +100,7 @@ def init_auth_tables(conn: sqlite3.Connection):
     )
 
     # Create default admin user if not exists
-    cursor.execute("SELECT COUNT(*) FROM users WHERE username = 'Admin'")
+    cursor.execute("SELECT COUNT(*) FROM users WHERE LOWER(username) = 'admin'")
     if cursor.fetchone()[0] == 0:
         default_password = "admin123"
         password_hash = hash_password(default_password)  # Use bcrypt
@@ -109,11 +109,11 @@ def init_auth_tables(conn: sqlite3.Connection):
             INSERT INTO users (username, password_hash, full_name, role, email)
             VALUES (?, ?, ?, ?, ?)
         """,
-            ("Admin", password_hash, "Administrator", "admin", "admin@arari-pro.local"),
+            ("admin", password_hash, "Administrator", "admin", "admin@arari-pro.local"),
         )
         print(
-            f"[AUTH] Created default admin user (username: Admin, password: {default_password})"
-        )  # Changed to f-string
+            f"[AUTH] Created default admin user (username: admin, password: {default_password})"
+        )
     conn.commit()
 
 

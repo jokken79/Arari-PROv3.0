@@ -23,9 +23,9 @@ export function MarginGaugeChart({
   targetMargin = 15,
   previousMargin
 }: MarginGaugeChartProps) {
-  // Clamp margin between 0 and 15 for display
-  const displayMargin = Math.min(Math.max(currentMargin, 0), 15)
-  const marginPercent = (displayMargin / 15) * 100
+  // Clamp margin between 0 and 25 for display (target is 15%, max display 25%)
+  const displayMargin = Math.min(Math.max(currentMargin, 0), 25)
+  const marginPercent = (displayMargin / 25) * 100
 
   // Calculate gauge data
   const gaugeData = [
@@ -33,11 +33,12 @@ export function MarginGaugeChart({
     { name: 'remaining', value: 100 - marginPercent, color: 'remaining' }
   ]
 
-  // Determine color based on margin
+  // Determine color based on margin (製造派遣 target: 15%)
   const getMarginColor = (margin: number) => {
-    if (margin >= 10) return '#10b981' // emerald - excellent
-    if (margin >= 7) return '#22c55e' // green - target achieved
-    if (margin >= 3) return '#eab308' // yellow - improvement needed
+    if (margin >= 18) return '#10b981' // emerald - excellent
+    if (margin >= 15) return '#22c55e' // green - target achieved
+    if (margin >= 12) return '#eab308' // yellow - close to target
+    if (margin >= 10) return '#f97316' // orange - improvement needed
     return '#ef4444' // red - critical
   }
 
@@ -46,16 +47,18 @@ export function MarginGaugeChart({
   const marginChange = previousMargin !== undefined ? currentMargin - previousMargin : null
 
   // Background segments for better gauge visualization
-  // Scale is 0-15%, distribution based on ranges:
-  // 0-3%: 3 points / 15 = 20%
-  // 3-7%: 4 points / 15 = ~26.7%
-  // 7-10%: 3 points / 15 = 20%
-  // 10-15%: 5 points / 15 = ~33.3%
+  // Scale is 0-25%, distribution based on 製造派遣 ranges:
+  // 0-10%: 10 points / 25 = 40% (critical/improve)
+  // 10-12%: 2 points / 25 = 8% (orange)
+  // 12-15%: 3 points / 25 = 12% (warning)
+  // 15-18%: 3 points / 25 = 12% (target)
+  // 18-25%: 7 points / 25 = 28% (excellent)
   const backgroundSegments = [
-    { name: 'danger', value: 20, color: 'rgba(239, 68, 68, 0.1)' },       // 0-3%
-    { name: 'warning', value: 26.6, color: 'rgba(245, 158, 11, 0.1)' },   // 3-7%
-    { name: 'good', value: 20, color: 'rgba(34, 197, 94, 0.1)' },         // 7-10%
-    { name: 'excellent', value: 33.4, color: 'rgba(16, 185, 129, 0.1)' }, // 10-15%
+    { name: 'danger', value: 40, color: 'rgba(239, 68, 68, 0.1)' },       // 0-10%
+    { name: 'improve', value: 8, color: 'rgba(249, 115, 22, 0.1)' },      // 10-12%
+    { name: 'warning', value: 12, color: 'rgba(234, 179, 8, 0.1)' },      // 12-15%
+    { name: 'target', value: 12, color: 'rgba(34, 197, 94, 0.1)' },       // 15-18%
+    { name: 'excellent', value: 28, color: 'rgba(16, 185, 129, 0.1)' },   // 18-25%
   ]
 
   return (
@@ -118,9 +121,9 @@ export function MarginGaugeChart({
                 {/* Target indicator */}
                 <Pie
                   data={[
-                    { value: (targetMargin / 15) * 100 - 1 },
+                    { value: (targetMargin / 25) * 100 - 1 },
                     { value: 2 },
-                    { value: 100 - (targetMargin / 15) * 100 - 1 }
+                    { value: 100 - (targetMargin / 25) * 100 - 1 }
                   ]}
                   cx="50%"
                   cy="70%"
@@ -177,23 +180,27 @@ export function MarginGaugeChart({
             </div>
           </div>
 
-          {/* Legend - Updated ranges */}
-          <div className="flex justify-center gap-4 mt-4 text-xs">
+          {/* Legend - 製造派遣 ranges (target 15%) */}
+          <div className="flex flex-wrap justify-center gap-3 mt-4 text-xs">
             <div className="flex items-center gap-1">
               <div className="w-2 h-2 rounded-full bg-red-500" />
-              <span className="text-muted-foreground">&lt;3%</span>
+              <span className="text-muted-foreground">&lt;10%</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <div className="w-2 h-2 rounded-full bg-orange-500" />
+              <span className="text-muted-foreground">10-12%</span>
             </div>
             <div className="flex items-center gap-1">
               <div className="w-2 h-2 rounded-full bg-amber-500" />
-              <span className="text-muted-foreground">3-7%</span>
+              <span className="text-muted-foreground">12-15%</span>
             </div>
             <div className="flex items-center gap-1">
               <div className="w-2 h-2 rounded-full bg-green-500" />
-              <span className="text-muted-foreground">7-10%</span>
+              <span className="text-muted-foreground">15-18%</span>
             </div>
             <div className="flex items-center gap-1">
               <div className="w-2 h-2 rounded-full bg-emerald-500" />
-              <span className="text-muted-foreground">&gt;10%</span>
+              <span className="text-muted-foreground">&gt;18%</span>
             </div>
           </div>
 

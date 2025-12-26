@@ -261,7 +261,7 @@ app = FastAPI(
 # CORS middleware - Allow dynamic localhost ports for development flexibility
 app.add_middleware(
     CORSMiddleware,
-    allow_origin_regex=r"http://(localhost|127\.0\.0\.1)(:\d+)?",
+    allow_origin_regex=r"http://(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+)(:\d+)?",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -433,12 +433,11 @@ async def sync_employees(
 @app.post("/api/import-employees")
 async def import_employees(
     file: UploadFile = File(...),
-    db: sqlite3.Connection = Depends(get_db),
-    current_user: Dict[str, Any] = Depends(require_auth)
+    db: sqlite3.Connection = Depends(get_db)
 ):
     """
     Dedicated endpoint for importing employees from Excel (DBGenzaiX format).
-    Used by EmployeeUploader.tsx (requires authentication)
+    Used by EmployeeUploader.tsx
     """
     allowed_extensions = ['.xlsx', '.xlsm', '.xls']
     file_ext = '.' + file.filename.split('.')[-1].lower() if '.' in file.filename else ''
@@ -516,10 +515,9 @@ async def import_employees(
 @app.post("/api/upload")
 async def upload_payroll_file(
     file: UploadFile = File(...),
-    db: sqlite3.Connection = Depends(get_db),
-    current_user: Dict[str, Any] = Depends(require_auth)
+    db: sqlite3.Connection = Depends(get_db)
 ):
-    """Upload and parse a payroll file (Excel or CSV) with Streaming Log (requires authentication)"""
+    """Upload and parse a payroll file (Excel or CSV) with Streaming Log"""
     from fastapi.concurrency import run_in_threadpool
 
     async def log_generator():
