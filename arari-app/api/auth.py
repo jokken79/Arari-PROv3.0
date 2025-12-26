@@ -1,6 +1,7 @@
 """
 AuthAgent - Authentication & Authorization System
 JWT-based authentication with role-based access control
+Supports both SQLite (local) and PostgreSQL (Railway production)
 """
 
 import os
@@ -12,8 +13,16 @@ from typing import Any, Dict, Optional
 
 import bcrypt
 from dotenv import load_dotenv
+from database import USE_POSTGRES
 
 load_dotenv()
+
+
+def _q(query: str) -> str:
+    """Convert SQLite query to PostgreSQL if needed (? -> %s)"""
+    if USE_POSTGRES:
+        return query.replace("?", "%s")
+    return query
 
 # JWT-like token management (simple implementation without external deps)
 # In production, use python-jose or PyJWT
@@ -52,15 +61,20 @@ ROLE_PERMISSIONS = {
 }
 
 
-def init_auth_tables(conn: sqlite3.Connection):
-    """Initialize authentication tables"""
+def init_auth_tables(conn):
+    """Initialize authentication tables (SQLite or PostgreSQL)"""
     cursor = conn.cursor()
 
+    # SQL type mappings for cross-database compatibility
+    if USE_POSTGRES:
+        PK_TYPE = "SERIAL PRIMARY KEY"
+    else:
+        PK_TYPE = "INTEGER PRIMARY KEY AUTOINCREMENT"
+
     # Users table
-    cursor.execute(
-        """
+    users_sql = f"""
         CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id {PK_TYPE},
             username TEXT UNIQUE NOT NULL,
             password_hash TEXT NOT NULL,
             email TEXT,
@@ -72,13 +86,12 @@ def init_auth_tables(conn: sqlite3.Connection):
             updated_at TEXT DEFAULT CURRENT_TIMESTAMP
         )
     """
-    )
+    cursor.execute(users_sql)
 
     # Sessions/Tokens table
-    cursor.execute(
-        """
+    tokens_sql = f"""
         CREATE TABLE IF NOT EXISTS auth_tokens (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id {PK_TYPE},
             user_id INTEGER NOT NULL,
             token TEXT UNIQUE NOT NULL,
             expires_at TEXT NOT NULL,
@@ -86,7 +99,7 @@ def init_auth_tables(conn: sqlite3.Connection):
             FOREIGN KEY (user_id) REFERENCES users(id)
         )
     """
-    )
+    cursor.execute(tokens_sql)
 
     # Create indexes
     cursor.execute(
@@ -111,10 +124,10 @@ def init_auth_tables(conn: sqlite3.Connection):
         admin_email = os.environ.get("ADMIN_EMAIL", "admin@arari-pro.local")
         password_hash = hash_password(admin_password)  # Use bcrypt
         cursor.execute(
-            """
+            _q("""
             INSERT INTO users (username, password_hash, full_name, role, email)
             VALUES (?, ?, ?, ?, ?)
-        """,
+        """),
             (admin_username, password_hash, "Administrator", "admin", admin_email),
         )
         print(
@@ -139,17 +152,17 @@ def generate_token() -> str:
     return secrets.token_urlsafe(32)
 
 
-def create_token(conn: sqlite3.Connection, user_id: int) -> Dict[str, Any]:
+def create_token(conn, user_id: int) -> Dict[str, Any]:
     """Create new authentication token"""
     token = generate_token()
     expires_at = datetime.now() + timedelta(hours=TOKEN_EXPIRE_HOURS)
 
     cursor = conn.cursor()
     cursor.execute(
-        """
+        _q("""
         INSERT INTO auth_tokens (user_id, token, expires_at)
         VALUES (?, ?, ?)
-    """,
+    """),
         (user_id, token, expires_at.isoformat()),
     )
     conn.commit()
@@ -161,16 +174,16 @@ def create_token(conn: sqlite3.Connection, user_id: int) -> Dict[str, Any]:
     }
 
 
-def validate_token(conn: sqlite3.Connection, token: str) -> Optional[Dict[str, Any]]:
+def validate_token(conn, token: str) -> Optional[Dict[str, Any]]:
     """Validate token and return user info if valid"""
     cursor = conn.cursor()
     cursor.execute(
-        """
+        _q("""
         SELECT u.id, u.username, u.role, u.full_name, u.email, t.expires_at
         FROM auth_tokens t
         JOIN users u ON t.user_id = u.id
         WHERE t.token = ? AND u.is_active = 1
-    """,
+    """),
         (token,),
     )
 
@@ -178,14 +191,25 @@ def validate_token(conn: sqlite3.Connection, token: str) -> Optional[Dict[str, A
     if not row:
         return None
 
-    # Check expiration
-    expires_at = datetime.fromisoformat(row[5])
+    # Check expiration - handle both dict (PostgreSQL) and tuple (SQLite)
+    expires_at_val = row["expires_at"] if isinstance(row, dict) else row[5]
+    expires_at = datetime.fromisoformat(expires_at_val)
     if datetime.now() > expires_at:
         # Token expired, delete it
-        cursor.execute("DELETE FROM auth_tokens WHERE token = ?", (token,))
+        cursor.execute(_q("DELETE FROM auth_tokens WHERE token = ?"), (token,))
         conn.commit()
         return None
 
+    # Return dict - handle both PostgreSQL RealDictCursor and SQLite Row
+    if isinstance(row, dict):
+        return {
+            "user_id": row["id"],
+            "username": row["username"],
+            "role": row["role"],
+            "full_name": row["full_name"],
+            "email": row["email"],
+            "expires_at": row["expires_at"],
+        }
     return {
         "user_id": row[0],
         "username": row[1],
@@ -196,18 +220,18 @@ def validate_token(conn: sqlite3.Connection, token: str) -> Optional[Dict[str, A
     }
 
 
-def revoke_token(conn: sqlite3.Connection, token: str) -> bool:
+def revoke_token(conn, token: str) -> bool:
     """Revoke/delete a token (logout)"""
     cursor = conn.cursor()
-    cursor.execute("DELETE FROM auth_tokens WHERE token = ?", (token,))
+    cursor.execute(_q("DELETE FROM auth_tokens WHERE token = ?"), (token,))
     conn.commit()
     return cursor.rowcount > 0
 
 
-def revoke_all_user_tokens(conn: sqlite3.Connection, user_id: int) -> int:
+def revoke_all_user_tokens(conn, user_id: int) -> int:
     """Revoke all tokens for a user"""
     cursor = conn.cursor()
-    cursor.execute("DELETE FROM auth_tokens WHERE user_id = ?", (user_id,))
+    cursor.execute(_q("DELETE FROM auth_tokens WHERE user_id = ?"), (user_id,))
     conn.commit()
     return cursor.rowcount
 
@@ -234,17 +258,17 @@ def check_role_level(user_role: str, required_role: str) -> bool:
 class AuthService:
     """Authentication service for user management"""
 
-    def __init__(self, conn: sqlite3.Connection):
+    def __init__(self, conn):
         self.conn = conn
         self.cursor = conn.cursor()
 
     def login(self, username: str, password: str) -> Optional[Dict[str, Any]]:
         """Authenticate user and return token"""
         self.cursor.execute(
-            """
+            _q("""
             SELECT id, username, password_hash, role, full_name, email, is_active
             FROM users WHERE username = ?
-        """,
+        """),
             (username,),
         )
 
@@ -252,7 +276,17 @@ class AuthService:
         if not row:
             return None
 
-        user_id, username, password_hash, role, full_name, email, is_active = row
+        # Handle both dict (PostgreSQL) and tuple/Row (SQLite)
+        if isinstance(row, dict):
+            user_id = row["id"]
+            username = row["username"]
+            password_hash = row["password_hash"]
+            role = row["role"]
+            full_name = row["full_name"]
+            email = row["email"]
+            is_active = row["is_active"]
+        else:
+            user_id, username, password_hash, role, full_name, email, is_active = row
 
         if not is_active:
             return {"error": "User account is disabled"}
@@ -262,9 +296,9 @@ class AuthService:
 
         # Update last login
         self.cursor.execute(
-            """
+            _q("""
             UPDATE users SET last_login = ? WHERE id = ?
-        """,
+        """),
             (datetime.now().isoformat(), user_id),
         )
         self.conn.commit()

@@ -1,5 +1,6 @@
 """
 Business logic services for 粗利 PRO
+Supports both SQLite (local) and PostgreSQL (Railway production)
 """
 
 import csv
@@ -8,21 +9,31 @@ import sqlite3
 from typing import Any, Dict, List, Optional
 
 from models import EmployeeCreate, PayrollRecordCreate
+from database import USE_POSTGRES
+
+
+def _q(query: str) -> str:
+    """Convert SQLite query to PostgreSQL if needed (? -> %s)"""
+    if USE_POSTGRES:
+        return query.replace("?", "%s")
+    return query
 
 
 class PayrollService:
     """Service class for payroll and employee operations"""
 
-    def __init__(self, db: sqlite3.Connection):
+    def __init__(self, db):
         self.db = db
-        self.db.row_factory = sqlite3.Row
+        # Set row factory for SQLite (PostgreSQL uses RealDictCursor)
+        if not USE_POSTGRES and hasattr(db, 'row_factory'):
+            self.db.row_factory = sqlite3.Row
 
     # ============== Settings Operations ==============
 
     def get_setting(self, key: str, default: str = None) -> Optional[str]:
         """Get a single setting value by key"""
         cursor = self.db.cursor()
-        cursor.execute("SELECT value FROM settings WHERE key = ?", (key,))
+        cursor.execute(_q("SELECT value FROM settings WHERE key = ?"), (key,))
         row = cursor.fetchone()
         return row["value"] if row else default
 
@@ -37,25 +48,25 @@ class PayrollService:
         cursor = self.db.cursor()
         if description:
             cursor.execute(
-                """
+                _q("""
                 INSERT INTO settings (key, value, description, updated_at)
                 VALUES (?, ?, ?, CURRENT_TIMESTAMP)
                 ON CONFLICT(key) DO UPDATE SET
                     value = excluded.value,
                     description = excluded.description,
                     updated_at = CURRENT_TIMESTAMP
-            """,
+            """),
                 (key, value, description),
             )
         else:
             cursor.execute(
-                """
+                _q("""
                 INSERT INTO settings (key, value, updated_at)
                 VALUES (?, ?, CURRENT_TIMESTAMP)
                 ON CONFLICT(key) DO UPDATE SET
                     value = excluded.value,
                     updated_at = CURRENT_TIMESTAMP
-            """,
+            """),
                 (key, value),
             )
         self.db.commit()
@@ -108,6 +119,9 @@ class PayrollService:
         """Get all employees with optional filtering by search, company, and employee_type"""
         cursor = self.db.cursor()
 
+        # Use placeholder based on database type
+        ph = "%s" if USE_POSTGRES else "?"
+
         query = """
             SELECT e.*,
                    (e.billing_rate - e.hourly_rate) as profit_per_hour,
@@ -120,18 +134,16 @@ class PayrollService:
         params = []
 
         if search:
-            query += (
-                " AND (e.employee_id LIKE ? OR e.name LIKE ? OR e.name_kana LIKE ?)"
-            )
+            query += f" AND (e.employee_id LIKE {ph} OR e.name LIKE {ph} OR e.name_kana LIKE {ph})"
             search_param = f"%{search}%"
             params.extend([search_param, search_param, search_param])
 
         if company:
-            query += " AND e.dispatch_company = ?"
+            query += f" AND e.dispatch_company = {ph}"
             params.append(company)
 
         if employee_type:
-            query += " AND e.employee_type = ?"
+            query += f" AND e.employee_type = {ph}"
             params.append(employee_type)
 
         query += " ORDER BY e.employee_id"
@@ -143,7 +155,7 @@ class PayrollService:
         """Get a single employee by ID"""
         cursor = self.db.cursor()
         cursor.execute(
-            """
+            _q("""
             SELECT e.*,
                    (e.billing_rate - e.hourly_rate) as profit_per_hour,
                    CASE WHEN e.billing_rate > 0
@@ -151,7 +163,7 @@ class PayrollService:
                         ELSE 0 END as margin_rate
             FROM employees e
             WHERE e.employee_id = ?
-        """,
+        """),
             (employee_id,),
         )
         row = cursor.fetchone()
@@ -161,12 +173,12 @@ class PayrollService:
         """Create a new employee"""
         cursor = self.db.cursor()
         cursor.execute(
-            """
+            _q("""
             INSERT INTO employees (employee_id, name, name_kana, dispatch_company, department,
                                    hourly_rate, billing_rate, status, hire_date,
                                    employee_type, gender, birth_date, termination_date)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """,
+        """),
             (
                 employee.employee_id,
                 employee.name,
@@ -192,14 +204,14 @@ class PayrollService:
         """Update an existing employee"""
         cursor = self.db.cursor()
         cursor.execute(
-            """
+            _q("""
             UPDATE employees
             SET name = ?, name_kana = ?, dispatch_company = ?, department = ?,
                 hourly_rate = ?, billing_rate = ?, status = ?, hire_date = ?,
                 employee_type = ?, gender = ?, birth_date = ?, termination_date = ?,
                 updated_at = CURRENT_TIMESTAMP
             WHERE employee_id = ?
-        """,
+        """),
             (
                 employee.name,
                 employee.name_kana,
@@ -222,7 +234,7 @@ class PayrollService:
     def delete_employee(self, employee_id: str) -> bool:
         """Delete an employee"""
         cursor = self.db.cursor()
-        cursor.execute("DELETE FROM employees WHERE employee_id = ?", (employee_id,))
+        cursor.execute(_q("DELETE FROM employees WHERE employee_id = ?"), (employee_id,))
         self.db.commit()
         return cursor.rowcount > 0
 
@@ -234,6 +246,9 @@ class PayrollService:
         """Get payroll records with optional filtering"""
         cursor = self.db.cursor()
 
+        # Use placeholder based on database type
+        ph = "%s" if USE_POSTGRES else "?"
+
         query = """
             SELECT p.*, e.name as employee_name, e.dispatch_company
             FROM payroll_records p
@@ -243,11 +258,11 @@ class PayrollService:
         params = []
 
         if period:
-            query += " AND p.period = ?"
+            query += f" AND p.period = {ph}"
             params.append(period)
 
         if employee_id:
-            query += " AND p.employee_id = ?"
+            query += f" AND p.employee_id = {ph}"
             params.append(employee_id)
 
         query += " ORDER BY p.period DESC, p.employee_id"
@@ -464,75 +479,136 @@ class PayrollService:
         # Get non_billable_allowances from record
         non_billable_allowances = getattr(record, "non_billable_allowances", 0) or 0
 
-        # Use INSERT OR REPLACE to handle updates for same employee+period
-        cursor.execute(
-            """
-            INSERT OR REPLACE INTO payroll_records (
-                employee_id, period, work_days, work_hours, overtime_hours,
-                night_hours, holiday_hours, overtime_over_60h,
-                paid_leave_hours, paid_leave_days, paid_leave_amount,
-                base_salary, overtime_pay, night_pay, holiday_pay, overtime_over_60h_pay,
-                transport_allowance, other_allowances, non_billable_allowances, gross_salary,
-                social_insurance, welfare_pension, employment_insurance, income_tax, resident_tax,
-                rent_deduction, utilities_deduction, meal_deduction, advance_payment, year_end_adjustment,
-                other_deductions, net_salary, billing_amount, company_social_insurance,
-                company_employment_insurance, company_workers_comp, total_company_cost, gross_profit, profit_margin
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """,
-            (
-                record.employee_id,
-                record.period,
-                record.work_days,
-                record.work_hours,
-                record.overtime_hours,
-                night_hours,
-                holiday_hours,
-                overtime_over_60h,
-                record.paid_leave_hours,
-                record.paid_leave_days,
-                paid_leave_amount,
-                record.base_salary,
-                record.overtime_pay,
-                night_pay,
-                holiday_pay,
-                overtime_over_60h_pay,
-                record.transport_allowance,
-                record.other_allowances,
-                non_billable_allowances,
-                record.gross_salary,
-                record.social_insurance,
-                welfare_pension,
-                record.employment_insurance,
-                record.income_tax,
-                record.resident_tax,
-                record.rent_deduction,
-                record.utilities_deduction,
-                record.meal_deduction,
-                record.advance_payment,
-                record.year_end_adjustment,
-                record.other_deductions,
-                record.net_salary,
-                billing_amount,
-                company_social_insurance,
-                company_employment_insurance,
-                company_workers_comp,
-                total_company_cost,
-                gross_profit,
-                profit_margin,
-            ),
+        # Build the values tuple for the INSERT
+        values = (
+            record.employee_id,
+            record.period,
+            record.work_days,
+            record.work_hours,
+            record.overtime_hours,
+            night_hours,
+            holiday_hours,
+            overtime_over_60h,
+            record.paid_leave_hours,
+            record.paid_leave_days,
+            paid_leave_amount,
+            record.base_salary,
+            record.overtime_pay,
+            night_pay,
+            holiday_pay,
+            overtime_over_60h_pay,
+            record.transport_allowance,
+            record.other_allowances,
+            non_billable_allowances,
+            record.gross_salary,
+            record.social_insurance,
+            welfare_pension,
+            record.employment_insurance,
+            record.income_tax,
+            record.resident_tax,
+            record.rent_deduction,
+            record.utilities_deduction,
+            record.meal_deduction,
+            record.advance_payment,
+            record.year_end_adjustment,
+            record.other_deductions,
+            record.net_salary,
+            billing_amount,
+            company_social_insurance,
+            company_employment_insurance,
+            company_workers_comp,
+            total_company_cost,
+            gross_profit,
+            profit_margin,
         )
+
+        # Use UPSERT pattern - compatible with both SQLite and PostgreSQL
+        if USE_POSTGRES:
+            # PostgreSQL: INSERT ... ON CONFLICT DO UPDATE
+            cursor.execute(
+                """
+                INSERT INTO payroll_records (
+                    employee_id, period, work_days, work_hours, overtime_hours,
+                    night_hours, holiday_hours, overtime_over_60h,
+                    paid_leave_hours, paid_leave_days, paid_leave_amount,
+                    base_salary, overtime_pay, night_pay, holiday_pay, overtime_over_60h_pay,
+                    transport_allowance, other_allowances, non_billable_allowances, gross_salary,
+                    social_insurance, welfare_pension, employment_insurance, income_tax, resident_tax,
+                    rent_deduction, utilities_deduction, meal_deduction, advance_payment, year_end_adjustment,
+                    other_deductions, net_salary, billing_amount, company_social_insurance,
+                    company_employment_insurance, company_workers_comp, total_company_cost, gross_profit, profit_margin
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                ON CONFLICT (employee_id, period) DO UPDATE SET
+                    work_days = EXCLUDED.work_days,
+                    work_hours = EXCLUDED.work_hours,
+                    overtime_hours = EXCLUDED.overtime_hours,
+                    night_hours = EXCLUDED.night_hours,
+                    holiday_hours = EXCLUDED.holiday_hours,
+                    overtime_over_60h = EXCLUDED.overtime_over_60h,
+                    paid_leave_hours = EXCLUDED.paid_leave_hours,
+                    paid_leave_days = EXCLUDED.paid_leave_days,
+                    paid_leave_amount = EXCLUDED.paid_leave_amount,
+                    base_salary = EXCLUDED.base_salary,
+                    overtime_pay = EXCLUDED.overtime_pay,
+                    night_pay = EXCLUDED.night_pay,
+                    holiday_pay = EXCLUDED.holiday_pay,
+                    overtime_over_60h_pay = EXCLUDED.overtime_over_60h_pay,
+                    transport_allowance = EXCLUDED.transport_allowance,
+                    other_allowances = EXCLUDED.other_allowances,
+                    non_billable_allowances = EXCLUDED.non_billable_allowances,
+                    gross_salary = EXCLUDED.gross_salary,
+                    social_insurance = EXCLUDED.social_insurance,
+                    welfare_pension = EXCLUDED.welfare_pension,
+                    employment_insurance = EXCLUDED.employment_insurance,
+                    income_tax = EXCLUDED.income_tax,
+                    resident_tax = EXCLUDED.resident_tax,
+                    rent_deduction = EXCLUDED.rent_deduction,
+                    utilities_deduction = EXCLUDED.utilities_deduction,
+                    meal_deduction = EXCLUDED.meal_deduction,
+                    advance_payment = EXCLUDED.advance_payment,
+                    year_end_adjustment = EXCLUDED.year_end_adjustment,
+                    other_deductions = EXCLUDED.other_deductions,
+                    net_salary = EXCLUDED.net_salary,
+                    billing_amount = EXCLUDED.billing_amount,
+                    company_social_insurance = EXCLUDED.company_social_insurance,
+                    company_employment_insurance = EXCLUDED.company_employment_insurance,
+                    company_workers_comp = EXCLUDED.company_workers_comp,
+                    total_company_cost = EXCLUDED.total_company_cost,
+                    gross_profit = EXCLUDED.gross_profit,
+                    profit_margin = EXCLUDED.profit_margin
+            """,
+                values,
+            )
+        else:
+            # SQLite: INSERT OR REPLACE
+            cursor.execute(
+                """
+                INSERT OR REPLACE INTO payroll_records (
+                    employee_id, period, work_days, work_hours, overtime_hours,
+                    night_hours, holiday_hours, overtime_over_60h,
+                    paid_leave_hours, paid_leave_days, paid_leave_amount,
+                    base_salary, overtime_pay, night_pay, holiday_pay, overtime_over_60h_pay,
+                    transport_allowance, other_allowances, non_billable_allowances, gross_salary,
+                    social_insurance, welfare_pension, employment_insurance, income_tax, resident_tax,
+                    rent_deduction, utilities_deduction, meal_deduction, advance_payment, year_end_adjustment,
+                    other_deductions, net_salary, billing_amount, company_social_insurance,
+                    company_employment_insurance, company_workers_comp, total_company_cost, gross_profit, profit_margin
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+                values,
+            )
 
         # NOTE: Commit is handled by the calling endpoint to allow transactions
         # self.db.commit()  # Removed - caller must commit
 
         # Return the created record as a dictionary
         cursor.execute(
-            """
+            _q("""
             SELECT p.*, e.name as employee_name, e.dispatch_company
             FROM payroll_records p
             LEFT JOIN employees e ON p.employee_id = e.employee_id
             WHERE p.employee_id = ? AND p.period = ?
-        """,
+        """),
             (record.employee_id, record.period),
         )
 
