@@ -257,10 +257,24 @@ app = FastAPI(
 )
 
 # CORS middleware for React frontend
-# Allow all frontend instances (ports 4000-4009 for multi-instance setup)
-# CORS middleware - Allow dynamic localhost ports for development flexibility
+# Allow dynamic localhost ports for development + production FRONTEND_URL
+FRONTEND_URL = os.environ.get("FRONTEND_URL", "")
+cors_origins = []
+
+# Add production frontend URL if configured
+if FRONTEND_URL:
+    cors_origins.append(FRONTEND_URL)
+    # Also allow without trailing slash
+    if FRONTEND_URL.endswith("/"):
+        cors_origins.append(FRONTEND_URL.rstrip("/"))
+    else:
+        cors_origins.append(FRONTEND_URL + "/")
+    logging.info(f"[CORS] Production frontend URL: {FRONTEND_URL}")
+
+# For development, allow localhost patterns
 app.add_middleware(
     CORSMiddleware,
+    allow_origins=cors_origins if cors_origins else [],
     allow_origin_regex=r"http://(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+)(:\d+)?",
     allow_credentials=True,
     allow_methods=["*"],
