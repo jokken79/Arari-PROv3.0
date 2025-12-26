@@ -271,11 +271,12 @@ if FRONTEND_URL:
         cors_origins.append(FRONTEND_URL + "/")
     logging.info(f"[CORS] Production frontend URL: {FRONTEND_URL}")
 
-# For development, allow localhost patterns
+# For development and Vercel preview deployments
+# Regex allows: localhost, LAN IPs, and all *.vercel.app domains
 app.add_middleware(
     CORSMiddleware,
     allow_origins=cors_origins if cors_origins else [],
-    allow_origin_regex=r"http://(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+)(:\d+)?",
+    allow_origin_regex=r"(http://(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+)(:\d+)?|https://[a-z0-9-]+\.vercel\.app)",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
