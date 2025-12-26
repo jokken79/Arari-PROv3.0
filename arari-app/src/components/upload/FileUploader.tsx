@@ -98,119 +98,138 @@ export function FileUploader() {
     setFiles(prev => prev.map(f => f.id === fileInfo.id ? { ...f, status: 'uploading', progress: 0 } : f))
     addLog({ type: 'info', message: `Starting upload for: ${fileInfo.name}` })
 
-    try {
-      const formData = new FormData()
-      formData.append('file', fileInfo.file)
+    // Retry logic for unreliable connections (especially mobile)
+    const maxRetries = 2
+    let lastError: Error | null = null
 
-      // Add abort controller for timeout handling
-      const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 300000) // 5 minute timeout
-
-      const response = await fetch(`${API_BASE_URL}/api/upload`, {
-        method: 'POST',
-        body: formData,
-        signal: controller.signal,
-        cache: 'no-store',
-        keepalive: false, // Don't keep connection alive between requests
-      })
-
-      clearTimeout(timeoutId)
-
-      if (!response.ok) {
-        throw new Error(`Upload failed: ${response.statusText}`)
-      }
-
-      const reader = response.body?.getReader()
-      if (!reader) throw new Error('ReadableStream not supported')
-
-      const decoder = new TextDecoder()
-      let buffer = ''
-      let finalStats: any = null
-
-      while (true) {
-        const { value, done } = await reader.read()
-        if (done) break
-
-        const chunk = decoder.decode(value, { stream: true })
-        buffer += chunk
-        const lines = buffer.split('\n')
-
-        for (let i = 0; i < lines.length - 1; i++) {
-          const line = lines[i].trim()
-          if (!line) continue
-
-          try {
-            const data = JSON.parse(line)
-
-            // Add to global logs
-            addLog({
-              type: data.type,
-              message: data.message,
-              current: data.current,
-              total: data.total
-            })
-
-            // Update file progress if available
-            if (data.type === 'progress' && data.current && data.total) {
-              const percentage = Math.round((data.current / data.total) * 100)
-              setFiles(prev => prev.map(f =>
-                f.id === fileInfo.id ? { ...f, status: 'processing', progress: percentage } : f
-              ))
-            }
-
-            if (data.type === 'success' && data.stats) {
-              finalStats = data.stats
-            }
-
-            // Handle "detected type" info for better UX?
-            // (Optional: Update UI to show "Types: Payroll" etc)
-
-          } catch (e) {
-            console.error('JSON Parse Error', line)
-          }
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        if (attempt > 0) {
+          addLog({ type: 'info', message: `Retrying upload (attempt ${attempt + 1}/${maxRetries + 1})...` })
+          setFiles(prev => prev.map(f => f.id === fileInfo.id ? { ...f, status: 'uploading', progress: 0 } : f))
+          await new Promise(resolve => setTimeout(resolve, 2000)) // Wait 2s before retry
         }
-        buffer = lines[lines.length - 1]
-      }
 
-      // Finalize file status
-      setFiles(prev => prev.map(f =>
-        f.id === fileInfo.id
-          ? {
-            ...f,
-            status: 'success',
-            progress: 100,
-            records: finalStats?.saved || finalStats?.imported || 0,
-            skipped: finalStats?.skipped || 0,
-            errorCount: finalStats?.errors || 0,
-          }
-          : f
-      ))
+        const formData = new FormData()
+        formData.append('file', fileInfo.file)
 
-      await refreshFromBackend()
+        // Add abort controller for timeout handling
+        const controller = new AbortController()
+        const timeoutId = setTimeout(() => controller.abort(), 300000) // 5 minute timeout
 
-    } catch (err) {
-      let errMsg = 'Unknown error'
-      if (err instanceof Error) {
-        if (err.name === 'AbortError') {
-          errMsg = 'Upload timed out (5 min limit)'
-        } else if (err.message === 'Load failed' || err.message === 'Failed to fetch') {
-          errMsg = 'Connection error - please check your network and try again'
-        } else {
-          errMsg = err.message
+        const response = await fetch(`${API_BASE_URL}/api/upload`, {
+          method: 'POST',
+          body: formData,
+          signal: controller.signal,
+        })
+
+        clearTimeout(timeoutId)
+
+        if (!response.ok) {
+          throw new Error(`Upload failed: ${response.statusText}`)
         }
-      }
-      addLog({ type: 'error', message: `Error uploading ${fileInfo.name}: ${errMsg}` })
 
-      setFiles(prev => prev.map(f =>
-        f.id === fileInfo.id
-          ? {
-            ...f,
-            status: 'error',
-            progress: 100,
-            error: errMsg,
+        const reader = response.body?.getReader()
+        if (!reader) throw new Error('ReadableStream not supported')
+
+        const decoder = new TextDecoder()
+        let buffer = ''
+        let finalStats: any = null
+
+        while (true) {
+          const { value, done } = await reader.read()
+          if (done) break
+
+          const chunk = decoder.decode(value, { stream: true })
+          buffer += chunk
+          const lines = buffer.split('\n')
+
+          for (let i = 0; i < lines.length - 1; i++) {
+            const line = lines[i].trim()
+            if (!line) continue
+
+            try {
+              const data = JSON.parse(line)
+
+              // Add to global logs
+              addLog({
+                type: data.type,
+                message: data.message,
+                current: data.current,
+                total: data.total
+              })
+
+              // Update file progress if available
+              if (data.type === 'progress' && data.current && data.total) {
+                const percentage = Math.round((data.current / data.total) * 100)
+                setFiles(prev => prev.map(f =>
+                  f.id === fileInfo.id ? { ...f, status: 'processing', progress: percentage } : f
+                ))
+              }
+
+              if (data.type === 'success' && data.stats) {
+                finalStats = data.stats
+              }
+
+            } catch (e) {
+              console.error('JSON Parse Error', line)
+            }
           }
-          : f
-      ))
+          buffer = lines[lines.length - 1]
+        }
+
+        // Success - finalize file status
+        setFiles(prev => prev.map(f =>
+          f.id === fileInfo.id
+            ? {
+              ...f,
+              status: 'success',
+              progress: 100,
+              records: finalStats?.saved || finalStats?.imported || 0,
+              skipped: finalStats?.skipped || 0,
+              errorCount: finalStats?.errors || 0,
+            }
+            : f
+        ))
+
+        await refreshFromBackend()
+        return // Success - exit retry loop
+
+      } catch (err) {
+        lastError = err instanceof Error ? err : new Error('Unknown error')
+
+        // Check if this is a retryable error
+        const isRetryable = lastError.message === 'Load failed' ||
+                           lastError.message === 'Failed to fetch' ||
+                           lastError.name === 'AbortError'
+
+        if (!isRetryable || attempt === maxRetries) {
+          // Final failure - set error status
+          let errMsg = lastError.message
+          if (lastError.name === 'AbortError') {
+            errMsg = 'Upload timed out (5 min limit)'
+          } else if (lastError.message === 'Load failed' || lastError.message === 'Failed to fetch') {
+            errMsg = 'Connection error - please try again with a stable network'
+          }
+
+          addLog({ type: 'error', message: `Error uploading ${fileInfo.name}: ${errMsg}` })
+
+          setFiles(prev => prev.map(f =>
+            f.id === fileInfo.id
+              ? {
+                ...f,
+                status: 'error',
+                progress: 100,
+                error: errMsg,
+              }
+              : f
+          ))
+          return // Exit after final error
+        }
+
+        // Will retry - log the attempt
+        addLog({ type: 'info', message: `Upload failed, will retry...` })
+      }
     }
   }
 
