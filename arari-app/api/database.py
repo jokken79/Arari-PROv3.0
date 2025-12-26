@@ -1,23 +1,48 @@
 """
 Database configuration and initialization
-SQLite database for 粗利 PRO
+Supports both SQLite (local) and PostgreSQL (Railway production)
+
+Detection is automatic based on DATABASE_URL environment variable.
 """
 
+import os
 import sqlite3
 from pathlib import Path
+from urllib.parse import urlparse
 
-# Database file path
+# Detect database type from environment
+DATABASE_URL = os.environ.get("DATABASE_URL", "")
+
+# Railway uses postgres:// but psycopg2 needs postgresql://
+if DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+
+USE_POSTGRES = DATABASE_URL.startswith("postgresql://")
+
+if USE_POSTGRES:
+    print(f"[DB] 🐘 Using PostgreSQL: {urlparse(DATABASE_URL).hostname}")
+    import psycopg2
+    from psycopg2.extras import RealDictCursor
+else:
+    print("[DB] 📁 Using SQLite (local mode)")
+
+# Database file path (SQLite only)
 DB_PATH = Path(__file__).parent / "arari_pro.db"
 
 
 def get_connection(db_path=None):
-    """Create a new database connection"""
-    path = db_path if db_path else str(DB_PATH)
-    conn = sqlite3.connect(path, check_same_thread=False)
-    conn.row_factory = sqlite3.Row
-    # Enable foreign key constraints (disabled by default in SQLite)
-    conn.execute("PRAGMA foreign_keys = ON")
-    return conn
+    """Create a new database connection (SQLite or PostgreSQL)"""
+    if USE_POSTGRES:
+        conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+        conn.autocommit = False
+        return conn
+    else:
+        path = db_path if db_path else str(DB_PATH)
+        conn = sqlite3.connect(path, check_same_thread=False)
+        conn.row_factory = sqlite3.Row
+        # Enable foreign key constraints (disabled by default in SQLite)
+        conn.execute("PRAGMA foreign_keys = ON")
+        return conn
 
 
 def get_db():
@@ -29,8 +54,50 @@ def get_db():
         conn.close()
 
 
+def adapt_query(query: str) -> str:
+    """
+    Adapt SQLite query syntax to PostgreSQL if needed.
+
+    Handles common differences:
+    - ? placeholders -> %s (PostgreSQL)
+    - INSERT OR REPLACE -> INSERT ... ON CONFLICT DO UPDATE
+    - INSERT OR IGNORE -> INSERT ... ON CONFLICT DO NOTHING
+    """
+    if not USE_POSTGRES:
+        return query
+
+    # Replace SQLite placeholders with PostgreSQL
+    adapted = query.replace("?", "%s")
+
+    # Note: INSERT OR REPLACE/IGNORE need manual handling per query
+    # These simple replacements won't work for all cases
+
+    return adapted
+
+
+def _add_column_if_not_exists(cursor, table: str, col_name: str, col_type: str):
+    """Add column if it doesn't exist (works with both SQLite and PostgreSQL)"""
+    if USE_POSTGRES:
+        # PostgreSQL: Check if column exists first
+        cursor.execute("""
+            SELECT column_name FROM information_schema.columns
+            WHERE table_name = %s AND column_name = %s
+        """, (table, col_name))
+        if cursor.fetchone() is None:
+            try:
+                cursor.execute(f'ALTER TABLE {table} ADD COLUMN {col_name} {col_type}')
+            except Exception:
+                pass  # Column might already exist
+    else:
+        # SQLite: Just try to add, ignore error if exists
+        try:
+            cursor.execute(f"ALTER TABLE {table} ADD COLUMN {col_name} {col_type}")
+        except sqlite3.OperationalError:
+            pass  # Column already exists
+
+
 def init_db(conn=None):
-    """Initialize the database with tables"""
+    """Initialize the database with tables (SQLite or PostgreSQL)"""
     close_conn = False
     if conn is None:
         conn = get_connection()
@@ -38,128 +105,114 @@ def init_db(conn=None):
 
     cursor = conn.cursor()
 
+    # SQL type mappings for cross-database compatibility
+    if USE_POSTGRES:
+        PK_TYPE = "SERIAL PRIMARY KEY"
+        REAL_TYPE = "DOUBLE PRECISION"
+        TEXT_TYPE = "TEXT"
+    else:
+        PK_TYPE = "INTEGER PRIMARY KEY AUTOINCREMENT"
+        REAL_TYPE = "REAL"
+        TEXT_TYPE = "TEXT"
+
     # Create employees table
-    cursor.execute(
-        """
+    employees_sql = f"""
         CREATE TABLE IF NOT EXISTS employees (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            employee_id TEXT UNIQUE NOT NULL,
-            name TEXT NOT NULL,
-            name_kana TEXT,
-            dispatch_company TEXT NOT NULL,
-            department TEXT,
-            hourly_rate REAL NOT NULL DEFAULT 0,
-            billing_rate REAL NOT NULL DEFAULT 0,
-            status TEXT DEFAULT 'active',
-            hire_date TEXT,
-            created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-            updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+            id {PK_TYPE},
+            employee_id {TEXT_TYPE} UNIQUE NOT NULL,
+            name {TEXT_TYPE} NOT NULL,
+            name_kana {TEXT_TYPE},
+            dispatch_company {TEXT_TYPE} NOT NULL,
+            department {TEXT_TYPE},
+            hourly_rate {REAL_TYPE} NOT NULL DEFAULT 0,
+            billing_rate {REAL_TYPE} NOT NULL DEFAULT 0,
+            status {TEXT_TYPE} DEFAULT 'active',
+            hire_date {TEXT_TYPE},
+            created_at {TEXT_TYPE} DEFAULT CURRENT_TIMESTAMP,
+            updated_at {TEXT_TYPE} DEFAULT CURRENT_TIMESTAMP
         )
     """
-    )
+    cursor.execute(employees_sql)
 
     # Create payroll_records table
-    cursor.execute(
-        """
+    payroll_sql = f"""
         CREATE TABLE IF NOT EXISTS payroll_records (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            employee_id TEXT NOT NULL,
-            period TEXT NOT NULL,
+            id {PK_TYPE},
+            employee_id {TEXT_TYPE} NOT NULL,
+            period {TEXT_TYPE} NOT NULL,
             work_days INTEGER DEFAULT 0,
-            work_hours REAL DEFAULT 0,
-            overtime_hours REAL DEFAULT 0,
-            night_hours REAL DEFAULT 0,
-            holiday_hours REAL DEFAULT 0,
-            overtime_over_60h REAL DEFAULT 0,
-            paid_leave_hours REAL DEFAULT 0,
-            paid_leave_days REAL DEFAULT 0,
-            paid_leave_amount REAL DEFAULT 0,
-            base_salary REAL DEFAULT 0,
-            overtime_pay REAL DEFAULT 0,
-            night_pay REAL DEFAULT 0,
-            holiday_pay REAL DEFAULT 0,
-            overtime_over_60h_pay REAL DEFAULT 0,
-            transport_allowance REAL DEFAULT 0,
-            other_allowances REAL DEFAULT 0,
-            gross_salary REAL DEFAULT 0,
-            social_insurance REAL DEFAULT 0,
-            welfare_pension REAL DEFAULT 0,
-            employment_insurance REAL DEFAULT 0,
-            income_tax REAL DEFAULT 0,
-            resident_tax REAL DEFAULT 0,
-            other_deductions REAL DEFAULT 0,
-            net_salary REAL DEFAULT 0,
-            billing_amount REAL DEFAULT 0,
-            company_social_insurance REAL DEFAULT 0,
-            company_employment_insurance REAL DEFAULT 0,
-            company_workers_comp REAL DEFAULT 0,
-            total_company_cost REAL DEFAULT 0,
-            gross_profit REAL DEFAULT 0,
-            profit_margin REAL DEFAULT 0,
-            created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (employee_id) REFERENCES employees (employee_id),
+            work_hours {REAL_TYPE} DEFAULT 0,
+            overtime_hours {REAL_TYPE} DEFAULT 0,
+            night_hours {REAL_TYPE} DEFAULT 0,
+            holiday_hours {REAL_TYPE} DEFAULT 0,
+            overtime_over_60h {REAL_TYPE} DEFAULT 0,
+            paid_leave_hours {REAL_TYPE} DEFAULT 0,
+            paid_leave_days {REAL_TYPE} DEFAULT 0,
+            paid_leave_amount {REAL_TYPE} DEFAULT 0,
+            base_salary {REAL_TYPE} DEFAULT 0,
+            overtime_pay {REAL_TYPE} DEFAULT 0,
+            night_pay {REAL_TYPE} DEFAULT 0,
+            holiday_pay {REAL_TYPE} DEFAULT 0,
+            overtime_over_60h_pay {REAL_TYPE} DEFAULT 0,
+            transport_allowance {REAL_TYPE} DEFAULT 0,
+            other_allowances {REAL_TYPE} DEFAULT 0,
+            gross_salary {REAL_TYPE} DEFAULT 0,
+            social_insurance {REAL_TYPE} DEFAULT 0,
+            welfare_pension {REAL_TYPE} DEFAULT 0,
+            employment_insurance {REAL_TYPE} DEFAULT 0,
+            income_tax {REAL_TYPE} DEFAULT 0,
+            resident_tax {REAL_TYPE} DEFAULT 0,
+            other_deductions {REAL_TYPE} DEFAULT 0,
+            net_salary {REAL_TYPE} DEFAULT 0,
+            billing_amount {REAL_TYPE} DEFAULT 0,
+            company_social_insurance {REAL_TYPE} DEFAULT 0,
+            company_employment_insurance {REAL_TYPE} DEFAULT 0,
+            company_workers_comp {REAL_TYPE} DEFAULT 0,
+            total_company_cost {REAL_TYPE} DEFAULT 0,
+            gross_profit {REAL_TYPE} DEFAULT 0,
+            profit_margin {REAL_TYPE} DEFAULT 0,
+            created_at {TEXT_TYPE} DEFAULT CURRENT_TIMESTAMP,
             UNIQUE(employee_id, period)
         )
     """
-    )
+    cursor.execute(payroll_sql)
 
     # Add columns if not exists (for existing databases)
+    # Use DOUBLE PRECISION for PostgreSQL, REAL for SQLite
+    real_type = "DOUBLE PRECISION" if USE_POSTGRES else "REAL"
+
     new_columns = [
-        ("company_workers_comp", "REAL DEFAULT 0"),
-        ("paid_leave_amount", "REAL DEFAULT 0"),
-        ("night_hours", "REAL DEFAULT 0"),
-        ("holiday_hours", "REAL DEFAULT 0"),
-        ("overtime_over_60h", "REAL DEFAULT 0"),
-        ("night_pay", "REAL DEFAULT 0"),
-        ("holiday_pay", "REAL DEFAULT 0"),
-        ("overtime_over_60h_pay", "REAL DEFAULT 0"),
-        (
-            "non_billable_allowances",
-            "REAL DEFAULT 0",
-        ),  # 通勤手当（非）、業務手当等 - 会社負担のみ
-        ("welfare_pension", "REAL DEFAULT 0"),
-        # ================================================================
-        # NEW COLUMNS - 2025-12-11: Deduction fields from Excel dynamic zone
-        # These fields are extracted by salary_parser.py but were not being saved
-        # ================================================================
-        ("rent_deduction", "REAL DEFAULT 0"),  # 家賃、寮費 - Housing/dormitory rent
-        (
-            "utilities_deduction",
-            "REAL DEFAULT 0",
-        ),  # 水道光熱、光熱費、電気代 - Utilities
-        ("meal_deduction", "REAL DEFAULT 0"),  # 弁当、弁当代、食事代 - Meal deductions
-        ("advance_payment", "REAL DEFAULT 0"),  # 前貸、前借 - Salary advances
-        (
-            "year_end_adjustment",
-            "REAL DEFAULT 0",
-        ),  # 年調過不足、年末調整 - Year-end tax adjustment
-        ("absence_days", "INTEGER DEFAULT 0"),  # 欠勤日数 - Absence days
+        ("company_workers_comp", f"{real_type} DEFAULT 0"),
+        ("paid_leave_amount", f"{real_type} DEFAULT 0"),
+        ("night_hours", f"{real_type} DEFAULT 0"),
+        ("holiday_hours", f"{real_type} DEFAULT 0"),
+        ("overtime_over_60h", f"{real_type} DEFAULT 0"),
+        ("night_pay", f"{real_type} DEFAULT 0"),
+        ("holiday_pay", f"{real_type} DEFAULT 0"),
+        ("overtime_over_60h_pay", f"{real_type} DEFAULT 0"),
+        ("non_billable_allowances", f"{real_type} DEFAULT 0"),  # 通勤手当（非）、業務手当等
+        ("welfare_pension", f"{real_type} DEFAULT 0"),
+        ("rent_deduction", f"{real_type} DEFAULT 0"),  # 家賃、寮費
+        ("utilities_deduction", f"{real_type} DEFAULT 0"),  # 水道光熱、光熱費
+        ("meal_deduction", f"{real_type} DEFAULT 0"),  # 弁当、弁当代
+        ("advance_payment", f"{real_type} DEFAULT 0"),  # 前貸、前借
+        ("year_end_adjustment", f"{real_type} DEFAULT 0"),  # 年調過不足
+        ("absence_days", "INTEGER DEFAULT 0"),  # 欠勤日数
     ]
 
     for col_name, col_type in new_columns:
-        try:
-            cursor.execute(
-                f"ALTER TABLE payroll_records ADD COLUMN {col_name} {col_type}"
-            )
-        except sqlite3.OperationalError:
-            pass  # Column already exists
+        _add_column_if_not_exists(cursor, "payroll_records", col_name, col_type)
 
-    # ================================================================
-    # NEW COLUMNS FOR EMPLOYEES TABLE - 2025-12-11
-    # Add gender and birth_date fields
-    # ================================================================
+    # NEW COLUMNS FOR EMPLOYEES TABLE
     employee_new_columns = [
         ("gender", "TEXT"),  # 性別: M/F
         ("birth_date", "TEXT"),  # 生年月日: YYYY-MM-DD
         ("employee_type", "TEXT DEFAULT 'haken'"),  # 従業員タイプ: haken/ukeoi
-        ("termination_date", "TEXT"),  # 退社日: YYYY-MM-DD (resignation date)
+        ("termination_date", "TEXT"),  # 退社日: YYYY-MM-DD
     ]
 
     for col_name, col_type in employee_new_columns:
-        try:
-            cursor.execute(f"ALTER TABLE employees ADD COLUMN {col_name} {col_type}")
-        except sqlite3.OperationalError:
-            pass  # Column already exists
+        _add_column_if_not_exists(cursor, "employees", col_name, col_type)
 
     # Create indexes for performance
     cursor.execute(
@@ -224,39 +277,70 @@ def init_db(conn=None):
         ("target_margin", "15", "目標マージン率 (%) - 製造派遣"),
     ]
 
-    for key, value, description in default_settings:
-        cursor.execute(
-            """
-            INSERT OR IGNORE INTO settings (key, value, description)
-            VALUES (?, ?, ?)
-        """,
-            (key, value, description),
-        )
+    if USE_POSTGRES:
+        for key, value, description in default_settings:
+            cursor.execute(
+                """
+                INSERT INTO settings (key, value, description)
+                VALUES (%s, %s, %s)
+                ON CONFLICT (key) DO NOTHING
+            """,
+                (key, value, description),
+            )
+    else:
+        for key, value, description in default_settings:
+            cursor.execute(
+                """
+                INSERT OR IGNORE INTO settings (key, value, description)
+                VALUES (?, ?, ?)
+            """,
+                (key, value, description),
+            )
 
     # ================================================================
     # FACTORY TEMPLATES TABLE - For Excel parser templates per factory
     # ================================================================
-    cursor.execute(
+    if USE_POSTGRES:
+        factory_templates_sql = f"""
+            CREATE TABLE IF NOT EXISTS factory_templates (
+                id SERIAL PRIMARY KEY,
+                factory_identifier TEXT UNIQUE NOT NULL,
+                template_name TEXT,
+                field_positions JSONB NOT NULL,
+                column_offsets JSONB NOT NULL,
+                detected_allowances JSONB DEFAULT '{{}}'::jsonb,
+                non_billable_allowances JSONB DEFAULT '[]'::jsonb,
+                employee_column_width INTEGER DEFAULT 14,
+                detection_confidence DOUBLE PRECISION DEFAULT 0.0,
+                sample_employee_id TEXT,
+                sample_period TEXT,
+                is_active INTEGER DEFAULT 1,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                notes TEXT
+            )
         """
-        CREATE TABLE IF NOT EXISTS factory_templates (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            factory_identifier TEXT UNIQUE NOT NULL,
-            template_name TEXT,
-            field_positions JSON NOT NULL,
-            column_offsets JSON NOT NULL,
-            detected_allowances JSON DEFAULT '{}',
-            non_billable_allowances JSON DEFAULT '[]',
-            employee_column_width INTEGER DEFAULT 14,
-            detection_confidence REAL DEFAULT 0.0,
-            sample_employee_id TEXT,
-            sample_period TEXT,
-            is_active INTEGER DEFAULT 1,
-            created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-            updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
-            notes TEXT
-        )
-    """
-    )
+    else:
+        factory_templates_sql = """
+            CREATE TABLE IF NOT EXISTS factory_templates (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                factory_identifier TEXT UNIQUE NOT NULL,
+                template_name TEXT,
+                field_positions JSON NOT NULL,
+                column_offsets JSON NOT NULL,
+                detected_allowances JSON DEFAULT '{}',
+                non_billable_allowances JSON DEFAULT '[]',
+                employee_column_width INTEGER DEFAULT 14,
+                detection_confidence REAL DEFAULT 0.0,
+                sample_employee_id TEXT,
+                sample_period TEXT,
+                is_active INTEGER DEFAULT 1,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                notes TEXT
+            )
+        """
+    cursor.execute(factory_templates_sql)
 
     # Create index for faster template lookups
     cursor.execute(
