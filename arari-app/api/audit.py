@@ -1,12 +1,31 @@
 """
 AuditAgent - Audit Logging System
 Tracks all changes to data for compliance and debugging
+Supports both SQLite (local) and PostgreSQL (Railway production)
 """
 
 import json
 import sqlite3
 from datetime import datetime
 from typing import Any, Dict, List
+
+from database import USE_POSTGRES
+
+
+def _q(query: str) -> str:
+    """Convert SQLite query to PostgreSQL if needed (? -> %s)"""
+    if USE_POSTGRES:
+        return query.replace("?", "%s")
+    return query
+
+
+def _get_count(row) -> int:
+    """Extract count value from a row (handles dict for PostgreSQL, tuple for SQLite)"""
+    if row is None:
+        return 0
+    if isinstance(row, dict):
+        return row.get("count", row.get("COUNT(*)", 0))
+    return row[0] if row[0] is not None else 0
 
 
 class AuditAction:
@@ -34,24 +53,28 @@ class AuditEntity:
     FILE = "file"
 
 
-def init_audit_tables(conn: sqlite3.Connection):
+def init_audit_tables(conn):
     """Initialize audit tables"""
     cursor = conn.cursor()
 
+    # SQL type mappings for cross-database compatibility
+    PK_TYPE = "SERIAL PRIMARY KEY" if USE_POSTGRES else "INTEGER PRIMARY KEY AUTOINCREMENT"
+    JSON_TYPE = "JSONB" if USE_POSTGRES else "JSON"
+
     # Main audit log table
     cursor.execute(
-        """
+        f"""
         CREATE TABLE IF NOT EXISTS audit_log (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id {PK_TYPE},
             timestamp TEXT DEFAULT CURRENT_TIMESTAMP,
             user_id INTEGER,
             username TEXT,
             action TEXT NOT NULL,
             entity_type TEXT NOT NULL,
             entity_id TEXT,
-            changes JSON,
-            old_values JSON,
-            new_values JSON,
+            changes {JSON_TYPE},
+            old_values {JSON_TYPE},
+            new_values {JSON_TYPE},
             ip_address TEXT,
             user_agent TEXT,
             details TEXT,
@@ -376,57 +399,64 @@ class AuditService:
         """Get audit summary for dashboard"""
         from_date = (datetime.now() - timedelta(days=days)).isoformat()
 
+        def _extract_pair(row):
+            """Extract key-value pair from row (dict or tuple)"""
+            if isinstance(row, dict):
+                keys = list(row.keys())
+                return (row[keys[0]], row[keys[1]])
+            return (row[0], row[1])
+
         # Count by action
         self.cursor.execute(
-            """
+            _q("""
             SELECT action, COUNT(*) as count
             FROM audit_log
             WHERE timestamp >= ?
             GROUP BY action
             ORDER BY count DESC
-        """,
+        """),
             (from_date,),
         )
 
-        by_action = {row[0]: row[1] for row in self.cursor.fetchall()}
+        by_action = {k: v for k, v in (_extract_pair(row) for row in self.cursor.fetchall())}
 
         # Count by entity type
         self.cursor.execute(
-            """
+            _q("""
             SELECT entity_type, COUNT(*) as count
             FROM audit_log
             WHERE timestamp >= ?
             GROUP BY entity_type
             ORDER BY count DESC
-        """,
+        """),
             (from_date,),
         )
 
-        by_entity = {row[0]: row[1] for row in self.cursor.fetchall()}
+        by_entity = {k: v for k, v in (_extract_pair(row) for row in self.cursor.fetchall())}
 
         # Count by user
         self.cursor.execute(
-            """
+            _q("""
             SELECT username, COUNT(*) as count
             FROM audit_log
             WHERE timestamp >= ? AND username IS NOT NULL
             GROUP BY username
             ORDER BY count DESC
             LIMIT 10
-        """,
+        """),
             (from_date,),
         )
 
-        by_user = {row[0]: row[1] for row in self.cursor.fetchall()}
+        by_user = {k: v for k, v in (_extract_pair(row) for row in self.cursor.fetchall())}
 
         # Total count
         self.cursor.execute(
-            """
+            _q("""
             SELECT COUNT(*) FROM audit_log WHERE timestamp >= ?
-        """,
+        """),
             (from_date,),
         )
-        total = self.cursor.fetchone()[0]
+        total = _get_count(self.cursor.fetchone())
 
         return {
             "total_events": total,

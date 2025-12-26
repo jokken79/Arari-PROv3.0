@@ -118,7 +118,10 @@ def init_auth_tables(conn):
 
     # Create default admin user if not exists
     cursor.execute("SELECT COUNT(*) FROM users WHERE LOWER(username) = 'admin'")
-    if cursor.fetchone()[0] == 0:
+    count_row = cursor.fetchone()
+    # Handle both dict (PostgreSQL RealDictCursor) and tuple (SQLite)
+    count_val = count_row["count"] if isinstance(count_row, dict) else count_row[0]
+    if count_val == 0:
         admin_username = os.environ.get("ADMIN_USERNAME", "admin")
         admin_password = os.environ.get("ADMIN_PASSWORD", "admin123")
         admin_email = os.environ.get("ADMIN_EMAIL", "admin@arari-pro.local")
