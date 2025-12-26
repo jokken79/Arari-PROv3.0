@@ -43,39 +43,87 @@ export function useAuth() {
   // Track if component is mounted (for SSR safety)
   const isMounted = useRef(false)
 
-  // Verify token on mount
+  // Verify token on mount with retry logic
   const verifyToken = useCallback(async (token: string): Promise<boolean> => {
-    try {
-      // Add timeout to prevent hanging
-      const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 5000)
+    const maxRetries = 3
 
-      const response = await fetch(`${API_URL}/api/auth/me`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-        signal: controller.signal,
-      })
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      try {
+        // Add timeout to prevent hanging
+        const controller = new AbortController()
+        const timeoutId = setTimeout(() => controller.abort(), 10000) // Increased timeout
 
-      clearTimeout(timeoutId)
+        const response = await fetch(`${API_URL}/api/auth/me`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+          signal: controller.signal,
+        })
 
-      if (response.ok) {
-        const user = await response.json()
-        if (isMounted.current) {
-          setAuthState({
-            isAuthenticated: true,
-            user,
-            isLoading: false,
-            token,
-          })
+        clearTimeout(timeoutId)
+
+        if (response.ok) {
+          const user = await response.json()
+          if (isMounted.current) {
+            setAuthState({
+              isAuthenticated: true,
+              user,
+              isLoading: false,
+              token,
+            })
+          }
+          return true
+        } else {
+          // Token invalid, clear storage
+          if (typeof window !== 'undefined') {
+            localStorage.removeItem('auth_token')
+            localStorage.removeItem('user')
+          }
+          if (isMounted.current) {
+            setAuthState({
+              isAuthenticated: false,
+              user: null,
+              isLoading: false,
+              token: null,
+            })
+          }
+          return false
         }
-        return true
-      } else {
-        // Token invalid, clear storage
+      } catch (error) {
+        console.error(`Token verification attempt ${attempt + 1} failed:`, error)
+
+        // If it's a network error and we have more retries, wait and try again
+        const errorMessage = error instanceof Error ? error.message : ''
+        const isNetworkError = errorMessage === 'Load failed' ||
+                               errorMessage === 'Failed to fetch' ||
+                               errorMessage.includes('aborted')
+
+        if (isNetworkError && attempt < maxRetries - 1) {
+          await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1)))
+          continue
+        }
+
+        // On final failure, try to use cached user data from localStorage
         if (typeof window !== 'undefined') {
-          localStorage.removeItem('auth_token')
-          localStorage.removeItem('user')
+          const cachedUser = localStorage.getItem('user')
+          if (cachedUser && isMounted.current) {
+            try {
+              const user = JSON.parse(cachedUser)
+              // Use cached data but mark as needing verification
+              setAuthState({
+                isAuthenticated: true,
+                user,
+                isLoading: false,
+                token,
+              })
+              console.log('Using cached user data due to network error')
+              return true
+            } catch {
+              // Invalid cached data
+            }
+          }
         }
+
         if (isMounted.current) {
           setAuthState({
             isAuthenticated: false,
@@ -86,18 +134,9 @@ export function useAuth() {
         }
         return false
       }
-    } catch (error) {
-      console.error('Token verification failed:', error)
-      if (isMounted.current) {
-        setAuthState({
-          isAuthenticated: false,
-          user: null,
-          isLoading: false,
-          token: null,
-        })
-      }
-      return false
     }
+
+    return false
   }, [])
 
   // Initialize auth state from localStorage
