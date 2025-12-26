@@ -165,41 +165,61 @@ export function useAuth() {
     }
   }, [verifyToken])
 
-  // Login function
+  // Login function with retry logic
   const login = async (credentials: LoginCredentials): Promise<{ success: boolean; error?: string }> => {
-    try {
-      const response = await fetch(`${API_URL}/api/auth/login`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(credentials),
-      })
+    const maxRetries = 3
+    let lastError = ''
 
-      if (!response.ok) {
-        const data = await response.json()
-        return { success: false, error: data.detail || 'ログインに失敗しました' }
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      try {
+        const response = await fetch(`${API_URL}/api/auth/login`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(credentials),
+        })
+
+        if (!response.ok) {
+          const data = await response.json()
+          return { success: false, error: data.detail || 'ログインに失敗しました' }
+        }
+
+        const data: LoginResponse = await response.json()
+
+        // Store token and user in localStorage
+        localStorage.setItem('auth_token', data.token)
+        localStorage.setItem('user', JSON.stringify(data.user))
+
+        // Update state
+        setAuthState({
+          isAuthenticated: true,
+          user: data.user,
+          isLoading: false,
+          token: data.token,
+        })
+
+        return { success: true }
+      } catch (error) {
+        console.error(`Login attempt ${attempt + 1} failed:`, error)
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+
+        // Check if it's a network error that might be recoverable
+        if (errorMessage === 'Load failed' || errorMessage === 'Failed to fetch') {
+          lastError = 'サーバーに接続できません。ネットワーク接続を確認してください。'
+          // Wait before retry with exponential backoff
+          if (attempt < maxRetries - 1) {
+            await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1)))
+            continue
+          }
+        } else {
+          lastError = 'ログインに失敗しました'
+          break
+        }
       }
-
-      const data: LoginResponse = await response.json()
-
-      // Store token and user in localStorage
-      localStorage.setItem('auth_token', data.token)
-      localStorage.setItem('user', JSON.stringify(data.user))
-
-      // Update state
-      setAuthState({
-        isAuthenticated: true,
-        user: data.user,
-        isLoading: false,
-        token: data.token,
-      })
-
-      return { success: true }
-    } catch (error) {
-      console.error('Login error:', error)
-      return { success: false, error: 'ログインに失敗しました' }
     }
+
+    return { success: false, error: lastError || 'ログインに失敗しました' }
   }
 
   // Logout function
