@@ -325,6 +325,66 @@ Key endpoints:
 - `/statistics` - Dashboard stats
 - `/upload` - Excel file upload
 - `/auth/login` - Authentication
+- `/reports/download/{type}` - Excel report download
+
+## Reports System
+
+### Report Types
+| Report ID | API Type | Description |
+|-----------|----------|-------------|
+| `monthly-profit` | `monthly` | 月次粗利レポート - Monthly profit by employee |
+| `employee-detail` | `all-employees` | 従業員別詳細レポート - All employees with costs/profit |
+| `company-analysis` | `all-companies` | 派遣先別分析レポート - Companies aggregated analysis |
+| `cost-breakdown` | `cost-breakdown` | コスト内訳レポート - Detailed insurance/cost breakdown |
+| `summary-report` | `summary` | 経営サマリーレポート - Executive summary with rankings |
+
+### Reports API Endpoints
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/reports/download/{type}` | GET | Download Excel report |
+| `/api/reports/monthly/{period}` | GET | Get monthly report data |
+| `/api/reports/history` | GET | Get report generation history |
+
+### Download Report Example
+```bash
+# Download monthly profit report for a specific period
+curl -o report.xlsx "http://localhost:8000/api/reports/download/monthly?format=excel&period=2025年1月"
+
+# Download all employees report
+curl -o employees.xlsx "http://localhost:8000/api/reports/download/all-employees?format=excel&period=2025年1月"
+
+# Download cost breakdown report
+curl -o costs.xlsx "http://localhost:8000/api/reports/download/cost-breakdown?format=excel&period=2025年1月"
+```
+
+### Report Data Methods (reports.py)
+| Method | Returns |
+|--------|---------|
+| `get_monthly_report_data(period)` | Summary + by_company + top/bottom performers |
+| `get_all_employees_report_data(period)` | All employees with hours, salary, costs, profit |
+| `get_all_companies_report_data(period)` | Companies aggregated: count, revenue, cost, profit |
+| `get_cost_breakdown_report_data(period)` | Insurance details per employee |
+| `get_summary_report_data(period)` | Executive summary with rankings |
+
+### Frontend Period Selection
+Reports page (`/reports`) includes period selector to choose which month to download:
+```typescript
+// Report type mapping in page.tsx
+const reportTypeMap: Record<string, string> = {
+  'monthly-profit': 'monthly',
+  'employee-detail': 'all-employees',
+  'company-analysis': 'all-companies',
+  'cost-breakdown': 'cost-breakdown',
+  'summary-report': 'summary',
+}
+```
+
+### Key Implementation Files
+| File | Purpose |
+|------|---------|
+| `arari-app/api/reports.py` | Report data queries + Excel generation |
+| `arari-app/api/main.py` | Download endpoint routing |
+| `arari-app/src/app/reports/page.tsx` | Reports UI with period selector |
 
 ## Production Deployment (2025-12-26)
 
@@ -410,3 +470,5 @@ Templates are stored in `factory_templates` table with field positions and colum
 | Backend env variables | `arari-app/api/.env` |
 | Frontend env variables | `arari-app/.env.local` |
 | Global app state | `arari-app/src/store/appStore.ts` |
+| Add/modify reports | `arari-app/api/reports.py`, `arari-app/src/app/reports/page.tsx` |
+| Report Excel generation | `arari-app/api/reports.py` (ReportService class) |
