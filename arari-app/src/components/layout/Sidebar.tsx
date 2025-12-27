@@ -25,6 +25,7 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { API_BASE_URL } from '@/lib/api'
+import { useAuth } from '@/hooks/useAuth'
 import { Button } from '@/components/ui/button'
 import {
   Tooltip,
@@ -116,6 +117,8 @@ interface ProfitStats {
 
 export function Sidebar({ isOpen = true, onClose }: SidebarProps) {
   const pathname = usePathname()
+  const { user } = useAuth()
+  const isAdmin = user?.role === 'admin'
   const [collapsed, setCollapsed] = useState(() => {
     if (typeof window !== 'undefined') {
       return localStorage.getItem('sidebar-collapsed') === 'true'
@@ -301,9 +304,9 @@ export function Sidebar({ isOpen = true, onClose }: SidebarProps) {
             </AnimatePresence>
           </nav>
 
-          {/* Bottom Navigation */}
+          {/* Bottom Navigation - Admin Only */}
           <div className="border-t border-border pt-4 mt-auto">
-            {bottomNavigation.map((item) => {
+            {isAdmin && bottomNavigation.map((item) => {
               const Icon = item.icon
               const isActive = pathname === item.href
 
@@ -370,7 +373,7 @@ export function Sidebar({ isOpen = true, onClose }: SidebarProps) {
               transition={{ type: 'spring', stiffness: 300, damping: 30 }}
               className="fixed left-0 top-16 z-50 h-[calc(100vh-4rem)] w-72 border-r border-border bg-background p-4 md:hidden"
             >
-              <nav className="flex flex-col gap-1">
+              <nav className="flex flex-col gap-1 h-full">
                 {navigation.map((item) => {
                   const isActive = pathname === item.href
                   const Icon = item.icon
@@ -392,6 +395,33 @@ export function Sidebar({ isOpen = true, onClose }: SidebarProps) {
                     </Link>
                   )
                 })}
+
+                {/* Admin-only navigation for mobile */}
+                {isAdmin && (
+                  <div className="border-t border-border pt-4 mt-auto">
+                    {bottomNavigation.map((item) => {
+                      const isActive = pathname === item.href
+                      const Icon = item.icon
+
+                      return (
+                        <Link
+                          key={item.href}
+                          href={item.href}
+                          onClick={onClose}
+                          className={cn(
+                            'flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all',
+                            isActive
+                              ? 'bg-primary/10 text-primary'
+                              : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+                          )}
+                        >
+                          <Icon className="h-5 w-5" />
+                          <span>{item.name}</span>
+                        </Link>
+                      )
+                    })}
+                  </div>
+                )}
               </nav>
             </motion.aside>
           </>
