@@ -160,11 +160,20 @@ export function EmployeeTable({
   }
 
   const SortIcon = ({ field }: { field: SortField }) => {
-    if (sortField !== field) return null
-    return sortDirection === 'asc' ? (
-      <ChevronUp className="w-4 h-4" />
-    ) : (
-      <ChevronDown className="w-4 h-4" />
+    const isActive = sortField === field
+    if (isActive) {
+      return sortDirection === 'asc' ? (
+        <ChevronUp className="w-4 h-4 text-cyan-400" />
+      ) : (
+        <ChevronDown className="w-4 h-4 text-cyan-400" />
+      )
+    }
+    // Show inactive sort indicator
+    return (
+      <div className="w-4 h-4 flex flex-col items-center justify-center opacity-30 group-hover:opacity-60 transition-opacity">
+        <ChevronUp className="w-3 h-3 -mb-1" />
+        <ChevronDown className="w-3 h-3 -mt-1" />
+      </div>
     )
   }
 
@@ -254,7 +263,7 @@ export function EmployeeTable({
                     <th
                       key={col.key}
                       scope="col"
-                      className={`${col.width} px-4 py-3 text-left text-sm font-medium text-muted-foreground cursor-pointer hover:bg-muted transition-colors`}
+                      className={`${col.width} px-4 py-3 text-left text-sm font-medium text-muted-foreground cursor-pointer hover:bg-muted transition-colors group`}
                       onClick={() => handleSort(col.key)}
                       aria-label={`${col.label}でソート`}
                     >
@@ -301,26 +310,26 @@ export function EmployeeTable({
                     onClick={() => onView?.(employee)}
                   >
                     <div className="flex items-center h-full">
-                      <div className="w-28 px-4 text-sm font-mono">
+                      <div className="w-28 px-4 text-[14px] font-mono">
                         {employee.employeeId}
                       </div>
                       <div className="w-36 px-4">
-                        <p className="text-sm font-medium truncate">{employee.nameKana || employee.name}</p>
+                        <p className="text-[14px] font-medium truncate">{employee.nameKana || employee.name}</p>
                         <p className="text-xs text-muted-foreground truncate">
                           {employee.nameKana ? employee.name : ''}
                         </p>
                       </div>
-                      <div className="w-40 px-4 text-sm truncate">
+                      <div className="w-40 px-4 text-[14px] truncate">
                         {employee.dispatchCompany}
                       </div>
-                      <div className="w-28 px-4 text-sm font-medium">
+                      <div className="w-28 px-4 text-[14px] font-medium">
                         {formatYen(employee.hourlyRate)}
                       </div>
-                      <div className="w-28 px-4 text-sm font-medium">
+                      <div className="w-28 px-4 text-[14px] font-medium">
                         {formatYen(employee.billingRate)}
                       </div>
                       <div className="w-28 px-4">
-                        <span className="text-sm font-bold text-emerald-500">
+                        <span className="text-[14px] font-bold text-emerald-500">
                           {formatYen(profit)}
                         </span>
                       </div>

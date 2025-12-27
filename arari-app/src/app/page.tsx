@@ -40,12 +40,14 @@ import { formatYen, formatPercent, formatNumber } from '@/lib/utils'
 import { cn } from '@/lib/utils'
 import { API_BASE_URL } from '@/lib/api'
 import { NeonButton } from '@/components/ui/NeonButton'
+import { DashboardStatsSkeleton, DashboardChartsSkeleton } from '@/components/ui/skeleton'
 
 type AlertType = 'negative' | 'critical' | 'underTarget' | 'lowRate' | null
 
 export default function DashboardPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [alertModal, setAlertModal] = useState<AlertType>(null)
+  const [factoryChartPeriod, setFactoryChartPeriod] = useState<string | null>(null)
   const {
     selectedPeriod,
     setSelectedPeriod,
@@ -71,6 +73,13 @@ export default function DashboardPage() {
       setSelectedPeriod(sortedPeriods[0])
     }
   }, [availablePeriods, selectedPeriod, setSelectedPeriod])
+
+  // Sync factoryChartPeriod with selectedPeriod when it changes
+  useEffect(() => {
+    if (selectedPeriod && !factoryChartPeriod) {
+      setFactoryChartPeriod(selectedPeriod)
+    }
+  }, [selectedPeriod, factoryChartPeriod])
 
   // Map to internal types (snake_case -> camelCase)
   const employees = useMemo(() => {
@@ -136,7 +145,7 @@ export default function DashboardPage() {
   }, [rawPayrollRecords])
 
   // Fetch dashboard stats using TanStack Query
-  const { data: dashboardStats, isLoading, error, refetch } = useDashboardStats(selectedPeriod)
+  const { data: dashboardStats, isLoading, error, refetch, dataUpdatedAt } = useDashboardStats(selectedPeriod)
 
   // Fetch target margin setting using TanStack Query
   const { data: targetMarginData } = useQuery({
@@ -392,13 +401,79 @@ export default function DashboardPage() {
     }
   }, [dashboardStats, payrollRecords, employees, selectedPeriod, availablePeriods])
 
+  // Calculate factory data for the selected factory chart period
+  const factoryChartData = useMemo(() => {
+    const periodToUse = factoryChartPeriod || selectedPeriod
+    if (!periodToUse || payrollRecords.length === 0) return []
+
+    const periodRecords = payrollRecords.filter(r => r.period === periodToUse)
+
+    const companyMap = new Map<string, {
+      revenue: number
+      cost: number
+      profit: number
+      margin: number
+      count: number
+    }>()
+
+    periodRecords.forEach(r => {
+      const employee = employees.find(e => e.employeeId === r.employeeId)
+      const company = employee?.dispatchCompany || 'Unknown'
+
+      if (!companyMap.has(company)) {
+        companyMap.set(company, { revenue: 0, cost: 0, profit: 0, margin: 0, count: 0 })
+      }
+
+      const data = companyMap.get(company)!
+      data.revenue += r.billingAmount
+      data.cost += r.totalCompanyCost
+      data.profit += r.grossProfit
+      data.margin += r.profitMargin
+      data.count += 1
+    })
+
+    return Array.from(companyMap.entries()).map(([name, data]) => ({
+      companyName: name,
+      revenue: data.revenue,
+      cost: data.cost,
+      profit: data.profit,
+      margin: data.count > 0 ? data.margin / data.count : 0,
+      employeeCount: data.count,
+    })).sort((a, b) => b.profit - a.profit)
+  }, [factoryChartPeriod, selectedPeriod, payrollRecords, employees])
+
   if (isLoading) {
     return (
-      <div className="flex h-screen items-center justify-center bg-background">
-        <div className="text-center">
-          <div className="h-16 w-16 animate-spin rounded-full border-4 border-primary border-t-transparent mx-auto mb-4" />
-          <p className="text-muted-foreground">データを読み込み中...</p>
+      <div className="min-h-screen relative overflow-x-hidden">
+        {/* Ambient Background Glows */}
+        <div className="fixed top-0 left-0 w-full h-full overflow-hidden -z-10 pointer-events-none">
+          <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-cyan-500/10 rounded-full blur-[100px]" />
+          <div className="absolute top-[20%] right-[-10%] w-[30%] h-[50%] bg-indigo-500/10 rounded-full blur-[100px]" />
         </div>
+        <Header onMenuClick={() => {}} />
+        <Sidebar isOpen={false} onClose={() => {}} />
+        <main className="md:pl-[280px] pt-16 transition-all duration-300 relative z-10">
+          <div className="container py-6 px-4 md:px-6 max-w-7xl mx-auto">
+            <div className="mb-8">
+              <h1 className="text-3xl font-bold bg-gradient-to-r from-cyan-400 via-blue-500 to-indigo-600 bg-clip-text text-transparent">
+                粗利ダッシュボード
+              </h1>
+              <p className="text-slate-400 mt-1">データを読み込み中...</p>
+            </div>
+            <div className="space-y-6">
+              <DashboardStatsSkeleton />
+              <div className="grid gap-4 md:grid-cols-4">
+                {[1, 2, 3, 4].map((i) => (
+                  <div key={i} className="glass-card p-6 rounded-xl animate-pulse">
+                    <div className="h-4 w-20 bg-muted/50 rounded mb-2" />
+                    <div className="h-8 w-16 bg-muted/50 rounded" />
+                  </div>
+                ))}
+              </div>
+              <DashboardChartsSkeleton />
+            </div>
+          </div>
+        </main>
       </div>
     )
   }
@@ -477,15 +552,26 @@ export default function DashboardPage() {
                 )}
               </p>
             </div>
-            <NeonButton
-              onClick={handleRefresh}
-              disabled={isLoading}
-              glowColor="blue"
-              className="flex items-center gap-2"
-            >
-              <RefreshCw className={cn("h-4 w-4", isLoading && "animate-spin")} aria-hidden="true" />
-              データ更新
-            </NeonButton>
+            <div className="flex items-center gap-4">
+              {dataUpdatedAt > 0 && (
+                <span className="text-xs text-muted-foreground hidden sm:block">
+                  最終更新: {new Date(dataUpdatedAt).toLocaleString('ja-JP', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit'
+                  })}
+                </span>
+              )}
+              <NeonButton
+                onClick={handleRefresh}
+                disabled={isLoading}
+                glowColor="blue"
+                className="flex items-center gap-2"
+              >
+                <RefreshCw className={cn("h-4 w-4", isLoading && "animate-spin")} aria-hidden="true" />
+                データ更新
+              </NeonButton>
+            </div>
           </motion.div>
 
           {!hasData ? (
@@ -783,9 +869,14 @@ export default function DashboardPage() {
               )}
 
               {/* Factory Comparison - Full Width */}
-              {chartData && chartData.factoryData.length > 0 && (
+              {factoryChartData.length > 0 && (
                 <div className="mb-6">
-                  <FactoryComparisonChart data={chartData.factoryData} />
+                  <FactoryComparisonChart
+                    data={factoryChartData}
+                    availablePeriods={availablePeriods}
+                    selectedPeriod={factoryChartPeriod || selectedPeriod}
+                    onPeriodChange={setFactoryChartPeriod}
+                  />
                 </div>
               )}
 

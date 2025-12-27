@@ -13,8 +13,8 @@ import {
 } from 'recharts'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { formatYen, formatPercent } from '@/lib/utils'
-import { Factory, TrendingUp, ArrowUpRight, ArrowDownRight, Maximize2, X } from 'lucide-react'
+import { formatYen, formatPercent, comparePeriods } from '@/lib/utils'
+import { Factory, TrendingUp, ArrowUpRight, ArrowDownRight, Maximize2, X, Calendar } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAppStore } from '@/store/appStore'
 
@@ -29,6 +29,9 @@ interface FactoryData {
 
 interface FactoryComparisonChartProps {
   data: FactoryData[]
+  availablePeriods?: string[]
+  selectedPeriod?: string
+  onPeriodChange?: (period: string) => void
 }
 
 const CustomTooltip = ({ active, payload, label, targetMargin }: any) => {
@@ -120,11 +123,21 @@ const CustomLegend = ({ payload }: any) => {
   )
 }
 
-export function FactoryComparisonChart({ data }: FactoryComparisonChartProps) {
+export function FactoryComparisonChart({
+  data,
+  availablePeriods = [],
+  selectedPeriod,
+  onPeriodChange
+}: FactoryComparisonChartProps) {
   const { settings } = useAppStore()
   const target = settings.target_margin || 15
 
   const [isExpanded, setIsExpanded] = useState(false)
+
+  // Sort periods chronologically (newest first)
+  const sortedPeriods = useMemo(() => {
+    return [...availablePeriods].sort((a, b) => comparePeriods(b, a))
+  }, [availablePeriods])
 
   // Memoize sorted data and calculations
   const { sortedData, totalRevenue, totalCost, totalProfit, avgMargin } = useMemo(() => {
@@ -171,9 +184,11 @@ export function FactoryComparisonChart({ data }: FactoryComparisonChartProps) {
             tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }}
             tickLine={false}
             axisLine={false}
-            angle={-45}
+            angle={-35}
             textAnchor="end"
-            height={60}
+            height={70}
+            tickFormatter={(value: string) => value.length > 10 ? `${value.substring(0, 10)}...` : value}
+            interval={0}
           />
           <YAxis
             tickFormatter={(value) => `${(value / 10000).toFixed(0)}万`}
@@ -213,14 +228,32 @@ export function FactoryComparisonChart({ data }: FactoryComparisonChartProps) {
         <Card className="overflow-hidden relative group">
           <CardHeader>
             <div className="flex items-center justify-between">
-              <div>
-                <CardTitle className="flex items-center gap-2">
-                  <Factory className="h-5 w-5 text-blue-500" />
-                  派遣先別 売上 vs コスト
-                </CardTitle>
-                <p className="text-xs text-muted-foreground mt-1">
-                  各派遣先の収益性を一目で確認
-                </p>
+              <div className="flex items-center gap-4">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <Factory className="h-5 w-5 text-blue-500" />
+                    派遣先別 売上 vs コスト
+                  </CardTitle>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    各派遣先の収益性を一目で確認
+                  </p>
+                </div>
+                {sortedPeriods.length > 0 && onPeriodChange && (
+                  <div className="flex items-center gap-2">
+                    <Calendar className="h-4 w-4 text-muted-foreground" />
+                    <select
+                      value={selectedPeriod || ''}
+                      onChange={(e) => onPeriodChange(e.target.value)}
+                      className="px-3 py-1.5 text-sm bg-muted/50 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50"
+                    >
+                      {sortedPeriods.map((period) => (
+                        <option key={period} value={period}>
+                          {period}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
               </div>
               <div className="flex gap-4 text-right items-center">
                 <div className="hidden sm:block">

@@ -21,6 +21,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import Link from 'next/link'
+import { GlobalSearch } from '@/components/search/GlobalSearch'
 
 interface HeaderProps {
   onMenuClick?: () => void
@@ -105,6 +106,9 @@ export function Header({ onMenuClick }: HeaderProps) {
 
           {/* Right side - Actions */}
           <div className="flex items-center gap-2">
+            {/* Global Search */}
+            <GlobalSearch />
+
             {/* Notifications */}
             <Tooltip>
               <TooltipTrigger asChild>
