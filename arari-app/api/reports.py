@@ -451,15 +451,15 @@ class ReportService:
         ws["A3"].font = Font(bold=True)
 
         ws["A4"] = "従業員数"
-        ws["B4"] = summary.get("employee_count", 0)
+        ws["B4"] = summary.get("employee_count") or 0
         ws["A5"] = "売上合計"
-        ws["B5"] = f"¥{summary.get('total_revenue', 0):,.0f}"
+        ws["B5"] = f"¥{(summary.get('total_revenue') or 0):,.0f}"
         ws["A6"] = "コスト合計"
-        ws["B6"] = f"¥{summary.get('total_cost', 0):,.0f}"
+        ws["B6"] = f"¥{(summary.get('total_cost') or 0):,.0f}"
         ws["A7"] = "粗利合計"
-        ws["B7"] = f"¥{summary.get('total_profit', 0):,.0f}"
+        ws["B7"] = f"¥{(summary.get('total_profit') or 0):,.0f}"
         ws["A8"] = "平均マージン"
-        ws["B8"] = f"{summary.get('avg_margin', 0):.1f}%"
+        ws["B8"] = f"{(summary.get('avg_margin') or 0):.1f}%"
 
         # By company section
         ws["A10"] = "派遣先別"
@@ -473,23 +473,23 @@ class ReportService:
             cell.border = border
 
         for row_idx, company in enumerate(data.get("by_company", []), 12):
-            ws.cell(row=row_idx, column=1, value=company.get("company", "")).border = (
+            ws.cell(row=row_idx, column=1, value=company.get("company") or "").border = (
                 border
             )
             ws.cell(
-                row=row_idx, column=2, value=company.get("employee_count", 0)
+                row=row_idx, column=2, value=company.get("employee_count") or 0
             ).border = border
             ws.cell(
-                row=row_idx, column=3, value=f"¥{company.get('revenue', 0):,.0f}"
+                row=row_idx, column=3, value=f"¥{(company.get('revenue') or 0):,.0f}"
             ).border = border
             ws.cell(
-                row=row_idx, column=4, value=f"¥{company.get('cost', 0):,.0f}"
+                row=row_idx, column=4, value=f"¥{(company.get('cost') or 0):,.0f}"
             ).border = border
             ws.cell(
-                row=row_idx, column=5, value=f"¥{company.get('profit', 0):,.0f}"
+                row=row_idx, column=5, value=f"¥{(company.get('profit') or 0):,.0f}"
             ).border = border
             ws.cell(
-                row=row_idx, column=6, value=f"{company.get('margin', 0):.1f}%"
+                row=row_idx, column=6, value=f"{(company.get('margin') or 0):.1f}%"
             ).border = border
 
         # Adjust column widths
@@ -511,15 +511,15 @@ class ReportService:
         ws["A3"].font = Font(bold=True)
 
         ws["A4"] = "ID"
-        ws["B4"] = emp.get("employee_id", "")
+        ws["B4"] = emp.get("employee_id") or ""
         ws["A5"] = "名前"
-        ws["B5"] = emp.get("name", "")
+        ws["B5"] = emp.get("name") or ""
         ws["A6"] = "派遣先"
-        ws["B6"] = emp.get("company", "")
+        ws["B6"] = emp.get("company") or ""
         ws["A7"] = "時給"
-        ws["B7"] = f"¥{emp.get('hourly_rate', 0):,.0f}"
+        ws["B7"] = f"¥{(emp.get('hourly_rate') or 0):,.0f}"
         ws["A8"] = "単価"
-        ws["B8"] = f"¥{emp.get('billing_rate', 0):,.0f}"
+        ws["B8"] = f"¥{(emp.get('billing_rate') or 0):,.0f}"
 
         # History section
         ws["A10"] = "履歴"
@@ -542,27 +542,27 @@ class ReportService:
             cell.border = border
 
         for row_idx, h in enumerate(data.get("history", []), 12):
-            ws.cell(row=row_idx, column=1, value=h.get("period", "")).border = border
+            ws.cell(row=row_idx, column=1, value=h.get("period") or "").border = border
             ws.cell(
-                row=row_idx, column=2, value=f"{h.get('work_hours', 0):.1f}h"
+                row=row_idx, column=2, value=f"{(h.get('work_hours') or 0):.1f}h"
             ).border = border
             ws.cell(
-                row=row_idx, column=3, value=f"{h.get('overtime_hours', 0):.1f}h"
+                row=row_idx, column=3, value=f"{(h.get('overtime_hours') or 0):.1f}h"
             ).border = border
             ws.cell(
-                row=row_idx, column=4, value=f"{h.get('night_hours', 0):.1f}h"
+                row=row_idx, column=4, value=f"{(h.get('night_hours') or 0):.1f}h"
             ).border = border
             ws.cell(
-                row=row_idx, column=5, value=f"¥{h.get('billing_amount', 0):,.0f}"
+                row=row_idx, column=5, value=f"¥{(h.get('billing_amount') or 0):,.0f}"
             ).border = border
-            ws.cell(row=row_idx, column=6, value=f"¥{h.get('cost', 0):,.0f}").border = (
+            ws.cell(row=row_idx, column=6, value=f"¥{(h.get('cost') or 0):,.0f}").border = (
                 border
             )
             ws.cell(
-                row=row_idx, column=7, value=f"¥{h.get('profit', 0):,.0f}"
+                row=row_idx, column=7, value=f"¥{(h.get('profit') or 0):,.0f}"
             ).border = border
             ws.cell(
-                row=row_idx, column=8, value=f"{h.get('margin', 0):.1f}%"
+                row=row_idx, column=8, value=f"{(h.get('margin') or 0):.1f}%"
             ).border = border
 
         for col in range(1, 9):
@@ -583,13 +583,13 @@ class ReportService:
         ws["A3"].font = Font(bold=True)
 
         ws["A4"] = "従業員数"
-        ws["B4"] = data.get("employee_count", 0)
+        ws["B4"] = data.get("employee_count") or 0
         ws["A5"] = "売上合計"
-        ws["B5"] = f"¥{totals.get('revenue', 0):,.0f}"
+        ws["B5"] = f"¥{(totals.get('revenue') or 0):,.0f}"
         ws["A6"] = "粗利合計"
-        ws["B6"] = f"¥{totals.get('profit', 0):,.0f}"
+        ws["B6"] = f"¥{(totals.get('profit') or 0):,.0f}"
         ws["A7"] = "平均マージン"
-        ws["B7"] = f"{totals.get('avg_margin', 0):.1f}%"
+        ws["B7"] = f"{(totals.get('avg_margin') or 0):.1f}%"
 
         # Monthly data
         ws["A9"] = "月次推移"
@@ -603,21 +603,21 @@ class ReportService:
             cell.border = border
 
         for row_idx, m in enumerate(data.get("monthly_data", []), 11):
-            ws.cell(row=row_idx, column=1, value=m.get("period", "")).border = border
-            ws.cell(row=row_idx, column=2, value=m.get("employee_count", 0)).border = (
+            ws.cell(row=row_idx, column=1, value=m.get("period") or "").border = border
+            ws.cell(row=row_idx, column=2, value=m.get("employee_count") or 0).border = (
                 border
             )
             ws.cell(
-                row=row_idx, column=3, value=f"¥{m.get('revenue', 0):,.0f}"
+                row=row_idx, column=3, value=f"¥{(m.get('revenue') or 0):,.0f}"
             ).border = border
-            ws.cell(row=row_idx, column=4, value=f"¥{m.get('cost', 0):,.0f}").border = (
+            ws.cell(row=row_idx, column=4, value=f"¥{(m.get('cost') or 0):,.0f}").border = (
                 border
             )
             ws.cell(
-                row=row_idx, column=5, value=f"¥{m.get('profit', 0):,.0f}"
+                row=row_idx, column=5, value=f"¥{(m.get('profit') or 0):,.0f}"
             ).border = border
             ws.cell(
-                row=row_idx, column=6, value=f"{m.get('margin', 0):.1f}%"
+                row=row_idx, column=6, value=f"{(m.get('margin') or 0):.1f}%"
             ).border = border
 
         for col in range(1, 7):
