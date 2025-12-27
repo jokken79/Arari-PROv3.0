@@ -240,6 +240,14 @@ useEffect(() => {
 }, [availablePeriods, selectedPeriod])
 ```
 
+## Known Issues
+
+### ESLint Circular Structure Warning
+Durante el build puede aparecer `ESLint: Converting circular structure to JSON` - es un warning cosmético interno de Next.js que se puede ignorar. El build completa exitosamente (17/17 páginas).
+
+### Package Manager
+Usar **npm** (no Yarn). Configurado en `package.json` con `"packageManager": "npm@10.9.2"`.
+
 ## Database Tables
 
 ### employees
@@ -431,6 +439,32 @@ NEXT_PUBLIC_ENABLE_NOTIFICATIONS=true
 - Database: PostgreSQL (Railway managed)
 - See `DEPLOY.md` for full deployment guide
 
+## CI/CD
+
+GitHub Actions ejecuta en push/PR a `main` (`.github/workflows/main.yml`):
+
+```bash
+# Lo que ejecuta el pipeline:
+- Python tests (pytest)
+- Frontend tests (npm test)
+- Python linter (ruff)
+- Frontend linter (npm run lint)
+```
+
+## Claude Code Skills (Slash Commands)
+
+| Comando | Descripción |
+|---------|-------------|
+| `/generate-report [tipo] [período]` | Genera reportes (monthly, employee, company, executive) |
+| `/analyze-margin` | Analiza márgenes de ganancia |
+| `/validate-data` | Valida integridad de datos |
+| `/backup-db` | Crea backup de base de datos |
+| `/audit-log` | Ver logs de auditoría |
+| `/check-alerts` | Revisar alertas activas |
+| `/calculate-roi` | Calcular métricas ROI |
+
+Ejemplo: `/generate-report monthly 2025年1月`
+
 ## Tech Stack
 
 | Layer | Technology |
@@ -440,7 +474,7 @@ NEXT_PUBLIC_ENABLE_NOTIFICATIONS=true
 | Charts | Recharts |
 | UI | Tailwind CSS, Radix UI, Framer Motion |
 | Backend | FastAPI, Python 3.11+ |
-| Database | SQLite (file: `arari-app/api/arari_pro.db`) |
+| Database | SQLite (dev: `arari-app/api/arari_pro.db`), PostgreSQL (prod: Railway) |
 | Excel Parser | openpyxl |
 
 ## Excel Parser System
@@ -451,6 +485,20 @@ The system uses a hybrid template approach:
 3. Fallback: Hardcoded `FALLBACK_ROW_POSITIONS` if detection fails
 
 Templates are stored in `factory_templates` table with field positions and column offsets.
+
+## Centralized Configuration
+
+Las constantes de negocio están centralizadas en `arari-app/api/config.py`:
+
+| Categoría | Constantes |
+|-----------|------------|
+| `InsuranceRates` | 0.0090 (雇用保険 2025), 0.0030 (労災保険) |
+| `BillingMultipliers` | 1.0, 1.25, 1.5, 0.25, 1.35 |
+| `BusinessRules` | TARGET_MARGIN_MANUFACTURING = 15.0 |
+| `UploadLimits` | MAX_FILE_SIZE = 50MB |
+| `ValidationLimits` | Rangos para Pydantic validators |
+
+**Importante**: Al cambiar tasas de seguro, actualizar tanto `config.py` como la tabla `settings` en la BD.
 
 ## File Locations for Common Tasks
 
