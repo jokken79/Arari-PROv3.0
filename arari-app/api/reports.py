@@ -31,15 +31,18 @@ def _get_row_value(row, key: str, index: int, default=None):
     return row[index] if len(row) > index else default
 
 
-def init_reports_tables(conn: sqlite3.Connection):
+def init_reports_tables(conn):
     """Initialize reports tables"""
     cursor = conn.cursor()
 
+    # SQL type mappings for cross-database compatibility
+    PK_TYPE = "SERIAL PRIMARY KEY" if USE_POSTGRES else "INTEGER PRIMARY KEY AUTOINCREMENT"
+
     # Generated reports table (for tracking/caching)
     cursor.execute(
-        """
+        f"""
         CREATE TABLE IF NOT EXISTS generated_reports (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id {PK_TYPE},
             report_type TEXT NOT NULL,
             report_name TEXT NOT NULL,
             period TEXT,
@@ -49,7 +52,7 @@ def init_reports_tables(conn: sqlite3.Connection):
             file_path TEXT,
             file_size INTEGER,
             generated_by TEXT,
-            parameters JSON,
+            parameters TEXT,
             created_at TEXT DEFAULT CURRENT_TIMESTAMP
         )
     """
@@ -57,13 +60,13 @@ def init_reports_tables(conn: sqlite3.Connection):
 
     # Report templates table
     cursor.execute(
-        """
+        f"""
         CREATE TABLE IF NOT EXISTS report_templates (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id {PK_TYPE},
             template_name TEXT UNIQUE NOT NULL,
             report_type TEXT NOT NULL,
             description TEXT,
-            default_params JSON,
+            default_params TEXT,
             is_active INTEGER DEFAULT 1,
             created_at TEXT DEFAULT CURRENT_TIMESTAMP
         )
