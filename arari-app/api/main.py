@@ -385,41 +385,14 @@ async def create_payroll_record(
 
 # ============== Statistics ==============
 
-# Cache TTL for statistics (120 seconds = 2 minutes)
-STATS_CACHE_TTL = 120
-
 @app.get("/api/statistics")
 async def get_statistics(
     db: sqlite3.Connection = Depends(get_db),
     period: Optional[str] = None
 ):
-    """Get dashboard statistics (cached for 2 minutes using persistent DB cache)"""
-    from cache import CacheService
-
-    cache_key = f"stats:{period or 'latest'}"
-    cache_service = CacheService(conn=db, default_ttl=STATS_CACHE_TTL)
-
-    # Try to get from persistent cache (works across Railway workers)
-    try:
-        cached_result = cache_service.get_persistent(cache_key)
-        if cached_result is not None:
-            return cached_result
-    except Exception:
-        # If cache fails, continue to fetch from DB
-        pass
-
-    # Cache miss - fetch from database
+    """Get dashboard statistics"""
     service = PayrollService(db)
-    result = service.get_statistics(period=period)
-
-    # Store in persistent cache
-    try:
-        cache_service.set_persistent(cache_key, result, STATS_CACHE_TTL)
-    except Exception:
-        # If cache fails, just return result without caching
-        pass
-
-    return result
+    return service.get_statistics(period=period)
 
 @app.get("/api/statistics/monthly")
 async def get_monthly_statistics(
