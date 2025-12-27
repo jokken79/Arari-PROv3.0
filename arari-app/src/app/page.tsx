@@ -681,11 +681,11 @@ export default function DashboardPage() {
                   <motion.div
                     initial={{ opacity: 0, y: -10 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="mb-6 p-3 rounded-lg border border-slate-700/50 bg-slate-800/30 backdrop-blur-sm"
+                    className="mb-6 p-3 rounded-lg border border-amber-500/30 bg-amber-50 dark:bg-slate-800/30 backdrop-blur-sm"
                   >
                     <div className="flex items-center gap-2 mb-2">
-                      <AlertTriangle className="h-4 w-4 text-amber-500/80" aria-hidden="true" />
-                      <span className="font-medium text-sm text-slate-300">アラート通知</span>
+                      <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-500/80" aria-hidden="true" />
+                      <span className="font-medium text-sm text-slate-700 dark:text-slate-300">アラート通知</span>
                       <span className="text-xs text-muted-foreground">（クリックで詳細表示）</span>
                     </div>
                     <div className="grid gap-3 md:grid-cols-4">
@@ -694,8 +694,8 @@ export default function DashboardPage() {
                           onClick={() => setAlertModal('negative')}
                           className="flex items-center gap-2 text-sm hover:bg-red-500/20 p-2 rounded-lg transition-colors cursor-pointer text-left"
                         >
-                          <AlertCircle className="h-4 w-4 text-red-500" />
-                          <span className="text-red-400">赤字: {chartData.alertsSummary.negativeProfit}名</span>
+                          <AlertCircle className="h-4 w-4 text-red-600 dark:text-red-500" />
+                          <span className="text-red-600 dark:text-red-400">赤字: {chartData.alertsSummary.negativeProfit}名</span>
                         </button>
                       )}
                       {chartData.alertsSummary.criticalCount > 0 && (
@@ -703,8 +703,8 @@ export default function DashboardPage() {
                           onClick={() => setAlertModal('critical')}
                           className="flex items-center gap-2 text-sm hover:bg-orange-500/20 p-2 rounded-lg transition-colors cursor-pointer text-left"
                         >
-                          <TrendingDown className="h-4 w-4 text-orange-500" />
-                          <span className="text-orange-400">マージン&lt;7%: {chartData.alertsSummary.criticalCount}名</span>
+                          <TrendingDown className="h-4 w-4 text-orange-600 dark:text-orange-500" />
+                          <span className="text-orange-600 dark:text-orange-400">マージン&lt;7%: {chartData.alertsSummary.criticalCount}名</span>
                         </button>
                       )}
                       {chartData.alertsSummary.underTargetCount > 0 && (
@@ -712,8 +712,8 @@ export default function DashboardPage() {
                           onClick={() => setAlertModal('underTarget')}
                           className="flex items-center gap-2 text-sm hover:bg-amber-500/20 p-2 rounded-lg transition-colors cursor-pointer text-left"
                         >
-                          <Target className="h-4 w-4 text-amber-500" />
-                          <span className="text-amber-400">目標未達(7-12%): {chartData.alertsSummary.underTargetCount}名</span>
+                          <Target className="h-4 w-4 text-amber-600 dark:text-amber-500" />
+                          <span className="text-amber-600 dark:text-amber-400">目標未達(7-12%): {chartData.alertsSummary.underTargetCount}名</span>
                         </button>
                       )}
                       {chartData.alertsSummary.lowRateRatio > 0 && (
@@ -721,8 +721,8 @@ export default function DashboardPage() {
                           onClick={() => setAlertModal('lowRate')}
                           className="flex items-center gap-2 text-sm hover:bg-orange-500/20 p-2 rounded-lg transition-colors cursor-pointer text-left"
                         >
-                          <AlertTriangle className="h-4 w-4 text-orange-500" />
-                          <span className="text-orange-400">単価率&lt;20%: {chartData.alertsSummary.lowRateRatio}名</span>
+                          <AlertTriangle className="h-4 w-4 text-orange-600 dark:text-orange-500" />
+                          <span className="text-orange-600 dark:text-orange-400">単価率&lt;20%: {chartData.alertsSummary.lowRateRatio}名</span>
                         </button>
                       )}
                     </div>
