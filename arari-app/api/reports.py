@@ -543,7 +543,7 @@ class ReportService:
                 p.employee_id, e.name, e.dispatch_company,
                 p.gross_salary,
                 p.social_insurance, p.welfare_pension, p.employment_insurance,
-                p.company_social_insurance, p.company_welfare_pension,
+                p.company_social_insurance,
                 p.company_employment_insurance, p.company_workers_comp,
                 p.commuting_allowance, p.paid_leave_amount,
                 p.total_company_cost, p.billing_amount, p.gross_profit
@@ -566,14 +566,13 @@ class ReportService:
                 "welfare_pension": _get_row_value(row, "welfare_pension", 5, 0),
                 "employment_insurance": _get_row_value(row, "employment_insurance", 6, 0),
                 "company_social_insurance": _get_row_value(row, "company_social_insurance", 7, 0),
-                "company_welfare_pension": _get_row_value(row, "company_welfare_pension", 8, 0),
-                "company_employment_insurance": _get_row_value(row, "company_employment_insurance", 9, 0),
-                "company_workers_comp": _get_row_value(row, "company_workers_comp", 10, 0),
-                "commuting_allowance": _get_row_value(row, "commuting_allowance", 11, 0),
-                "paid_leave_amount": _get_row_value(row, "paid_leave_amount", 12, 0),
-                "total_cost": _get_row_value(row, "total_company_cost", 13, 0),
-                "billing_amount": _get_row_value(row, "billing_amount", 14, 0),
-                "gross_profit": _get_row_value(row, "gross_profit", 15, 0),
+                "company_employment_insurance": _get_row_value(row, "company_employment_insurance", 8, 0),
+                "company_workers_comp": _get_row_value(row, "company_workers_comp", 9, 0),
+                "commuting_allowance": _get_row_value(row, "commuting_allowance", 10, 0),
+                "paid_leave_amount": _get_row_value(row, "paid_leave_amount", 11, 0),
+                "total_cost": _get_row_value(row, "total_company_cost", 12, 0),
+                "billing_amount": _get_row_value(row, "billing_amount", 13, 0),
+                "gross_profit": _get_row_value(row, "gross_profit", 14, 0),
             })
 
         # Summary totals
@@ -582,7 +581,7 @@ class ReportService:
             SELECT
                 SUM(gross_salary) as total_salary,
                 SUM(social_insurance + welfare_pension) as total_employee_insurance,
-                SUM(company_social_insurance + company_welfare_pension) as total_company_insurance,
+                SUM(company_social_insurance) as total_company_insurance,
                 SUM(company_employment_insurance) as total_employment_ins,
                 SUM(company_workers_comp) as total_workers_comp,
                 SUM(commuting_allowance) as total_commuting,
@@ -1050,7 +1049,7 @@ class ReportService:
         ws["A8"].font = Font(bold=True)
 
         headers = ["ID", "氏名", "派遣先", "総支給", "健保", "厚年", "雇保",
-                   "会社健保", "会社厚年", "会社雇保", "労災", "通勤費", "有給", "総コスト", "請求", "粗利"]
+                   "会社社保", "会社雇保", "労災", "通勤費", "有給", "総コスト", "請求", "粗利"]
         for col, header in enumerate(headers, 1):
             cell = ws.cell(row=9, column=col, value=header)
             cell.font = header_font
@@ -1066,16 +1065,15 @@ class ReportService:
             ws.cell(row=row_idx, column=6, value=(emp.get('welfare_pension') or 0)).border = border
             ws.cell(row=row_idx, column=7, value=(emp.get('employment_insurance') or 0)).border = border
             ws.cell(row=row_idx, column=8, value=(emp.get('company_social_insurance') or 0)).border = border
-            ws.cell(row=row_idx, column=9, value=(emp.get('company_welfare_pension') or 0)).border = border
-            ws.cell(row=row_idx, column=10, value=(emp.get('company_employment_insurance') or 0)).border = border
-            ws.cell(row=row_idx, column=11, value=(emp.get('company_workers_comp') or 0)).border = border
-            ws.cell(row=row_idx, column=12, value=(emp.get('commuting_allowance') or 0)).border = border
-            ws.cell(row=row_idx, column=13, value=(emp.get('paid_leave_amount') or 0)).border = border
-            ws.cell(row=row_idx, column=14, value=(emp.get('total_cost') or 0)).border = border
-            ws.cell(row=row_idx, column=15, value=(emp.get('billing_amount') or 0)).border = border
-            ws.cell(row=row_idx, column=16, value=(emp.get('gross_profit') or 0)).border = border
+            ws.cell(row=row_idx, column=9, value=(emp.get('company_employment_insurance') or 0)).border = border
+            ws.cell(row=row_idx, column=10, value=(emp.get('company_workers_comp') or 0)).border = border
+            ws.cell(row=row_idx, column=11, value=(emp.get('commuting_allowance') or 0)).border = border
+            ws.cell(row=row_idx, column=12, value=(emp.get('paid_leave_amount') or 0)).border = border
+            ws.cell(row=row_idx, column=13, value=(emp.get('total_cost') or 0)).border = border
+            ws.cell(row=row_idx, column=14, value=(emp.get('billing_amount') or 0)).border = border
+            ws.cell(row=row_idx, column=15, value=(emp.get('gross_profit') or 0)).border = border
 
-        for col in range(1, 17):
+        for col in range(1, 16):
             ws.column_dimensions[get_column_letter(col)].width = 10
 
     def _write_summary_excel(self, ws, data, header_font, header_fill, border):
