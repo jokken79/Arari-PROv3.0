@@ -1588,28 +1588,36 @@ async def download_report(
     db: sqlite3.Connection = Depends(get_db)
 ):
     """Download report as Excel"""
-    service = ReportService(db)
+    try:
+        service = ReportService(db)
 
-    # Get report data
-    if report_type == "monthly" and period:
-        data = service.get_monthly_report_data(period)
-    elif report_type == "employee" and employee_id:
-        data = service.get_employee_report_data(employee_id)
-    elif report_type == "company" and company:
-        data = service.get_company_report_data(company)
-    else:
-        raise HTTPException(status_code=400, detail="Invalid report parameters")
+        # Get report data
+        if report_type == "monthly" and period:
+            data = service.get_monthly_report_data(period)
+        elif report_type == "employee" and employee_id:
+            data = service.get_employee_report_data(employee_id)
+        elif report_type == "company" and company:
+            data = service.get_company_report_data(company)
+        else:
+            raise HTTPException(status_code=400, detail="Invalid report parameters")
 
-    if format == "excel":
-        excel_bytes = service.generate_excel_report(report_type, data)
-        filename = f"{report_type}_{period or employee_id or company}_{datetime.now().strftime('%Y%m%d')}.xlsx"
-        return Response(
-            content=excel_bytes,
-            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            headers={"Content-Disposition": f"attachment; filename={filename}"}
-        )
+        if format == "excel":
+            excel_bytes = service.generate_excel_report(report_type, data)
+            filename = f"{report_type}_{period or employee_id or company}_{datetime.now().strftime('%Y%m%d')}.xlsx"
+            return Response(
+                content=excel_bytes,
+                media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                headers={"Content-Disposition": f"attachment; filename={filename}"}
+            )
 
-    return data
+        return data
+    except HTTPException:
+        raise
+    except Exception as e:
+        import traceback
+        error_detail = f"{type(e).__name__}: {str(e)}\n{traceback.format_exc()}"
+        print(f"Report download error: {error_detail}")
+        raise HTTPException(status_code=500, detail=f"Report generation failed: {str(e)}")
 
 @app.get("/api/reports/history")
 async def get_report_history(limit: int = 50, db: sqlite3.Connection = Depends(get_db)):
