@@ -169,6 +169,8 @@ arari-app/
 
 **Important**: Manufacturing dispatch target is **12%** (4-tier system).
 
+> ⚠️ **DO NOT MODIFY THESE VALUES** - The margin target (12%) and tier ranges (<7%, 7-10%, 10-12%, >12%) are final and should NOT be changed unless explicitly requested by the user. These values are configured in multiple files (appStore.ts, MarginGaugeChart.tsx, settings/page.tsx, etc.) and must remain synchronized.
+
 ## Key Warnings - Prevent Common Bugs
 
 ### 1. Never Double-Count Paid Leave
