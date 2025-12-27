@@ -48,7 +48,7 @@ export function BillingCalculationColumn({ record, employee }: BillingCalculatio
 
       <div className="p-4 space-y-4">
         {/* Billing Rate Highlight */}
-        <div className="p-4 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-600 rounded-xl text-white text-center shadow-lg">
+        <div className="p-4 bg-gradient-to-r from-indigo-500 via-indigo-600 to-blue-600 rounded-xl text-white text-center shadow-lg">
           <p className="text-xs text-indigo-100 mb-1">請求単価 (Billing Rate)</p>
           <p className="text-3xl font-bold drop-shadow-[0_2px_4px_rgba(0,0,0,0.3)]">
             {formatYen(employee.billingRate)}<span className="text-lg font-normal">/h</span>
@@ -147,7 +147,7 @@ function BillingBreakdown({
           rate={employee.billingRate}
           multiplier={0.25}
           value={billingData.nightBilling}
-          color="purple"
+          color="teal"
           isExtra
         />
       )}
@@ -168,7 +168,7 @@ function BillingBreakdown({
         <div className="flex justify-between items-center py-2 border-b border-white/5 last:border-0 bg-indigo-500/10 px-2 rounded">
           <div className="flex items-center gap-2">
             <span className="text-indigo-300 text-sm font-medium">その他手当 (請求対象)</span>
-            <span className="text-[10px] bg-indigo-500/20 text-indigo-300 px-1.5 py-0.5 rounded border border-indigo-500/30">実費</span>
+            <span className="text-xs bg-indigo-500/20 text-indigo-300 px-1.5 py-0.5 rounded border border-indigo-500/30">実費</span>
           </div>
           <span className="font-mono font-medium text-indigo-300">
             {formatYen(record.otherAllowances)}
@@ -216,11 +216,11 @@ function HoursSummaryChart({ record, totalWorkHours }: { record: PayrollRecord; 
           />
         )}
       </div>
-      <div className="flex flex-wrap gap-2 mt-2 text-[10px]">
-        <span className="flex items-center gap-1 text-slate-500"><span className="w-2 h-2 rounded-full bg-blue-500" aria-hidden="true"></span>基本</span>
-        <span className="flex items-center gap-1 text-slate-500"><span className="w-2 h-2 rounded-full bg-amber-500" aria-hidden="true"></span>残業</span>
-        <span className="flex items-center gap-1 text-slate-500"><span className="w-2 h-2 rounded-full bg-orange-500" aria-hidden="true"></span>60H超</span>
-        <span className="flex items-center gap-1 text-slate-500"><span className="w-2 h-2 rounded-full bg-rose-500" aria-hidden="true"></span>休日</span>
+      <div className="flex flex-wrap gap-2 mt-2 text-xs">
+        <span className="flex items-center gap-1 text-slate-400"><span className="w-2 h-2 rounded-full bg-blue-500" aria-hidden="true"></span>基本</span>
+        <span className="flex items-center gap-1 text-slate-400"><span className="w-2 h-2 rounded-full bg-amber-500" aria-hidden="true"></span>残業</span>
+        <span className="flex items-center gap-1 text-slate-400"><span className="w-2 h-2 rounded-full bg-orange-500" aria-hidden="true"></span>60H超</span>
+        <span className="flex items-center gap-1 text-slate-400"><span className="w-2 h-2 rounded-full bg-rose-500" aria-hidden="true"></span>休日</span>
       </div>
     </div>
   )
@@ -240,17 +240,17 @@ function RateComparison({
       <p className="text-xs font-bold text-emerald-400 mb-2">単価差額（1時間あたり）</p>
       <div className="flex items-center justify-between">
         <div className="text-center">
-          <p className="text-[10px] text-slate-500">単価</p>
+          <p className="text-xs text-slate-400">単価</p>
           <p className="font-bold text-indigo-400">{formatYen(billingRate)}</p>
         </div>
-        <span className="text-slate-600" aria-hidden="true">-</span>
+        <span className="text-slate-500" aria-hidden="true">-</span>
         <div className="text-center">
-          <p className="text-[10px] text-slate-500">時給</p>
+          <p className="text-xs text-slate-400">時給</p>
           <p className="font-bold text-blue-400">{formatYen(hourlyRate)}</p>
         </div>
-        <span className="text-slate-600" aria-hidden="true">=</span>
+        <span className="text-slate-500" aria-hidden="true">=</span>
         <div className="text-center">
-          <p className="text-[10px] text-slate-500">差額</p>
+          <p className="text-xs text-slate-400">差額</p>
           <p className="font-bold text-emerald-400">{formatYen(rateDifference)}</p>
         </div>
       </div>

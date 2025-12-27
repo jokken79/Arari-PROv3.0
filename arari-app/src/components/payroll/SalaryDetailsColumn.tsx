@@ -83,7 +83,7 @@ export function SalaryDetailsColumn({ record, employee }: SalaryDetailsColumnPro
         />
 
         {/* 差引支給額 */}
-        <div className="p-4 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 rounded-xl text-white shadow-lg">
+        <div className="p-4 bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-700 rounded-xl text-white shadow-lg">
           <div className="flex justify-between items-center">
             <div>
               <p className="text-xs text-blue-100/80">差引支給額（手取り）</p>
@@ -110,33 +110,33 @@ function AttendanceSection({ record, totalWorkHours }: { record: PayrollRecord; 
       </div>
       <div className="grid grid-cols-3 gap-2 text-center">
         <div className="p-2 bg-white/5 rounded border border-white/10">
-          <p className="text-[10px] text-slate-500">出勤日数</p>
-          <p className="font-bold text-white">{record.workDays || 0}<span className="text-xs font-normal text-slate-500">日</span></p>
+          <p className="text-xs text-slate-400">出勤日数</p>
+          <p className="font-bold text-white">{record.workDays || 0}<span className="text-xs font-normal text-slate-400">日</span></p>
         </div>
         <div className="p-2 bg-white/5 rounded border border-white/10">
-          <p className="text-[10px] text-slate-500">総労働時間</p>
-          <p className="font-bold text-white">{formatHours(totalWorkHours)}<span className="text-xs font-normal text-slate-500">h</span></p>
+          <p className="text-xs text-slate-400">総労働時間</p>
+          <p className="font-bold text-white">{formatHours(totalWorkHours)}<span className="text-xs font-normal text-slate-400">h</span></p>
         </div>
         <div className="p-2 bg-white/5 rounded border border-white/10">
-          <p className="text-[10px] text-slate-500">基本時間</p>
-          <p className="font-bold text-white">{formatHours(record.workHours)}<span className="text-xs font-normal text-slate-500">h</span></p>
+          <p className="text-xs text-slate-400">基本時間</p>
+          <p className="font-bold text-white">{formatHours(record.workHours)}<span className="text-xs font-normal text-slate-400">h</span></p>
         </div>
       </div>
       <div className="grid grid-cols-4 gap-2 mt-2 text-center">
         <div className="p-1.5 bg-amber-500/10 rounded border border-amber-500/20">
-          <p className="text-[9px] text-amber-500">残業</p>
-          <p className="font-bold text-amber-500 text-sm">{formatHours(record.overtimeHours)}</p>
+          <p className="text-xs text-amber-400">残業</p>
+          <p className="font-bold text-amber-400 text-sm">{formatHours(record.overtimeHours)}</p>
         </div>
         <div className="p-1.5 bg-orange-500/10 rounded border border-orange-500/20">
-          <p className="text-[9px] text-orange-500">60H超</p>
-          <p className="font-bold text-orange-500 text-sm">{formatHours(record.overtimeOver60h)}</p>
+          <p className="text-xs text-orange-400">60H超</p>
+          <p className="font-bold text-orange-400 text-sm">{formatHours(record.overtimeOver60h)}</p>
         </div>
-        <div className="p-1.5 bg-purple-500/10 rounded border border-purple-500/20">
-          <p className="text-[9px] text-purple-400">深夜</p>
-          <p className="font-bold text-purple-400 text-sm">{formatHours(record.nightHours)}</p>
+        <div className="p-1.5 bg-teal-500/10 rounded border border-teal-500/20">
+          <p className="text-xs text-teal-400">深夜</p>
+          <p className="font-bold text-teal-400 text-sm">{formatHours(record.nightHours)}</p>
         </div>
         <div className="p-1.5 bg-rose-500/10 rounded border border-rose-500/20">
-          <p className="text-[9px] text-rose-400">休日</p>
+          <p className="text-xs text-rose-400">休日</p>
           <p className="font-bold text-rose-400 text-sm">{formatHours(record.holidayHours)}</p>
         </div>
       </div>
@@ -174,31 +174,31 @@ function PaidLeaveSection({ record, employee }: { record: PayrollRecord; employe
           <Gift className="h-4 w-4 text-emerald-400" aria-hidden="true" />
           <span className="text-xs font-bold text-emerald-400">有給休暇</span>
         </div>
-        <span className="text-[10px] text-emerald-400/60">
+        <span className="text-xs text-emerald-300/80">
           1日 = {dailyWorkHours.toFixed(1)}h
         </span>
       </div>
       <div className="grid grid-cols-3 gap-2 text-center">
         <div>
-          <p className="text-[10px] text-emerald-400/70">取得日数</p>
+          <p className="text-xs text-emerald-300/80">取得日数</p>
           <p className="font-bold text-emerald-400">
             {calculatedPaidLeaveDays.toFixed(1)}<span className="text-xs font-normal">日</span>
           </p>
         </div>
         <div>
-          <p className="text-[10px] text-emerald-400/70">有給時間</p>
+          <p className="text-xs text-emerald-300/80">有給時間</p>
           <p className="font-bold text-emerald-400">
             {calculatedPaidLeaveHours.toFixed(0)}<span className="text-xs font-normal">h</span>
           </p>
         </div>
         <div>
-          <p className="text-[10px] text-emerald-400/70">有給金額</p>
+          <p className="text-xs text-emerald-300/80">有給金額</p>
           <p className="font-bold text-emerald-400 text-sm">{formatYen(record.paidLeaveAmount || 0)}</p>
         </div>
       </div>
       {/* Calculation breakdown */}
       <div className="mt-2 pt-2 border-t border-emerald-500/30">
-        <p className="text-[9px] text-emerald-400/50 text-center">
+        <p className="text-xs text-emerald-300/70 text-center">
           {formatYen(record.paidLeaveAmount || 0)} ÷ {formatYen(employee.hourlyRate)} = {calculatedPaidLeaveHours.toFixed(0)}h → {calculatedPaidLeaveHours.toFixed(0)}h ÷ {dailyWorkHours.toFixed(1)}h/日 = {calculatedPaidLeaveDays.toFixed(1)}日
         </p>
       </div>
@@ -250,7 +250,7 @@ function AllowancesSection({ record, employee }: { record: PayrollRecord; employ
             label="深夜手当"
             subLabel={`${formatHours(record.nightHours)} × ${formatYen(employee.hourlyRate)} × 0.25`}
             value={record.nightPay}
-            highlight="purple"
+            highlight="teal"
           />
         )}
         {(record.holidayPay || 0) > 0 && (

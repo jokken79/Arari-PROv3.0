@@ -148,34 +148,34 @@ function FormulaSteps({
       <div className="flex justify-center text-2xl text-slate-500" aria-hidden="true">+</div>
 
       {/* Step 3: Company Benefits */}
-      <div className="p-3 bg-purple-500/10 rounded-lg border border-purple-500/20">
+      <div className="p-3 bg-cyan-500/10 rounded-lg border border-cyan-500/20">
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2">
-            <span className="w-6 h-6 rounded-full bg-purple-500 text-white flex items-center justify-center text-xs font-bold shadow-[0_0_10px_rgba(168,85,247,0.5)]">3</span>
-            <span className="font-medium text-purple-400">法定福利費 (会社負担)</span>
+            <span className="w-6 h-6 rounded-full bg-cyan-500 text-white flex items-center justify-center text-xs font-bold shadow-[0_0_10px_rgba(6,182,212,0.5)]">3</span>
+            <span className="font-medium text-cyan-400">法定福利費 (会社負担)</span>
           </div>
-          <span className="text-xl font-bold text-purple-400 drop-shadow-sm">
+          <span className="text-xl font-bold text-cyan-400 drop-shadow-sm">
             -{formatYen(profitData.totalCompanyBenefits)}
           </span>
         </div>
-        <div className="ml-8 space-y-1 text-xs text-purple-300/80">
+        <div className="ml-8 space-y-1 text-xs text-cyan-300">
           <div className="flex justify-between">
-            <span>健康保険 (会社分) <span className="text-[10px] opacity-70">※本人と同額</span></span>
-            <span className="font-mono text-purple-300">{formatYen(profitData.companyHealthIns)}</span>
+            <span>健康保険 (会社分) <span className="text-xs text-cyan-400/70">※本人と同額</span></span>
+            <span className="font-mono text-cyan-300">{formatYen(profitData.companyHealthIns)}</span>
           </div>
           {profitData.companyWelfarePension > 0 && (
             <div className="flex justify-between">
-              <span>厚生年金 (会社分) <span className="text-[10px] opacity-70">※本人と同額</span></span>
-              <span className="font-mono text-purple-300">{formatYen(profitData.companyWelfarePension)}</span>
+              <span>厚生年金 (会社分) <span className="text-xs text-cyan-400/70">※本人と同額</span></span>
+              <span className="font-mono text-cyan-300">{formatYen(profitData.companyWelfarePension)}</span>
             </div>
           )}
           <div className="flex justify-between">
             <span>雇用保険 ({(profitData.empInsRate * 100).toFixed(2)}%)</span>
-            <span className="font-mono text-purple-300">{formatYen(profitData.companyEmploymentIns)}</span>
+            <span className="font-mono text-cyan-300">{formatYen(profitData.companyEmploymentIns)}</span>
           </div>
           <div className="flex justify-between">
             <span>労災保険 ({(profitData.workersCompRate * 100).toFixed(1)}%)</span>
-            <span className="font-mono text-purple-300">{formatYen(profitData.companyWorkersComp)}</span>
+            <span className="font-mono text-cyan-300">{formatYen(profitData.companyWorkersComp)}</span>
           </div>
         </div>
       </div>
@@ -217,7 +217,7 @@ function MarginRateSection({
       </div>
       {/* Progress to target */}
       <div className="space-y-1">
-        <div className="flex justify-between text-xs text-slate-500">
+        <div className="flex justify-between text-xs text-slate-400">
           <span>0%</span>
           <span className="text-emerald-400 font-bold">目標: {targetMargin}%</span>
           <span>{targetMargin * 2}%</span>
@@ -321,9 +321,9 @@ function PerformanceBadge({
   }
 
   return (
-    <div className={`p-3 rounded-lg text-center backdrop-blur-md border ${marginColors.border}/30 bg-gradient-to-br from-${marginColors.bg}/10 to-${marginColors.bg}/5`}>
-      <p className="text-xs mb-1 text-white/70">収益性評価</p>
-      <p className={`text-lg font-bold ${marginColors.text} drop-shadow-[0_0_10px_rgba(0,0,0,0.5)]`}>
+    <div className={`p-3 rounded-lg text-center backdrop-blur-md border ${marginColors.border} ${marginColors.light}`}>
+      <p className="text-xs mb-1 text-slate-300">収益性評価</p>
+      <p className={`text-lg font-bold ${marginColors.text}`}>
         {getPerformanceLabel()}
       </p>
     </div>

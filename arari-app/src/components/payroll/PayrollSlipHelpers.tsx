@@ -15,7 +15,7 @@ interface DetailRowProps {
   label: string
   subLabel?: string
   value?: number
-  highlight?: 'amber' | 'orange' | 'purple' | 'rose' | 'green'
+  highlight?: 'amber' | 'orange' | 'teal' | 'rose' | 'green'
   badge?: string
   badgeColor?: string
 }
@@ -31,7 +31,7 @@ export function DetailRow({
   const colors = {
     amber: 'bg-amber-500/10 border-amber-500/20',
     orange: 'bg-orange-500/10 border-orange-500/20',
-    purple: 'bg-purple-500/10 border-purple-500/20',
+    teal: 'bg-teal-500/10 border-teal-500/20',
     rose: 'bg-rose-500/10 border-rose-500/20',
     green: 'bg-emerald-500/10 border-emerald-500/20',
   }
@@ -42,13 +42,13 @@ export function DetailRow({
         <div className="flex items-center gap-2">
           <span className="text-sm text-slate-300">{label}</span>
           {badge && (
-            <span className={`text-[9px] px-1.5 py-0.5 rounded border ${badgeColor || 'bg-slate-700/50 text-slate-400 border-slate-600/50'}`}>
+            <span className={`text-xs px-1.5 py-0.5 rounded border ${badgeColor || 'bg-slate-700/50 text-slate-300 border-slate-600/50'}`}>
               {badge}
             </span>
           )}
         </div>
         {subLabel && (
-          <p className="text-[10px] text-slate-500">{subLabel}</p>
+          <p className="text-xs text-slate-400">{subLabel}</p>
         )}
       </div>
       <span className="font-mono font-bold text-slate-200">
@@ -82,7 +82,7 @@ interface BillingRowProps {
   rate: number
   multiplier: number
   value: number
-  color?: 'amber' | 'orange' | 'purple' | 'rose'
+  color?: 'amber' | 'orange' | 'teal' | 'rose'
   isExtra?: boolean
 }
 
@@ -105,7 +105,7 @@ export function BillingRow({
   const colorClasses = {
     amber: 'bg-amber-500/20 text-amber-400 border border-amber-500/30',
     orange: 'bg-orange-500/20 text-orange-400 border border-orange-500/30',
-    purple: 'bg-purple-500/20 text-purple-400 border border-purple-500/30',
+    teal: 'bg-teal-500/20 text-teal-400 border border-teal-500/30',
     rose: 'bg-rose-500/20 text-rose-400 border border-rose-500/30',
   }
 
@@ -113,7 +113,7 @@ export function BillingRow({
     <div className="flex justify-between items-center py-2 border-b border-white/5 last:border-0 hover:bg-white/[0.02] transition-colors px-1 -mx-1 rounded">
       <div className="flex items-center gap-2">
         <span className="text-slate-300">{label}</span>
-        <span className="text-xs text-slate-500">({formatHours(hours)}h)</span>
+        <span className="text-xs text-slate-400">({formatHours(hours)}h)</span>
         {multiplier !== 1 && (
           <span className={`px-1.5 py-0.5 text-xs rounded ${color ? colorClasses[color] : 'bg-white/10 text-slate-300 border border-white/10'}`}>
             {isExtra ? '+' : '×'}{multiplier}
