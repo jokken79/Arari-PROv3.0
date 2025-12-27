@@ -46,7 +46,7 @@ const reports = [
   {
     id: 'employee-detail',
     title: '従業員別詳細レポート',
-    description: '各従業員の給与・コスト・粗利の詳細',
+    description: '全従業員の給与・コスト・粗利の詳細',
     icon: Users,
     format: 'Excel',
     category: '従業員分析',
@@ -54,7 +54,7 @@ const reports = [
   {
     id: 'company-analysis',
     title: '派遣先別分析レポート',
-    description: '取引先ごとの収益性分析',
+    description: '全派遣先の収益性分析',
     icon: Building2,
     format: 'Excel',
     category: '企業分析',
@@ -64,23 +64,15 @@ const reports = [
     title: 'コスト内訳レポート',
     description: '社会保険・有給・通勤費の詳細内訳',
     icon: FilePieChart,
-    format: 'PDF',
+    format: 'Excel',
     category: 'コスト分析',
-  },
-  {
-    id: 'period-comparison',
-    title: '期間比較レポート',
-    description: '任意の2期間の比較分析',
-    icon: Calendar,
-    format: 'PDF',
-    category: '比較分析',
   },
   {
     id: 'summary-report',
     title: '経営サマリーレポート',
     description: '経営層向けの概要レポート',
     icon: FileText,
-    format: 'PDF',
+    format: 'Excel',
     category: 'サマリー',
   },
 ]
@@ -114,11 +106,10 @@ export default function ReportsPage() {
       // Map report IDs to API report types
       const reportTypeMap: Record<string, string> = {
         'monthly-profit': 'monthly',
-        'employee-detail': 'employee',
-        'company-analysis': 'company',
-        'cost-breakdown': 'monthly',  // Uses monthly data with cost focus
-        'period-comparison': 'monthly',
-        'summary-report': 'monthly',
+        'employee-detail': 'all-employees',
+        'company-analysis': 'all-companies',
+        'cost-breakdown': 'cost-breakdown',
+        'summary-report': 'summary',
       }
 
       const reportType = reportTypeMap[reportId] || 'monthly'
@@ -129,11 +120,8 @@ export default function ReportsPage() {
         return
       }
 
-      // Build API URL
-      let url = `${API_URL}/api/reports/download/${reportType}?format=excel`
-      if (reportType === 'monthly') {
-        url += `&period=${encodeURIComponent(selectedPeriod)}`
-      }
+      // Build API URL - all reports use period parameter
+      const url = `${API_URL}/api/reports/download/${reportType}?format=excel&period=${encodeURIComponent(selectedPeriod)}`
 
       // Fetch the report
       const response = await fetch(url)

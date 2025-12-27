@@ -401,6 +401,260 @@ class ReportService:
             "generated_at": datetime.now().isoformat(),
         }
 
+    def get_all_employees_report_data(self, period: str) -> Dict[str, Any]:
+        """Get report data for ALL employees in a period"""
+        self.cursor.execute(
+            _q("""
+            SELECT
+                p.employee_id, e.name, e.name_kana, e.dispatch_company,
+                e.hourly_rate, e.billing_rate,
+                p.work_hours, p.overtime_hours, p.overtime_over_60h,
+                p.night_hours, p.holiday_hours,
+                p.gross_salary, p.billing_amount, p.total_company_cost,
+                p.gross_profit, p.profit_margin
+            FROM payroll_records p
+            JOIN employees e ON p.employee_id = e.employee_id
+            WHERE p.period = ?
+            ORDER BY e.dispatch_company, e.name
+        """),
+            (period,),
+        )
+
+        employees = []
+        for row in self.cursor.fetchall():
+            employees.append({
+                "employee_id": _get_row_value(row, "employee_id", 0),
+                "name": _get_row_value(row, "name", 1),
+                "name_kana": _get_row_value(row, "name_kana", 2),
+                "company": _get_row_value(row, "dispatch_company", 3),
+                "hourly_rate": _get_row_value(row, "hourly_rate", 4, 0),
+                "billing_rate": _get_row_value(row, "billing_rate", 5, 0),
+                "work_hours": _get_row_value(row, "work_hours", 6, 0),
+                "overtime_hours": _get_row_value(row, "overtime_hours", 7, 0),
+                "overtime_over_60h": _get_row_value(row, "overtime_over_60h", 8, 0),
+                "night_hours": _get_row_value(row, "night_hours", 9, 0),
+                "holiday_hours": _get_row_value(row, "holiday_hours", 10, 0),
+                "gross_salary": _get_row_value(row, "gross_salary", 11, 0),
+                "billing_amount": _get_row_value(row, "billing_amount", 12, 0),
+                "total_cost": _get_row_value(row, "total_company_cost", 13, 0),
+                "gross_profit": _get_row_value(row, "gross_profit", 14, 0),
+                "profit_margin": _get_row_value(row, "profit_margin", 15, 0),
+            })
+
+        # Summary totals
+        self.cursor.execute(
+            _q("""
+            SELECT
+                COUNT(*) as employee_count,
+                SUM(billing_amount) as total_revenue,
+                SUM(total_company_cost) as total_cost,
+                SUM(gross_profit) as total_profit,
+                AVG(profit_margin) as avg_margin
+            FROM payroll_records
+            WHERE period = ?
+        """),
+            (period,),
+        )
+        totals_row = self.cursor.fetchone()
+
+        return {
+            "period": period,
+            "employees": employees,
+            "totals": {
+                "employee_count": _get_row_value(totals_row, "employee_count", 0, 0),
+                "total_revenue": _get_row_value(totals_row, "total_revenue", 1, 0),
+                "total_cost": _get_row_value(totals_row, "total_cost", 2, 0),
+                "total_profit": _get_row_value(totals_row, "total_profit", 3, 0),
+                "avg_margin": _get_row_value(totals_row, "avg_margin", 4, 0),
+            },
+            "generated_at": datetime.now().isoformat(),
+        }
+
+    def get_all_companies_report_data(self, period: str) -> Dict[str, Any]:
+        """Get report data for ALL companies in a period"""
+        self.cursor.execute(
+            _q("""
+            SELECT
+                e.dispatch_company,
+                COUNT(*) as employee_count,
+                SUM(p.work_hours) as total_work_hours,
+                SUM(p.billing_amount) as revenue,
+                SUM(p.total_company_cost) as cost,
+                SUM(p.gross_profit) as profit,
+                AVG(p.profit_margin) as avg_margin
+            FROM payroll_records p
+            JOIN employees e ON p.employee_id = e.employee_id
+            WHERE p.period = ?
+            GROUP BY e.dispatch_company
+            ORDER BY profit DESC
+        """),
+            (period,),
+        )
+
+        companies = []
+        for row in self.cursor.fetchall():
+            companies.append({
+                "company": _get_row_value(row, "dispatch_company", 0),
+                "employee_count": _get_row_value(row, "employee_count", 1, 0),
+                "work_hours": _get_row_value(row, "total_work_hours", 2, 0),
+                "revenue": _get_row_value(row, "revenue", 3, 0),
+                "cost": _get_row_value(row, "cost", 4, 0),
+                "profit": _get_row_value(row, "profit", 5, 0),
+                "margin": _get_row_value(row, "avg_margin", 6, 0),
+            })
+
+        # Summary totals
+        self.cursor.execute(
+            _q("""
+            SELECT
+                COUNT(DISTINCT e.dispatch_company) as company_count,
+                COUNT(*) as employee_count,
+                SUM(p.billing_amount) as total_revenue,
+                SUM(p.total_company_cost) as total_cost,
+                SUM(p.gross_profit) as total_profit,
+                AVG(p.profit_margin) as avg_margin
+            FROM payroll_records p
+            JOIN employees e ON p.employee_id = e.employee_id
+            WHERE p.period = ?
+        """),
+            (period,),
+        )
+        totals_row = self.cursor.fetchone()
+
+        return {
+            "period": period,
+            "companies": companies,
+            "totals": {
+                "company_count": _get_row_value(totals_row, "company_count", 0, 0),
+                "employee_count": _get_row_value(totals_row, "employee_count", 1, 0),
+                "total_revenue": _get_row_value(totals_row, "total_revenue", 2, 0),
+                "total_cost": _get_row_value(totals_row, "total_cost", 3, 0),
+                "total_profit": _get_row_value(totals_row, "total_profit", 4, 0),
+                "avg_margin": _get_row_value(totals_row, "avg_margin", 5, 0),
+            },
+            "generated_at": datetime.now().isoformat(),
+        }
+
+    def get_cost_breakdown_report_data(self, period: str) -> Dict[str, Any]:
+        """Get cost breakdown report data for a period"""
+        self.cursor.execute(
+            _q("""
+            SELECT
+                p.employee_id, e.name, e.dispatch_company,
+                p.gross_salary,
+                p.social_insurance, p.welfare_pension, p.employment_insurance,
+                p.company_social_insurance, p.company_welfare_pension,
+                p.company_employment_insurance, p.company_workers_comp,
+                p.commuting_allowance, p.paid_leave_amount,
+                p.total_company_cost, p.billing_amount, p.gross_profit
+            FROM payroll_records p
+            JOIN employees e ON p.employee_id = e.employee_id
+            WHERE p.period = ?
+            ORDER BY e.dispatch_company, e.name
+        """),
+            (period,),
+        )
+
+        employees = []
+        for row in self.cursor.fetchall():
+            employees.append({
+                "employee_id": _get_row_value(row, "employee_id", 0),
+                "name": _get_row_value(row, "name", 1),
+                "company": _get_row_value(row, "dispatch_company", 2),
+                "gross_salary": _get_row_value(row, "gross_salary", 3, 0),
+                "social_insurance": _get_row_value(row, "social_insurance", 4, 0),
+                "welfare_pension": _get_row_value(row, "welfare_pension", 5, 0),
+                "employment_insurance": _get_row_value(row, "employment_insurance", 6, 0),
+                "company_social_insurance": _get_row_value(row, "company_social_insurance", 7, 0),
+                "company_welfare_pension": _get_row_value(row, "company_welfare_pension", 8, 0),
+                "company_employment_insurance": _get_row_value(row, "company_employment_insurance", 9, 0),
+                "company_workers_comp": _get_row_value(row, "company_workers_comp", 10, 0),
+                "commuting_allowance": _get_row_value(row, "commuting_allowance", 11, 0),
+                "paid_leave_amount": _get_row_value(row, "paid_leave_amount", 12, 0),
+                "total_cost": _get_row_value(row, "total_company_cost", 13, 0),
+                "billing_amount": _get_row_value(row, "billing_amount", 14, 0),
+                "gross_profit": _get_row_value(row, "gross_profit", 15, 0),
+            })
+
+        # Summary totals
+        self.cursor.execute(
+            _q("""
+            SELECT
+                SUM(gross_salary) as total_salary,
+                SUM(social_insurance + welfare_pension) as total_employee_insurance,
+                SUM(company_social_insurance + company_welfare_pension) as total_company_insurance,
+                SUM(company_employment_insurance) as total_employment_ins,
+                SUM(company_workers_comp) as total_workers_comp,
+                SUM(commuting_allowance) as total_commuting,
+                SUM(total_company_cost) as total_cost,
+                SUM(billing_amount) as total_revenue,
+                SUM(gross_profit) as total_profit
+            FROM payroll_records
+            WHERE period = ?
+        """),
+            (period,),
+        )
+        totals_row = self.cursor.fetchone()
+
+        return {
+            "period": period,
+            "employees": employees,
+            "totals": {
+                "total_salary": _get_row_value(totals_row, "total_salary", 0, 0),
+                "total_employee_insurance": _get_row_value(totals_row, "total_employee_insurance", 1, 0),
+                "total_company_insurance": _get_row_value(totals_row, "total_company_insurance", 2, 0),
+                "total_employment_ins": _get_row_value(totals_row, "total_employment_ins", 3, 0),
+                "total_workers_comp": _get_row_value(totals_row, "total_workers_comp", 4, 0),
+                "total_commuting": _get_row_value(totals_row, "total_commuting", 5, 0),
+                "total_cost": _get_row_value(totals_row, "total_cost", 6, 0),
+                "total_revenue": _get_row_value(totals_row, "total_revenue", 7, 0),
+                "total_profit": _get_row_value(totals_row, "total_profit", 8, 0),
+            },
+            "generated_at": datetime.now().isoformat(),
+        }
+
+    def get_summary_report_data(self, period: str) -> Dict[str, Any]:
+        """Get executive summary report data"""
+        # Get monthly data
+        monthly_data = self.get_monthly_report_data(period)
+
+        # Get top 5 companies by profit
+        self.cursor.execute(
+            _q("""
+            SELECT
+                e.dispatch_company,
+                COUNT(*) as employee_count,
+                SUM(p.gross_profit) as profit,
+                AVG(p.profit_margin) as avg_margin
+            FROM payroll_records p
+            JOIN employees e ON p.employee_id = e.employee_id
+            WHERE p.period = ?
+            GROUP BY e.dispatch_company
+            ORDER BY profit DESC
+            LIMIT 5
+        """),
+            (period,),
+        )
+
+        top_companies = []
+        for row in self.cursor.fetchall():
+            top_companies.append({
+                "company": _get_row_value(row, "dispatch_company", 0),
+                "employee_count": _get_row_value(row, "employee_count", 1, 0),
+                "profit": _get_row_value(row, "profit", 2, 0),
+                "margin": _get_row_value(row, "avg_margin", 3, 0),
+            })
+
+        return {
+            "period": period,
+            "summary": monthly_data.get("summary", {}),
+            "by_company": monthly_data.get("by_company", [])[:10],
+            "top_companies": top_companies,
+            "top_performers": monthly_data.get("top_performers", []),
+            "bottom_performers": monthly_data.get("bottom_performers", []),
+            "generated_at": datetime.now().isoformat(),
+        }
+
     def _safe_sheet_title(self, title: str) -> str:
         """Create safe worksheet title (ASCII-only, max 31 chars)"""
         # Replace Japanese year/month markers
@@ -447,6 +701,26 @@ class ReportService:
             company = data.get('company', '')
             ws.title = self._safe_sheet_title(f"Company_{company}")
             self._write_company_excel(ws, data, header_font, header_fill, border)
+
+        elif report_type == "all-employees":
+            period = data.get('period', '')
+            ws.title = self._safe_sheet_title(f"AllEmployees_{period}")
+            self._write_all_employees_excel(ws, data, header_font, header_fill, border)
+
+        elif report_type == "all-companies":
+            period = data.get('period', '')
+            ws.title = self._safe_sheet_title(f"AllCompanies_{period}")
+            self._write_all_companies_excel(ws, data, header_font, header_fill, border)
+
+        elif report_type == "cost-breakdown":
+            period = data.get('period', '')
+            ws.title = self._safe_sheet_title(f"CostBreakdown_{period}")
+            self._write_cost_breakdown_excel(ws, data, header_font, header_fill, border)
+
+        elif report_type == "summary":
+            period = data.get('period', '')
+            ws.title = self._safe_sheet_title(f"Summary_{period}")
+            self._write_summary_excel(ws, data, header_font, header_fill, border)
 
         # Save to bytes
         output = BytesIO()
@@ -634,6 +908,236 @@ class ReportService:
             ).border = border
 
         for col in range(1, 7):
+            ws.column_dimensions[get_column_letter(col)].width = 15
+
+    def _write_all_employees_excel(self, ws, data, header_font, header_fill, border):
+        """Write all employees report to Excel worksheet"""
+        period = data.get('period', '')
+        ws["A1"] = f"従業員別詳細レポート - {period}"
+        ws["A1"].font = Font(bold=True, size=14)
+        ws.merge_cells("A1:P1")
+
+        totals = data.get("totals", {})
+
+        # Summary section
+        ws["A3"] = "サマリー"
+        ws["A3"].font = Font(bold=True)
+        ws["A4"] = "従業員数"
+        ws["B4"] = totals.get("employee_count") or 0
+        ws["C4"] = "売上合計"
+        ws["D4"] = f"¥{(totals.get('total_revenue') or 0):,.0f}"
+        ws["E4"] = "粗利合計"
+        ws["F4"] = f"¥{(totals.get('total_profit') or 0):,.0f}"
+        ws["G4"] = "平均マージン"
+        ws["H4"] = f"{(totals.get('avg_margin') or 0):.1f}%"
+
+        # Employee details
+        ws["A6"] = "従業員別詳細"
+        ws["A6"].font = Font(bold=True)
+
+        headers = ["ID", "氏名", "派遣先", "時給", "単価", "労働時間", "残業", "60h超",
+                   "深夜", "休日", "総支給", "請求額", "コスト", "粗利", "マージン"]
+        for col, header in enumerate(headers, 1):
+            cell = ws.cell(row=7, column=col, value=header)
+            cell.font = header_font
+            cell.fill = header_fill
+            cell.border = border
+
+        for row_idx, emp in enumerate(data.get("employees", []), 8):
+            ws.cell(row=row_idx, column=1, value=emp.get("employee_id") or "").border = border
+            ws.cell(row=row_idx, column=2, value=emp.get("name") or "").border = border
+            ws.cell(row=row_idx, column=3, value=emp.get("company") or "").border = border
+            ws.cell(row=row_idx, column=4, value=f"¥{(emp.get('hourly_rate') or 0):,.0f}").border = border
+            ws.cell(row=row_idx, column=5, value=f"¥{(emp.get('billing_rate') or 0):,.0f}").border = border
+            ws.cell(row=row_idx, column=6, value=f"{(emp.get('work_hours') or 0):.1f}").border = border
+            ws.cell(row=row_idx, column=7, value=f"{(emp.get('overtime_hours') or 0):.1f}").border = border
+            ws.cell(row=row_idx, column=8, value=f"{(emp.get('overtime_over_60h') or 0):.1f}").border = border
+            ws.cell(row=row_idx, column=9, value=f"{(emp.get('night_hours') or 0):.1f}").border = border
+            ws.cell(row=row_idx, column=10, value=f"{(emp.get('holiday_hours') or 0):.1f}").border = border
+            ws.cell(row=row_idx, column=11, value=f"¥{(emp.get('gross_salary') or 0):,.0f}").border = border
+            ws.cell(row=row_idx, column=12, value=f"¥{(emp.get('billing_amount') or 0):,.0f}").border = border
+            ws.cell(row=row_idx, column=13, value=f"¥{(emp.get('total_cost') or 0):,.0f}").border = border
+            ws.cell(row=row_idx, column=14, value=f"¥{(emp.get('gross_profit') or 0):,.0f}").border = border
+            ws.cell(row=row_idx, column=15, value=f"{(emp.get('profit_margin') or 0):.1f}%").border = border
+
+        for col in range(1, 16):
+            ws.column_dimensions[get_column_letter(col)].width = 12
+
+    def _write_all_companies_excel(self, ws, data, header_font, header_fill, border):
+        """Write all companies report to Excel worksheet"""
+        period = data.get('period', '')
+        ws["A1"] = f"派遣先別分析レポート - {period}"
+        ws["A1"].font = Font(bold=True, size=14)
+        ws.merge_cells("A1:G1")
+
+        totals = data.get("totals", {})
+
+        # Summary section
+        ws["A3"] = "サマリー"
+        ws["A3"].font = Font(bold=True)
+        ws["A4"] = "派遣先数"
+        ws["B4"] = totals.get("company_count") or 0
+        ws["C4"] = "従業員数"
+        ws["D4"] = totals.get("employee_count") or 0
+        ws["E4"] = "売上合計"
+        ws["F4"] = f"¥{(totals.get('total_revenue') or 0):,.0f}"
+
+        ws["A5"] = "コスト合計"
+        ws["B5"] = f"¥{(totals.get('total_cost') or 0):,.0f}"
+        ws["C5"] = "粗利合計"
+        ws["D5"] = f"¥{(totals.get('total_profit') or 0):,.0f}"
+        ws["E5"] = "平均マージン"
+        ws["F5"] = f"{(totals.get('avg_margin') or 0):.1f}%"
+
+        # Company details
+        ws["A7"] = "派遣先別詳細"
+        ws["A7"].font = Font(bold=True)
+
+        headers = ["派遣先", "従業員数", "労働時間", "売上", "コスト", "粗利", "マージン"]
+        for col, header in enumerate(headers, 1):
+            cell = ws.cell(row=8, column=col, value=header)
+            cell.font = header_font
+            cell.fill = header_fill
+            cell.border = border
+
+        for row_idx, comp in enumerate(data.get("companies", []), 9):
+            ws.cell(row=row_idx, column=1, value=comp.get("company") or "").border = border
+            ws.cell(row=row_idx, column=2, value=comp.get("employee_count") or 0).border = border
+            ws.cell(row=row_idx, column=3, value=f"{(comp.get('work_hours') or 0):,.1f}").border = border
+            ws.cell(row=row_idx, column=4, value=f"¥{(comp.get('revenue') or 0):,.0f}").border = border
+            ws.cell(row=row_idx, column=5, value=f"¥{(comp.get('cost') or 0):,.0f}").border = border
+            ws.cell(row=row_idx, column=6, value=f"¥{(comp.get('profit') or 0):,.0f}").border = border
+            ws.cell(row=row_idx, column=7, value=f"{(comp.get('margin') or 0):.1f}%").border = border
+
+        for col in range(1, 8):
+            ws.column_dimensions[get_column_letter(col)].width = 15
+
+    def _write_cost_breakdown_excel(self, ws, data, header_font, header_fill, border):
+        """Write cost breakdown report to Excel worksheet"""
+        period = data.get('period', '')
+        ws["A1"] = f"コスト内訳レポート - {period}"
+        ws["A1"].font = Font(bold=True, size=14)
+        ws.merge_cells("A1:P1")
+
+        totals = data.get("totals", {})
+
+        # Summary section
+        ws["A3"] = "コスト内訳サマリー"
+        ws["A3"].font = Font(bold=True)
+        ws["A4"] = "総支給額"
+        ws["B4"] = f"¥{(totals.get('total_salary') or 0):,.0f}"
+        ws["C4"] = "社保(本人)"
+        ws["D4"] = f"¥{(totals.get('total_employee_insurance') or 0):,.0f}"
+        ws["E4"] = "社保(会社)"
+        ws["F4"] = f"¥{(totals.get('total_company_insurance') or 0):,.0f}"
+
+        ws["A5"] = "雇用保険"
+        ws["B5"] = f"¥{(totals.get('total_employment_ins') or 0):,.0f}"
+        ws["C5"] = "労災保険"
+        ws["D5"] = f"¥{(totals.get('total_workers_comp') or 0):,.0f}"
+        ws["E5"] = "通勤費"
+        ws["F5"] = f"¥{(totals.get('total_commuting') or 0):,.0f}"
+
+        ws["A6"] = "会社総コスト"
+        ws["B6"] = f"¥{(totals.get('total_cost') or 0):,.0f}"
+        ws["C6"] = "売上合計"
+        ws["D6"] = f"¥{(totals.get('total_revenue') or 0):,.0f}"
+        ws["E6"] = "粗利合計"
+        ws["F6"] = f"¥{(totals.get('total_profit') or 0):,.0f}"
+
+        # Employee cost details
+        ws["A8"] = "従業員別コスト詳細"
+        ws["A8"].font = Font(bold=True)
+
+        headers = ["ID", "氏名", "派遣先", "総支給", "健保", "厚年", "雇保",
+                   "会社健保", "会社厚年", "会社雇保", "労災", "通勤費", "有給", "総コスト", "請求", "粗利"]
+        for col, header in enumerate(headers, 1):
+            cell = ws.cell(row=9, column=col, value=header)
+            cell.font = header_font
+            cell.fill = header_fill
+            cell.border = border
+
+        for row_idx, emp in enumerate(data.get("employees", []), 10):
+            ws.cell(row=row_idx, column=1, value=emp.get("employee_id") or "").border = border
+            ws.cell(row=row_idx, column=2, value=emp.get("name") or "").border = border
+            ws.cell(row=row_idx, column=3, value=emp.get("company") or "").border = border
+            ws.cell(row=row_idx, column=4, value=(emp.get('gross_salary') or 0)).border = border
+            ws.cell(row=row_idx, column=5, value=(emp.get('social_insurance') or 0)).border = border
+            ws.cell(row=row_idx, column=6, value=(emp.get('welfare_pension') or 0)).border = border
+            ws.cell(row=row_idx, column=7, value=(emp.get('employment_insurance') or 0)).border = border
+            ws.cell(row=row_idx, column=8, value=(emp.get('company_social_insurance') or 0)).border = border
+            ws.cell(row=row_idx, column=9, value=(emp.get('company_welfare_pension') or 0)).border = border
+            ws.cell(row=row_idx, column=10, value=(emp.get('company_employment_insurance') or 0)).border = border
+            ws.cell(row=row_idx, column=11, value=(emp.get('company_workers_comp') or 0)).border = border
+            ws.cell(row=row_idx, column=12, value=(emp.get('commuting_allowance') or 0)).border = border
+            ws.cell(row=row_idx, column=13, value=(emp.get('paid_leave_amount') or 0)).border = border
+            ws.cell(row=row_idx, column=14, value=(emp.get('total_cost') or 0)).border = border
+            ws.cell(row=row_idx, column=15, value=(emp.get('billing_amount') or 0)).border = border
+            ws.cell(row=row_idx, column=16, value=(emp.get('gross_profit') or 0)).border = border
+
+        for col in range(1, 17):
+            ws.column_dimensions[get_column_letter(col)].width = 10
+
+    def _write_summary_excel(self, ws, data, header_font, header_fill, border):
+        """Write executive summary report to Excel worksheet"""
+        period = data.get('period', '')
+        ws["A1"] = f"経営サマリーレポート - {period}"
+        ws["A1"].font = Font(bold=True, size=14)
+        ws.merge_cells("A1:F1")
+
+        summary = data.get("summary", {})
+
+        # Key metrics
+        ws["A3"] = "主要指標"
+        ws["A3"].font = Font(bold=True)
+
+        ws["A4"] = "従業員数"
+        ws["B4"] = summary.get("employee_count") or 0
+        ws["A5"] = "売上合計"
+        ws["B5"] = f"¥{(summary.get('total_revenue') or 0):,.0f}"
+        ws["A6"] = "コスト合計"
+        ws["B6"] = f"¥{(summary.get('total_cost') or 0):,.0f}"
+        ws["A7"] = "粗利合計"
+        ws["B7"] = f"¥{(summary.get('total_profit') or 0):,.0f}"
+        ws["A8"] = "平均マージン"
+        ws["B8"] = f"{(summary.get('avg_margin') or 0):.1f}%"
+
+        # Top companies
+        ws["A10"] = "利益上位派遣先"
+        ws["A10"].font = Font(bold=True)
+
+        headers = ["派遣先", "従業員数", "粗利", "マージン"]
+        for col, header in enumerate(headers, 1):
+            cell = ws.cell(row=11, column=col, value=header)
+            cell.font = header_font
+            cell.fill = header_fill
+            cell.border = border
+
+        for row_idx, comp in enumerate(data.get("top_companies", []), 12):
+            ws.cell(row=row_idx, column=1, value=comp.get("company") or "").border = border
+            ws.cell(row=row_idx, column=2, value=comp.get("employee_count") or 0).border = border
+            ws.cell(row=row_idx, column=3, value=f"¥{(comp.get('profit') or 0):,.0f}").border = border
+            ws.cell(row=row_idx, column=4, value=f"{(comp.get('margin') or 0):.1f}%").border = border
+
+        # Top performers
+        start_row = 12 + len(data.get("top_companies", [])) + 2
+        ws.cell(row=start_row, column=1, value="利益率上位従業員").font = Font(bold=True)
+
+        headers = ["氏名", "派遣先", "売上", "粗利", "マージン"]
+        for col, header in enumerate(headers, 1):
+            cell = ws.cell(row=start_row + 1, column=col, value=header)
+            cell.font = header_font
+            cell.fill = header_fill
+            cell.border = border
+
+        for row_idx, emp in enumerate(data.get("top_performers", []), start_row + 2):
+            ws.cell(row=row_idx, column=1, value=emp.get("name") or "").border = border
+            ws.cell(row=row_idx, column=2, value=emp.get("company") or "").border = border
+            ws.cell(row=row_idx, column=3, value=f"¥{(emp.get('revenue') or 0):,.0f}").border = border
+            ws.cell(row=row_idx, column=4, value=f"¥{(emp.get('profit') or 0):,.0f}").border = border
+            ws.cell(row=row_idx, column=5, value=f"{(emp.get('margin') or 0):.1f}%").border = border
+
+        for col in range(1, 6):
             ws.column_dimensions[get_column_letter(col)].width = 15
 
     def log_report_generation(

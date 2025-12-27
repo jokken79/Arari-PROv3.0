@@ -1591,13 +1591,21 @@ async def download_report(
     try:
         service = ReportService(db)
 
-        # Get report data
+        # Get report data based on report type
         if report_type == "monthly" and period:
             data = service.get_monthly_report_data(period)
         elif report_type == "employee" and employee_id:
             data = service.get_employee_report_data(employee_id)
         elif report_type == "company" and company:
             data = service.get_company_report_data(company)
+        elif report_type == "all-employees" and period:
+            data = service.get_all_employees_report_data(period)
+        elif report_type == "all-companies" and period:
+            data = service.get_all_companies_report_data(period)
+        elif report_type == "cost-breakdown" and period:
+            data = service.get_cost_breakdown_report_data(period)
+        elif report_type == "summary" and period:
+            data = service.get_summary_report_data(period)
         else:
             raise HTTPException(status_code=400, detail="Invalid report parameters")
 
