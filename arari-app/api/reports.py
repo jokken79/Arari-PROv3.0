@@ -1367,7 +1367,7 @@ class ReportService:
             table_style = [
                 ('BACKGROUND', (0, 0), (-1, 0), PDF_COLORS['primary']),
                 ('TEXTCOLOR', (0, 0), (-1, 0), PDF_COLORS['white']),
-                ('FONTNAME', (0, 0), (-1, 0), JAPANESE_FONT),
+                ('FONTNAME', (0, 0), (-1, -1), JAPANESE_FONT),
                 ('FONTSIZE', (0, 0), (-1, -1), 9),
                 ('ALIGN', (1, 0), (-1, -1), 'RIGHT'),
                 ('ALIGN', (0, 0), (0, -1), 'LEFT'),
@@ -1403,7 +1403,7 @@ class ReportService:
             perf_table.setStyle(TableStyle([
                 ('BACKGROUND', (0, 0), (-1, 0), PDF_COLORS['success']),
                 ('TEXTCOLOR', (0, 0), (-1, 0), PDF_COLORS['white']),
-                ('FONTNAME', (0, 0), (-1, 0), JAPANESE_FONT),
+                ('FONTNAME', (0, 0), (-1, -1), JAPANESE_FONT),
                 ('FONTSIZE', (0, 0), (-1, -1), 9),
                 ('ALIGN', (2, 0), (-1, -1), 'RIGHT'),
                 ('TOPPADDING', (0, 0), (-1, -1), 5),
@@ -1432,7 +1432,7 @@ class ReportService:
             bottom_table.setStyle(TableStyle([
                 ('BACKGROUND', (0, 0), (-1, 0), PDF_COLORS['danger']),
                 ('TEXTCOLOR', (0, 0), (-1, 0), PDF_COLORS['white']),
-                ('FONTNAME', (0, 0), (-1, 0), JAPANESE_FONT),
+                ('FONTNAME', (0, 0), (-1, -1), JAPANESE_FONT),
                 ('FONTSIZE', (0, 0), (-1, -1), 9),
                 ('ALIGN', (2, 0), (-1, -1), 'RIGHT'),
                 ('TOPPADDING', (0, 0), (-1, -1), 5),
@@ -1497,7 +1497,7 @@ class ReportService:
             table_style = [
                 ('BACKGROUND', (0, 0), (-1, 0), PDF_COLORS['primary']),
                 ('TEXTCOLOR', (0, 0), (-1, 0), PDF_COLORS['white']),
-                ('FONTNAME', (0, 0), (-1, 0), JAPANESE_FONT),
+                ('FONTNAME', (0, 0), (-1, -1), JAPANESE_FONT),
                 ('FONTSIZE', (0, 0), (-1, -1), 8),
                 ('ALIGN', (1, 0), (-1, -1), 'RIGHT'),
                 ('ALIGN', (0, 0), (0, -1), 'LEFT'),
@@ -1560,7 +1560,7 @@ class ReportService:
             table_style = [
                 ('BACKGROUND', (0, 0), (-1, 0), PDF_COLORS['primary']),
                 ('TEXTCOLOR', (0, 0), (-1, 0), PDF_COLORS['white']),
-                ('FONTNAME', (0, 0), (-1, 0), JAPANESE_FONT),
+                ('FONTNAME', (0, 0), (-1, -1), JAPANESE_FONT),
                 ('FONTSIZE', (0, 0), (-1, -1), 8),
                 ('ALIGN', (1, 0), (-1, -1), 'RIGHT'),
                 ('ALIGN', (0, 0), (0, -1), 'LEFT'),
