@@ -305,9 +305,9 @@ export function EmployeeTable({
                         {employee.employeeId}
                       </div>
                       <div className="w-36 px-4">
-                        <p className="text-sm font-medium truncate">{employee.name}</p>
+                        <p className="text-sm font-medium truncate">{employee.nameKana || employee.name}</p>
                         <p className="text-xs text-muted-foreground truncate">
-                          {employee.nameKana}
+                          {employee.nameKana ? employee.name : ''}
                         </p>
                       </div>
                       <div className="w-40 px-4 text-sm truncate">

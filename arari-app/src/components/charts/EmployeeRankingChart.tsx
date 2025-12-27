@@ -56,9 +56,9 @@ const CustomTooltip = ({ active, payload }: any) => {
             <span className="text-muted-foreground">マージン率:</span>
             <span className={cn(
               "font-medium",
-              data.margin >= 10 ? "text-emerald-500" :
-                data.margin >= 7 ? "text-green-500" :
-                  data.margin >= 3 ? "text-amber-500" : "text-red-500"
+              data.margin >= 15 ? "text-amber-500" :
+                data.margin >= 12 ? "text-blue-500" :
+                  data.margin >= 10 ? "text-green-500" : "text-red-500"
             )}>
               {data.margin.toFixed(1)}%
             </span>

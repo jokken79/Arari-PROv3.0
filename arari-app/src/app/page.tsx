@@ -183,7 +183,7 @@ export default function DashboardPage() {
       const employee = employees.find(e => e.employeeId === r.employeeId)
       return {
         employeeId: r.employeeId,
-        name: employee?.name || r.employeeId,
+        name: employee?.nameKana || employee?.name || r.employeeId,  // Prefer katakana
         company: employee?.dispatchCompany || '',
         profit: r.grossProfit,
         margin: r.profitMargin,

@@ -79,23 +79,23 @@ export function sortPeriodsAscending(periods: string[]): string[] {
 }
 
 // Get color class based on profit margin
-// Thresholds: >15% (excellent), 12-15% (good), 10-12% (average), 7-10% (needs work), <7% (warning)
+// Thresholds: >15% (gold), 12-15% (blue), 10-12% (green), 7-10% (orange), <7% (red)
 export function getProfitColor(margin: number): string {
-  if (margin >= 15) return 'text-emerald-500'
-  if (margin >= 12) return 'text-green-500'
-  if (margin >= 10) return 'text-orange-500'
-  if (margin >= 7) return 'text-amber-500'
-  return 'text-red-500'
+  if (margin >= 15) return 'text-amber-500'   // Gold - target achieved
+  if (margin >= 12) return 'text-blue-500'    // Blue - close to target
+  if (margin >= 10) return 'text-green-500'   // Green - improvement needed
+  if (margin >= 7) return 'text-orange-500'   // Orange - warning
+  return 'text-red-500'                       // Red - critical
 }
 
 // Get background color class based on profit margin
-// Thresholds: >15% (excellent), 12-15% (good), 10-12% (average), 7-10% (needs work), <7% (warning)
+// Thresholds: >15% (gold), 12-15% (blue), 10-12% (green), 7-10% (orange), <7% (red)
 export function getProfitBgColor(margin: number): string {
-  if (margin >= 15) return 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20'
-  if (margin >= 12) return 'bg-green-500/10 text-green-500 border-green-500/20'
-  if (margin >= 10) return 'bg-orange-500/10 text-orange-500 border-orange-500/20'
-  if (margin >= 7) return 'bg-amber-500/10 text-amber-500 border-amber-500/20'
-  return 'bg-red-500/10 text-red-500 border-red-500/20'
+  if (margin >= 15) return 'bg-amber-500/10 text-amber-500 border-amber-500/20'   // Gold
+  if (margin >= 12) return 'bg-blue-500/10 text-blue-500 border-blue-500/20'      // Blue
+  if (margin >= 10) return 'bg-green-500/10 text-green-500 border-green-500/20'   // Green
+  if (margin >= 7) return 'bg-orange-500/10 text-orange-500 border-orange-500/20' // Orange
+  return 'bg-red-500/10 text-red-500 border-red-500/20'                           // Red
 }
 
 // Calculate 粗利 (gross profit)

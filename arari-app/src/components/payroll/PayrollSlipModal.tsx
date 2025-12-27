@@ -137,7 +137,7 @@ function ModalHeader({
         </span>
         <div className="flex items-center gap-2 sm:gap-3">
           <span id="payroll-modal-title" className="text-lg sm:text-2xl font-bold text-foreground tracking-tight">
-            {employee.name}
+            {employee.nameKana || employee.name}
           </span>
           <span className="text-xs sm:text-sm text-muted-foreground font-mono">
             ({employee.employeeId})

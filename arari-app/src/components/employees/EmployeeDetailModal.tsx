@@ -72,8 +72,8 @@ export function EmployeeDetailModal({ employee, isOpen, onClose }: EmployeeDetai
                   <User className="h-6 w-6 text-cyan-400" />
                 </div>
                 <div>
-                  <h2 id="employee-modal-title" className="text-2xl font-bold text-white tracking-tight">{employee.name}</h2>
-                  <p className="text-sm text-slate-400 font-mono tracking-wide">{employee.nameKana}</p>
+                  <h2 id="employee-modal-title" className="text-2xl font-bold text-white tracking-tight">{employee.nameKana || employee.name}</h2>
+                  <p className="text-sm text-slate-400 font-mono tracking-wide">{employee.nameKana ? employee.name : ''}</p>
                 </div>
               </div>
               <div className="flex items-center gap-3">

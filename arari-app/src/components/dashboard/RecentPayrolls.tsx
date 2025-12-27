@@ -18,13 +18,13 @@ export function RecentPayrolls({ payrolls, employees }: RecentPayrollsProps) {
     return employees.find(e => e.employeeId === employeeId)
   }
 
-  // 製造派遣 margin targets
+  // 製造派遣 margin targets: >15% gold, 12-15% blue, 10-12% green, 7-10% orange, <7% red
   const getBadgeVariant = (margin: number) => {
-    if (margin >= 18) return 'success'   // excellent
-    if (margin >= 15) return 'success'   // target
-    if (margin >= 12) return 'warning'   // close
-    if (margin >= 10) return 'warning'   // needs improvement
-    return 'danger'                      // below standard
+    if (margin >= 15) return 'success'   // gold - target achieved
+    if (margin >= 12) return 'info'      // blue - close to target
+    if (margin >= 10) return 'success'   // green - improvement needed
+    if (margin >= 7) return 'warning'    // orange - warning
+    return 'danger'                      // red - critical
   }
 
   return (
@@ -72,7 +72,7 @@ export function RecentPayrolls({ payrolls, employees }: RecentPayrollsProps) {
                       <User className="h-5 w-5 text-white" />
                     </div>
                     <div>
-                      <p className="font-medium">{employee?.name || payroll.employee_id}</p>
+                      <p className="font-medium">{employee?.nameKana || employee?.name || payroll.employee_id}</p>
                       <p className="text-sm text-muted-foreground">
                         {employee?.dispatchCompany}
                       </p>
