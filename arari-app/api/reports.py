@@ -53,6 +53,101 @@ PDF_COLORS = {
     'black': colors.black,
 }
 
+# Romaji to Katakana converter for employee names
+ROMAJI_TO_KATAKANA = {
+    # Vowels
+    'A': 'ア', 'I': 'イ', 'U': 'ウ', 'E': 'エ', 'O': 'オ',
+    # K-row
+    'KA': 'カ', 'KI': 'キ', 'KU': 'ク', 'KE': 'ケ', 'KO': 'コ',
+    # S-row
+    'SA': 'サ', 'SHI': 'シ', 'SI': 'シ', 'SU': 'ス', 'SE': 'セ', 'SO': 'ソ',
+    # T-row
+    'TA': 'タ', 'CHI': 'チ', 'TI': 'チ', 'TSU': 'ツ', 'TU': 'ツ', 'TE': 'テ', 'TO': 'ト',
+    # N-row
+    'NA': 'ナ', 'NI': 'ニ', 'NU': 'ヌ', 'NE': 'ネ', 'NO': 'ノ',
+    # H-row
+    'HA': 'ハ', 'HI': 'ヒ', 'FU': 'フ', 'HU': 'フ', 'HE': 'ヘ', 'HO': 'ホ',
+    # M-row
+    'MA': 'マ', 'MI': 'ミ', 'MU': 'ム', 'ME': 'メ', 'MO': 'モ',
+    # Y-row
+    'YA': 'ヤ', 'YU': 'ユ', 'YO': 'ヨ',
+    # R-row
+    'RA': 'ラ', 'RI': 'リ', 'RU': 'ル', 'RE': 'レ', 'RO': 'ロ',
+    # W-row
+    'WA': 'ワ', 'WO': 'ヲ',
+    # N
+    'N': 'ン',
+    # G-row
+    'GA': 'ガ', 'GI': 'ギ', 'GU': 'グ', 'GE': 'ゲ', 'GO': 'ゴ',
+    # Z-row
+    'ZA': 'ザ', 'JI': 'ジ', 'ZI': 'ジ', 'ZU': 'ズ', 'ZE': 'ゼ', 'ZO': 'ゾ',
+    # D-row
+    'DA': 'ダ', 'DI': 'ヂ', 'DU': 'ヅ', 'DE': 'デ', 'DO': 'ド',
+    # B-row
+    'BA': 'バ', 'BI': 'ビ', 'BU': 'ブ', 'BE': 'ベ', 'BO': 'ボ',
+    # P-row
+    'PA': 'パ', 'PI': 'ピ', 'PU': 'プ', 'PE': 'ペ', 'PO': 'ポ',
+    # Combinations
+    'KYA': 'キャ', 'KYU': 'キュ', 'KYO': 'キョ',
+    'SHA': 'シャ', 'SHU': 'シュ', 'SHO': 'ショ',
+    'CHA': 'チャ', 'CHU': 'チュ', 'CHO': 'チョ',
+    'NYA': 'ニャ', 'NYU': 'ニュ', 'NYO': 'ニョ',
+    'HYA': 'ヒャ', 'HYU': 'ヒュ', 'HYO': 'ヒョ',
+    'MYA': 'ミャ', 'MYU': 'ミュ', 'MYO': 'ミョ',
+    'RYA': 'リャ', 'RYU': 'リュ', 'RYO': 'リョ',
+    'GYA': 'ギャ', 'GYU': 'ギュ', 'GYO': 'ギョ',
+    'JA': 'ジャ', 'JU': 'ジュ', 'JO': 'ジョ',
+    'BYA': 'ビャ', 'BYU': 'ビュ', 'BYO': 'ビョ',
+    'PYA': 'ピャ', 'PYU': 'ピュ', 'PYO': 'ピョ',
+    # Foreign sounds (for Vietnamese names etc.)
+    'FA': 'ファ', 'FI': 'フィ', 'FE': 'フェ', 'FO': 'フォ',
+    'THA': 'タ', 'THE': 'テ', 'THI': 'ティ', 'THO': 'ト', 'THU': 'トゥ',
+    'VA': 'ヴァ', 'VI': 'ヴィ', 'VU': 'ヴ', 'VE': 'ヴェ', 'VO': 'ヴォ',
+    'DU': 'ドゥ', 'DI': 'ディ',
+    'TI': 'ティ', 'TU': 'トゥ',
+    'NGU': 'グ', 'NG': 'ン',
+    'PHA': 'ファ', 'PHI': 'フィ', 'PHU': 'フ', 'PHO': 'フォ',
+    'QU': 'ク', 'QUA': 'クア',
+    'LA': 'ラ', 'LI': 'リ', 'LU': 'ル', 'LE': 'レ', 'LO': 'ロ',
+    'CA': 'カ', 'CI': 'シ', 'CU': 'ク', 'CE': 'セ', 'CO': 'コ',
+    # Double consonants
+    'CC': 'ッ', 'KK': 'ッ', 'PP': 'ッ', 'SS': 'ッ', 'TT': 'ッ',
+}
+
+def romaji_to_katakana(name: str) -> str:
+    """Convert romaji name to katakana"""
+    if not name:
+        return name
+
+    # Check if already contains Japanese characters
+    for char in name:
+        if '\u3040' <= char <= '\u30ff' or '\u4e00' <= char <= '\u9fff':
+            return name  # Already Japanese
+
+    result = []
+    words = name.upper().split()
+
+    for word in words:
+        katakana_word = ""
+        i = 0
+        while i < len(word):
+            # Try 4-char, 3-char, 2-char, then 1-char matches
+            matched = False
+            for length in [4, 3, 2, 1]:
+                if i + length <= len(word):
+                    chunk = word[i:i+length]
+                    if chunk in ROMAJI_TO_KATAKANA:
+                        katakana_word += ROMAJI_TO_KATAKANA[chunk]
+                        i += length
+                        matched = True
+                        break
+            if not matched:
+                # Skip unknown character
+                i += 1
+        result.append(katakana_word)
+
+    return ' '.join(result)
+
 
 def _q(query: str) -> str:
     """Convert SQLite query to PostgreSQL if needed (? -> %s)"""
@@ -1392,7 +1487,7 @@ class ReportService:
             perf_data = [['氏名', '派遣先', '粗利', 'マージン']]
             for emp in top_performers:
                 margin_val = emp.get('margin', 0) or 0
-                emp_name = emp.get('name_kana') or emp.get('name', '')
+                emp_name = emp.get('name_kana') or romaji_to_katakana(emp.get('name', ''))
                 perf_data.append([
                     emp_name[:12],
                     emp.get('company', '')[:10],
@@ -1422,7 +1517,7 @@ class ReportService:
             bottom_data = [['氏名', '派遣先', '粗利', 'マージン']]
             for emp in bottom_performers:
                 margin_val = emp.get('margin', 0) or 0
-                emp_name = emp.get('name_kana') or emp.get('name', '')
+                emp_name = emp.get('name_kana') or romaji_to_katakana(emp.get('name', ''))
                 bottom_data.append([
                     emp_name[:12],
                     emp.get('company', '')[:10],
