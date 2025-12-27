@@ -57,7 +57,7 @@ export default function SettingsPage() {
     employment_insurance_rate: '0.0090',
     workers_comp_rate: '0.003',
     fiscal_year: '2025',
-    target_margin: '15',
+    target_margin: '12',
   })
   const [isSavingInsurance, setIsSavingInsurance] = useState(false)
   const [insuranceSaveStatus, setInsuranceSaveStatus] = useState<{
@@ -76,7 +76,7 @@ export default function SettingsPage() {
             employment_insurance_rate: '0.0090',
             workers_comp_rate: '0.003',
             fiscal_year: '2025',
-            target_margin: '15',
+            target_margin: '12',
           }
           data.forEach((item: { key: string; value: string }) => {
             if (item.key in settings) {
@@ -401,7 +401,7 @@ export default function SettingsPage() {
                           目標マージン率
                         </label>
                         <p className="text-xs text-emerald-700 dark:text-emerald-300">
-                          製造派遣の標準: 15%
+                          製造派遣の標準: 12%
                         </p>
                       </div>
                       <Input

@@ -119,12 +119,12 @@ export default function DashboardPage() {
       const response = await fetch(`${API_BASE_URL}/api/settings/target_margin`)
       if (!response.ok) throw new Error('Failed to fetch target margin')
       const data = await response.json()
-      return data.value ? Number(data.value) : 15
+      return data.value ? Number(data.value) : 12
     },
-    initialData: 15,
+    initialData: 12,
   })
 
-  const targetMargin = targetMarginData || 15
+  const targetMargin = targetMarginData || 12
 
   const handleRefresh = async () => {
     await refetch()

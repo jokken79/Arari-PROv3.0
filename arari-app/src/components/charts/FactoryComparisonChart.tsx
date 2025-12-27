@@ -39,7 +39,7 @@ const CustomTooltip = ({ active, payload, label, targetMargin }: any) => {
     const factoryData = payload[0]?.payload
     if (!factoryData) return null
 
-    const target = targetMargin || 15
+    const target = targetMargin || 12
     const isPositiveProfit = factoryData.profit >= 0
     const marginColor = factoryData.margin >= target
       ? 'text-emerald-500'
@@ -130,7 +130,7 @@ export function FactoryComparisonChart({
   onPeriodChange
 }: FactoryComparisonChartProps) {
   const { settings } = useAppStore()
-  const target = settings.target_margin || 15
+  const target = settings.target_margin || 12
 
   const [isExpanded, setIsExpanded] = useState(false)
 

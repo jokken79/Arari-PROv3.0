@@ -36,7 +36,7 @@ export function PayrollSlipModal({ isOpen, onClose, record, employee }: PayrollS
     const marginRate = record.billingAmount > 0
       ? (record.grossProfit / record.billingAmount) * 100
       : 0
-    const targetMargin = settings.target_margin || 15
+    const targetMargin = settings.target_margin || 12
     const marginColor = getMarginColors(marginRate, targetMargin)
 
     // Calculate total company benefits for display

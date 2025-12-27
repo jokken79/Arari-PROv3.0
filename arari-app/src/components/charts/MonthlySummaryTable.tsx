@@ -90,7 +90,7 @@ export function MonthlySummaryTable({ data }: MonthlySummaryTableProps) {
 
   const MarginBadge = ({ margin }: { margin: number }) => {
     // Manufacturing dispatch standards: dynamic target
-    const target = settings.target_margin || 15
+    const target = settings.target_margin || 12
 
     const colorClass = margin >= target
       ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/30'  // Excellent

@@ -26,7 +26,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   employment_insurance_rate: 0.009,
   workers_comp_rate: 0.003,
   fiscal_year: 2025,
-  target_margin: 15,
+  target_margin: 12,
 }
 
 // Generate dashboard stats from local data (fallback)

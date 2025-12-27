@@ -27,7 +27,7 @@ export function ProfitAnalysisColumn({ record, employee, settings }: ProfitAnaly
       ? (record.grossProfit / record.billingAmount) * 100
       : 0
 
-    const targetMargin = settings.target_margin || 15
+    const targetMargin = settings.target_margin || 12
     const empInsRate = settings.employment_insurance_rate || 0.009
     const workersCompRate = settings.workers_comp_rate || 0.003
 

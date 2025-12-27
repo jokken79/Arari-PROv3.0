@@ -20,12 +20,12 @@ interface MarginGaugeChartProps {
 
 export function MarginGaugeChart({
   currentMargin,
-  targetMargin = 15,
+  targetMargin = 12,
   previousMargin
 }: MarginGaugeChartProps) {
-  // Clamp margin between 0 and 25 for display (target is 15%, max display 25%)
-  const displayMargin = Math.min(Math.max(currentMargin, 0), 25)
-  const marginPercent = (displayMargin / 25) * 100
+  // Clamp margin between 0 and 20 for display (target is 12%, max display 20%)
+  const displayMargin = Math.min(Math.max(currentMargin, 0), 20)
+  const marginPercent = (displayMargin / 20) * 100
 
   // Calculate gauge data
   const gaugeData = [
@@ -33,12 +33,12 @@ export function MarginGaugeChart({
     { name: 'remaining', value: 100 - marginPercent, color: 'remaining' }
   ]
 
-  // Determine color based on margin (製造派遣 target: 15%)
+  // Determine color based on margin (製造派遣 target: 12%)
+  // 4-tier system: <7% (red), 7-10% (orange), 10-12% (green), >12% (emerald)
   const getMarginColor = (margin: number) => {
-    if (margin >= 15) return '#f59e0b' // amber/gold - target achieved/excellent
-    if (margin >= 12) return '#3b82f6' // blue - close to target
-    if (margin >= 10) return '#22c55e' // green - improvement needed
-    if (margin >= 7) return '#f97316' // orange - warning
+    if (margin >= 12) return '#10b981' // emerald - target achieved
+    if (margin >= 10) return '#22c55e' // green - close to target
+    if (margin >= 7) return '#f97316' // orange - needs improvement
     return '#ef4444' // red - critical (<7%)
   }
 
@@ -47,18 +47,16 @@ export function MarginGaugeChart({
   const marginChange = previousMargin !== undefined ? currentMargin - previousMargin : null
 
   // Background segments for better gauge visualization
-  // Scale is 0-25%, distribution based on 製造派遣 ranges:
-  // 0-7%: 7 points / 25 = 28% (critical - red)
-  // 7-10%: 3 points / 25 = 12% (warning - orange)
-  // 10-12%: 2 points / 25 = 8% (green)
-  // 12-15%: 3 points / 25 = 12% (blue)
-  // 15-25%: 10 points / 25 = 40% (gold/amber)
+  // Scale is 0-20%, distribution based on 製造派遣 ranges (target 12%):
+  // 0-7%: 7 points / 20 = 35% (critical - red)
+  // 7-10%: 3 points / 20 = 15% (warning - orange)
+  // 10-12%: 2 points / 20 = 10% (close to target - green)
+  // 12-20%: 8 points / 20 = 40% (target achieved - emerald)
   const backgroundSegments = [
-    { name: 'critical', value: 28, color: 'rgba(239, 68, 68, 0.1)' },     // 0-7% red
-    { name: 'warning', value: 12, color: 'rgba(249, 115, 22, 0.1)' },     // 7-10% orange
-    { name: 'green', value: 8, color: 'rgba(34, 197, 94, 0.1)' },         // 10-12% green
-    { name: 'blue', value: 12, color: 'rgba(59, 130, 246, 0.1)' },        // 12-15% blue
-    { name: 'gold', value: 40, color: 'rgba(245, 158, 11, 0.1)' },        // 15-25% gold/amber
+    { name: 'critical', value: 35, color: 'rgba(239, 68, 68, 0.1)' },     // 0-7% red
+    { name: 'warning', value: 15, color: 'rgba(249, 115, 22, 0.1)' },     // 7-10% orange
+    { name: 'green', value: 10, color: 'rgba(34, 197, 94, 0.1)' },        // 10-12% green
+    { name: 'emerald', value: 40, color: 'rgba(16, 185, 129, 0.1)' },     // >12% emerald
   ]
 
   return (
@@ -121,9 +119,9 @@ export function MarginGaugeChart({
                 {/* Target indicator */}
                 <Pie
                   data={[
-                    { value: (targetMargin / 25) * 100 - 1 },
+                    { value: (targetMargin / 20) * 100 - 1 },
                     { value: 2 },
-                    { value: 100 - (targetMargin / 25) * 100 - 1 }
+                    { value: 100 - (targetMargin / 20) * 100 - 1 }
                   ]}
                   cx="50%"
                   cy="70%"
@@ -180,8 +178,12 @@ export function MarginGaugeChart({
             </div>
           </div>
 
-          {/* Legend - 製造派遣 ranges (target 15%) */}
+          {/* Legend - 製造派遣 ranges (target 12%) */}
           <div className="flex flex-wrap justify-center gap-3 mt-4 text-xs">
+            <div className="flex items-center gap-1">
+              <div className="w-2 h-2 rounded-full bg-red-500" />
+              <span className="text-muted-foreground">&lt;7%</span>
+            </div>
             <div className="flex items-center gap-1">
               <div className="w-2 h-2 rounded-full bg-orange-500" />
               <span className="text-muted-foreground">7-10%</span>
@@ -191,12 +193,8 @@ export function MarginGaugeChart({
               <span className="text-muted-foreground">10-12%</span>
             </div>
             <div className="flex items-center gap-1">
-              <div className="w-2 h-2 rounded-full bg-blue-500" />
-              <span className="text-muted-foreground">12-15%</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <div className="w-2 h-2 rounded-full bg-amber-500" />
-              <span className="text-muted-foreground">&gt;15%</span>
+              <div className="w-2 h-2 rounded-full bg-emerald-500" />
+              <span className="text-muted-foreground">&gt;12%</span>
             </div>
           </div>
 
@@ -205,7 +203,7 @@ export function MarginGaugeChart({
             <div className={cn(
               "flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium",
               isAboveTarget
-                ? "bg-amber-500/10 text-amber-500 border border-amber-500/20"
+                ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20"
                 : "bg-orange-500/10 text-orange-500 border border-orange-500/20"
             )}>
               <Target className="h-4 w-4" />

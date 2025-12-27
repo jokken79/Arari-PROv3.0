@@ -143,22 +143,14 @@ export interface MarginColors {
   light: string
 }
 
-export function getMarginColors(margin: number, targetMargin: number = 15): MarginColors {
-  // Thresholds: >15% (gold), 12-15% (blue), 10-12% (green), 7-10% (orange), <7% (red)
+export function getMarginColors(margin: number, targetMargin: number = 12): MarginColors {
+  // 4-tier system: >12% (emerald), 10-12% (green), 7-10% (orange), <7% (red)
   if (margin >= targetMargin) {
     return {
-      text: 'text-amber-500',
-      bg: 'bg-amber-500',
-      border: 'border-amber-500',
-      light: 'bg-amber-50 dark:bg-amber-900/20'
-    }
-  }
-  if (margin >= 12) {
-    return {
-      text: 'text-blue-500',
-      bg: 'bg-blue-500',
-      border: 'border-blue-500',
-      light: 'bg-blue-50 dark:bg-blue-900/20'
+      text: 'text-emerald-500',
+      bg: 'bg-emerald-500',
+      border: 'border-emerald-500',
+      light: 'bg-emerald-50 dark:bg-emerald-900/20'
     }
   }
   if (margin >= 10) {
