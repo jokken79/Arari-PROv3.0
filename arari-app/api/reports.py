@@ -13,6 +13,13 @@ from database import USE_POSTGRES
 
 # Note: For PDF generation, you'll need to install: pip install reportlab
 # For Excel: openpyxl is already installed
+try:
+    from openpyxl import Workbook
+    from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
+    from openpyxl.utils import get_column_letter
+    OPENPYXL_AVAILABLE = True
+except ImportError:
+    OPENPYXL_AVAILABLE = False
 
 
 def _q(query: str) -> str:
@@ -396,11 +403,7 @@ class ReportService:
 
     def generate_excel_report(self, report_type: str, data: Dict[str, Any]) -> bytes:
         """Generate Excel report from data"""
-        try:
-            from openpyxl import Workbook
-            from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
-            from openpyxl.utils import get_column_letter
-        except ImportError:
+        if not OPENPYXL_AVAILABLE:
             raise ImportError("openpyxl is required for Excel generation")
 
         wb = Workbook()
@@ -498,8 +501,6 @@ class ReportService:
 
     def _write_employee_excel(self, ws, data, header_font, header_fill, border):
         """Write employee report to Excel worksheet"""
-        from openpyxl.utils import get_column_letter
-
         emp = data.get("employee", {})
 
         # Title
@@ -570,8 +571,6 @@ class ReportService:
 
     def _write_company_excel(self, ws, data, header_font, header_fill, border):
         """Write company report to Excel worksheet"""
-        from openpyxl.utils import get_column_letter
-
         # Title
         ws["A1"] = f"派遣先レポート - {data.get('company', '')}"
         ws["A1"].font = Font(bold=True, size=14)
