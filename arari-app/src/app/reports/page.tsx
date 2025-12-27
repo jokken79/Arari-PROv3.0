@@ -34,13 +34,25 @@ import { sortPeriodsDescending } from '@/lib/utils'
 // API base URL - FastAPI backend
 const API_URL = API_BASE_URL
 
-const reports = [
+type ReportFormat = 'excel' | 'pdf'
+
+interface Report {
+  id: string
+  title: string
+  description: string
+  icon: typeof FileBarChart
+  formats: ReportFormat[]
+  category: string
+  recommended?: ReportFormat
+}
+
+const reports: Report[] = [
   {
     id: 'monthly-profit',
     title: '月次粗利レポート',
     description: '月別の粗利詳細と従業員別内訳',
     icon: FileBarChart,
-    formats: ['excel', 'pdf'] as const,
+    formats: ['excel', 'pdf'],
     category: '粗利分析',
   },
   {
@@ -48,7 +60,7 @@ const reports = [
     title: '従業員別詳細レポート',
     description: '全従業員の給与・コスト・粗利の詳細',
     icon: Users,
-    formats: ['excel'] as const,
+    formats: ['excel'],
     category: '従業員分析',
   },
   {
@@ -56,7 +68,7 @@ const reports = [
     title: '派遣先別分析レポート',
     description: '全派遣先の収益性分析',
     icon: Building2,
-    formats: ['excel', 'pdf'] as const,
+    formats: ['excel', 'pdf'],
     category: '企業分析',
   },
   {
@@ -64,7 +76,7 @@ const reports = [
     title: 'コスト内訳レポート',
     description: '社会保険・有給・通勤費の詳細内訳',
     icon: FilePieChart,
-    formats: ['excel'] as const,
+    formats: ['excel'],
     category: 'コスト分析',
   },
   {
@@ -72,9 +84,9 @@ const reports = [
     title: '経営サマリーレポート',
     description: '経営層向けの概要レポート',
     icon: FileText,
-    formats: ['excel', 'pdf'] as const,
+    formats: ['excel', 'pdf'],
     category: 'サマリー',
-    recommended: 'pdf' as const,
+    recommended: 'pdf',
   },
 ]
 
