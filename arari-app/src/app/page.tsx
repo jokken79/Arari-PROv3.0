@@ -681,11 +681,11 @@ export default function DashboardPage() {
                   <motion.div
                     initial={{ opacity: 0, y: -10 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="mb-6 p-4 rounded-lg border border-amber-500/30 bg-amber-500/10"
+                    className="mb-6 p-3 rounded-lg border border-slate-700/50 bg-slate-800/30 backdrop-blur-sm"
                   >
-                    <div className="flex items-center gap-2 mb-3">
-                      <AlertTriangle className="h-5 w-5 text-amber-500" />
-                      <span className="font-semibold text-amber-500">アラート通知</span>
+                    <div className="flex items-center gap-2 mb-2">
+                      <AlertTriangle className="h-4 w-4 text-amber-500/80" aria-hidden="true" />
+                      <span className="font-medium text-sm text-slate-300">アラート通知</span>
                       <span className="text-xs text-muted-foreground">（クリックで詳細表示）</span>
                     </div>
                     <div className="grid gap-3 md:grid-cols-4">

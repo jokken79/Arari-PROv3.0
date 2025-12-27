@@ -73,7 +73,7 @@ export function StatsCard({
         )}
       >
         {/* Background decoration */}
-        <div className="absolute top-0 right-0 w-32 h-32 -mr-8 -mt-8 opacity-10">
+        <div className="absolute top-0 right-0 w-32 h-32 -mr-8 -mt-8 opacity-10" aria-hidden="true">
           <Icon className="w-full h-full" />
         </div>
 
@@ -97,7 +97,7 @@ export function StatsCard({
               <div className="flex items-center gap-2">
                 {trend && TrendIcon && (
                   <span className={cn('flex items-center text-sm font-medium', getTrendColor())}>
-                    <TrendIcon className="w-4 h-4 mr-1" />
+                    <TrendIcon className="w-4 h-4 mr-1" aria-hidden="true" />
                     {trend.value > 0 ? '+' : ''}{trend.value}%
                   </span>
                 )}
@@ -117,6 +117,7 @@ export function StatsCard({
             className={cn('rounded-xl p-3', iconStyles[variant])}
             whileHover={{ rotate: 10, scale: 1.1 }}
             transition={{ type: 'spring', stiffness: 400 }}
+            aria-hidden="true"
           >
             <Icon className="w-6 h-6" />
           </motion.div>
