@@ -662,16 +662,20 @@ class ReportService:
 
     def get_report_history(self, limit: int = 50) -> List[Dict[str, Any]]:
         """Get history of generated reports"""
-        self.cursor.execute(
-            _q("""
-            SELECT id, report_type, report_name, period, format,
-                   generated_by, file_size, created_at
-            FROM generated_reports
-            ORDER BY created_at DESC
-            LIMIT ?
-        """),
-            (limit,),
-        )
+        try:
+            self.cursor.execute(
+                _q("""
+                SELECT id, report_type, report_name, period, format,
+                       generated_by, file_size, created_at
+                FROM generated_reports
+                ORDER BY created_at DESC
+                LIMIT ?
+            """),
+                (limit,),
+            )
+        except Exception:
+            # Table might not exist yet, return empty list
+            return []
 
         return [
             {
