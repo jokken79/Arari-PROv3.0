@@ -383,16 +383,37 @@ async def create_payroll_record(
     log_action(db, current_user, "create", "payroll", f"{record.employee_id}_{record.period}", "Created payroll record")
     return result
 
-# ============== Statistics ============== 
+# ============== Statistics ==============
+
+# In-memory cache for statistics (TTL: 60 seconds)
+_stats_cache: Dict[str, Any] = {}
+_stats_cache_time: Dict[str, float] = {}
+STATS_CACHE_TTL = 60  # seconds
 
 @app.get("/api/statistics")
 async def get_statistics(
     db: sqlite3.Connection = Depends(get_db),
     period: Optional[str] = None
 ):
-    """Get dashboard statistics"""
+    """Get dashboard statistics (cached for 60 seconds)"""
+    cache_key = f"stats:{period or 'latest'}"
+    current_time = time.time()
+
+    # Check cache
+    if cache_key in _stats_cache:
+        cache_age = current_time - _stats_cache_time.get(cache_key, 0)
+        if cache_age < STATS_CACHE_TTL:
+            return _stats_cache[cache_key]
+
+    # Cache miss - fetch from database
     service = PayrollService(db)
-    return service.get_statistics(period=period)
+    result = service.get_statistics(period=period)
+
+    # Store in cache
+    _stats_cache[cache_key] = result
+    _stats_cache_time[cache_key] = current_time
+
+    return result
 
 @app.get("/api/statistics/monthly")
 async def get_monthly_statistics(
