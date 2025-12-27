@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useMemo, useEffect } from 'react'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import {
   Users,
   Building2,
@@ -17,6 +17,7 @@ import {
   AlertCircle,
   TrendingDown,
   Target,
+  X,
 } from 'lucide-react'
 import { Header } from '@/components/layout/Header'
 import { Sidebar } from '@/components/layout/Sidebar'
@@ -40,8 +41,11 @@ import { cn } from '@/lib/utils'
 import { API_BASE_URL } from '@/lib/api'
 import { NeonButton } from '@/components/ui/NeonButton'
 
+type AlertType = 'negative' | 'critical' | 'underTarget' | 'lowRate' | null
+
 export default function DashboardPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [alertModal, setAlertModal] = useState<AlertType>(null)
   const {
     selectedPeriod,
     setSelectedPeriod,
@@ -591,36 +595,168 @@ export default function DashboardPage() {
                     <div className="flex items-center gap-2 mb-3">
                       <AlertTriangle className="h-5 w-5 text-amber-500" />
                       <span className="font-semibold text-amber-500">アラート通知</span>
+                      <span className="text-xs text-muted-foreground">（クリックで詳細表示）</span>
                     </div>
                     <div className="grid gap-3 md:grid-cols-4">
                       {chartData.alertsSummary.negativeProfit > 0 && (
-                        <div className="flex items-center gap-2 text-sm">
+                        <button
+                          onClick={() => setAlertModal('negative')}
+                          className="flex items-center gap-2 text-sm hover:bg-red-500/20 p-2 rounded-lg transition-colors cursor-pointer text-left"
+                        >
                           <AlertCircle className="h-4 w-4 text-red-500" />
                           <span className="text-red-400">赤字: {chartData.alertsSummary.negativeProfit}名</span>
-                        </div>
+                        </button>
                       )}
                       {chartData.alertsSummary.criticalCount > 0 && (
-                        <div className="flex items-center gap-2 text-sm">
-                          <TrendingDown className="h-4 w-4 text-red-500" />
-                          <span className="text-red-400">マージン&lt;10%: {chartData.alertsSummary.criticalCount}名</span>
-                        </div>
+                        <button
+                          onClick={() => setAlertModal('critical')}
+                          className="flex items-center gap-2 text-sm hover:bg-orange-500/20 p-2 rounded-lg transition-colors cursor-pointer text-left"
+                        >
+                          <TrendingDown className="h-4 w-4 text-orange-500" />
+                          <span className="text-orange-400">マージン&lt;10%: {chartData.alertsSummary.criticalCount}名</span>
+                        </button>
                       )}
                       {chartData.alertsSummary.underTargetCount > 0 && (
-                        <div className="flex items-center gap-2 text-sm">
+                        <button
+                          onClick={() => setAlertModal('underTarget')}
+                          className="flex items-center gap-2 text-sm hover:bg-amber-500/20 p-2 rounded-lg transition-colors cursor-pointer text-left"
+                        >
                           <Target className="h-4 w-4 text-amber-500" />
                           <span className="text-amber-400">目標未達(10-15%): {chartData.alertsSummary.underTargetCount}名</span>
-                        </div>
+                        </button>
                       )}
                       {chartData.alertsSummary.lowRateRatio > 0 && (
-                        <div className="flex items-center gap-2 text-sm">
+                        <button
+                          onClick={() => setAlertModal('lowRate')}
+                          className="flex items-center gap-2 text-sm hover:bg-orange-500/20 p-2 rounded-lg transition-colors cursor-pointer text-left"
+                        >
                           <AlertTriangle className="h-4 w-4 text-orange-500" />
                           <span className="text-orange-400">単価率&lt;20%: {chartData.alertsSummary.lowRateRatio}名</span>
-                        </div>
+                        </button>
                       )}
                     </div>
                   </motion.div>
                 )
               )}
+
+              {/* Alert Detail Modal */}
+              <AnimatePresence>
+                {alertModal && chartData && (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
+                    onClick={() => setAlertModal(null)}
+                  >
+                    <motion.div
+                      initial={{ scale: 0.95, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      exit={{ scale: 0.95, opacity: 0 }}
+                      className="w-full max-w-4xl max-h-[80vh] bg-slate-900 border border-white/10 rounded-xl overflow-hidden shadow-2xl"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <div className="flex items-center justify-between p-4 border-b border-white/10">
+                        <h3 className="text-lg font-semibold text-slate-200 flex items-center gap-2">
+                          {alertModal === 'negative' && (
+                            <>
+                              <AlertCircle className="h-5 w-5 text-red-500" />
+                              赤字従業員一覧
+                            </>
+                          )}
+                          {alertModal === 'critical' && (
+                            <>
+                              <TrendingDown className="h-5 w-5 text-orange-500" />
+                              マージン10%未満の従業員
+                            </>
+                          )}
+                          {alertModal === 'underTarget' && (
+                            <>
+                              <Target className="h-5 w-5 text-amber-500" />
+                              目標未達（10-15%）の従業員
+                            </>
+                          )}
+                          {alertModal === 'lowRate' && (
+                            <>
+                              <AlertTriangle className="h-5 w-5 text-orange-500" />
+                              単価率20%未満の従業員
+                            </>
+                          )}
+                        </h3>
+                        <button
+                          onClick={() => setAlertModal(null)}
+                          className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+                        >
+                          <X className="h-5 w-5 text-slate-400" />
+                        </button>
+                      </div>
+                      <div className="overflow-auto max-h-[60vh]">
+                        <table className="w-full text-sm">
+                          <thead className="sticky top-0 bg-slate-800">
+                            <tr className="border-b border-white/10">
+                              <th className="text-left p-3 text-muted-foreground">#</th>
+                              <th className="text-left p-3 text-muted-foreground">氏名</th>
+                              <th className="text-left p-3 text-muted-foreground">派遣先</th>
+                              <th className="text-right p-3 text-muted-foreground">時給</th>
+                              <th className="text-right p-3 text-muted-foreground">単価</th>
+                              <th className="text-right p-3 text-muted-foreground">単価率</th>
+                              <th className="text-right p-3 text-muted-foreground">粗利</th>
+                              <th className="text-right p-3 text-muted-foreground">マージン</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {chartData.allEmployeesRanking
+                              .filter(emp => {
+                                if (alertModal === 'negative') return emp.profit < 0
+                                if (alertModal === 'critical') return emp.margin < 10
+                                if (alertModal === 'underTarget') return emp.margin >= 10 && emp.margin < 15
+                                if (alertModal === 'lowRate') return emp.rateRatio < 20
+                                return false
+                              })
+                              .sort((a, b) => {
+                                if (alertModal === 'negative') return a.profit - b.profit
+                                if (alertModal === 'critical') return a.margin - b.margin
+                                if (alertModal === 'underTarget') return a.margin - b.margin
+                                if (alertModal === 'lowRate') return a.rateRatio - b.rateRatio
+                                return 0
+                              })
+                              .map((emp, idx) => (
+                                <tr key={emp.employeeId} className="border-b border-white/5 hover:bg-white/5">
+                                  <td className="p-3 text-muted-foreground">{idx + 1}</td>
+                                  <td className="p-3 font-medium text-slate-200">{emp.name}</td>
+                                  <td className="p-3 text-muted-foreground">{emp.company}</td>
+                                  <td className="p-3 text-right font-mono">¥{emp.hourlyRate.toLocaleString()}</td>
+                                  <td className="p-3 text-right font-mono">¥{emp.billingRate.toLocaleString()}</td>
+                                  <td className={cn(
+                                    "p-3 text-right font-mono",
+                                    emp.rateRatio >= 30 ? "text-amber-400" :
+                                    emp.rateRatio >= 20 ? "text-green-400" : "text-red-400"
+                                  )}>
+                                    {emp.rateRatio.toFixed(1)}%
+                                  </td>
+                                  <td className={cn(
+                                    "p-3 text-right font-mono font-semibold",
+                                    emp.profit >= 0 ? "text-emerald-400" : "text-red-400"
+                                  )}>
+                                    {formatYen(emp.profit)}
+                                  </td>
+                                  <td className={cn(
+                                    "p-3 text-right font-mono",
+                                    emp.margin >= 15 ? "text-amber-400" :
+                                    emp.margin >= 12 ? "text-blue-400" :
+                                    emp.margin >= 10 ? "text-green-400" : "text-red-400"
+                                  )}>
+                                    {emp.margin.toFixed(1)}%
+                                  </td>
+                                </tr>
+                              ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </motion.div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
 
               {/* Margin Gauge + Hours Breakdown Row */}
               <div className="grid gap-6 lg:grid-cols-3 mb-6">
@@ -730,9 +866,9 @@ export default function DashboardPage() {
                               <td className="p-3 text-right font-mono">¥{emp.billingRate.toLocaleString()}</td>
                               <td className={cn(
                                 "p-3 text-right font-mono",
-                                emp.rateRatio >= 30 ? "text-emerald-400" :
+                                emp.rateRatio >= 30 ? "text-amber-400" :
                                 emp.rateRatio >= 20 ? "text-green-400" :
-                                emp.rateRatio >= 10 ? "text-amber-400" : "text-red-400"
+                                emp.rateRatio >= 10 ? "text-blue-400" : "text-red-400"
                               )}>
                                 {emp.rateRatio.toFixed(1)}%
                               </td>
@@ -744,10 +880,10 @@ export default function DashboardPage() {
                               </td>
                               <td className={cn(
                                 "p-3 text-right font-mono",
-                                emp.margin >= 15 ? "text-emerald-400" :
-                                emp.margin >= 12 ? "text-green-400" :
-                                emp.margin >= 10 ? "text-orange-400" :
-                                emp.margin >= 7 ? "text-amber-400" : "text-red-400"
+                                emp.margin >= 15 ? "text-amber-400" :
+                                emp.margin >= 12 ? "text-blue-400" :
+                                emp.margin >= 10 ? "text-green-400" :
+                                emp.margin >= 7 ? "text-orange-400" : "text-red-400"
                               )}>
                                 {emp.margin.toFixed(1)}%
                               </td>
@@ -757,9 +893,9 @@ export default function DashboardPage() {
                                 ) : emp.isCritical ? (
                                   <span className="px-2 py-1 rounded-full text-xs bg-orange-500/20 text-orange-400">要注意</span>
                                 ) : emp.isUnderTarget ? (
-                                  <span className="px-2 py-1 rounded-full text-xs bg-amber-500/20 text-amber-400">目標未達</span>
+                                  <span className="px-2 py-1 rounded-full text-xs bg-green-500/20 text-green-400">目標近い</span>
                                 ) : (
-                                  <span className="px-2 py-1 rounded-full text-xs bg-emerald-500/20 text-emerald-400">良好</span>
+                                  <span className="px-2 py-1 rounded-full text-xs bg-amber-500/20 text-amber-400">良好</span>
                                 )}
                               </td>
                             </tr>

@@ -35,10 +35,10 @@ export function MarginGaugeChart({
 
   // Determine color based on margin (製造派遣 target: 15%)
   const getMarginColor = (margin: number) => {
-    if (margin >= 15) return '#10b981' // emerald - target achieved/excellent
-    if (margin >= 12) return '#22c55e' // green - close to target
-    if (margin >= 10) return '#f97316' // orange - improvement needed
-    if (margin >= 7) return '#eab308' // yellow - warning
+    if (margin >= 15) return '#f59e0b' // amber/gold - target achieved/excellent
+    if (margin >= 12) return '#3b82f6' // blue - close to target
+    if (margin >= 10) return '#22c55e' // green - improvement needed
+    if (margin >= 7) return '#f97316' // orange - warning
     return '#ef4444' // red - critical (<7%)
   }
 
@@ -49,16 +49,16 @@ export function MarginGaugeChart({
   // Background segments for better gauge visualization
   // Scale is 0-25%, distribution based on 製造派遣 ranges:
   // 0-7%: 7 points / 25 = 28% (critical - red)
-  // 7-10%: 3 points / 25 = 12% (warning - yellow)
-  // 10-12%: 2 points / 25 = 8% (improve - orange)
-  // 12-15%: 3 points / 25 = 12% (close - green)
-  // 15-25%: 10 points / 25 = 40% (excellent - emerald)
+  // 7-10%: 3 points / 25 = 12% (warning - orange)
+  // 10-12%: 2 points / 25 = 8% (green)
+  // 12-15%: 3 points / 25 = 12% (blue)
+  // 15-25%: 10 points / 25 = 40% (gold/amber)
   const backgroundSegments = [
-    { name: 'critical', value: 28, color: 'rgba(239, 68, 68, 0.1)' },     // 0-7%
-    { name: 'warning', value: 12, color: 'rgba(234, 179, 8, 0.1)' },      // 7-10%
-    { name: 'improve', value: 8, color: 'rgba(249, 115, 22, 0.1)' },      // 10-12%
-    { name: 'close', value: 12, color: 'rgba(34, 197, 94, 0.1)' },        // 12-15%
-    { name: 'excellent', value: 40, color: 'rgba(16, 185, 129, 0.1)' },   // 15-25%
+    { name: 'critical', value: 28, color: 'rgba(239, 68, 68, 0.1)' },     // 0-7% red
+    { name: 'warning', value: 12, color: 'rgba(249, 115, 22, 0.1)' },     // 7-10% orange
+    { name: 'green', value: 8, color: 'rgba(34, 197, 94, 0.1)' },         // 10-12% green
+    { name: 'blue', value: 12, color: 'rgba(59, 130, 246, 0.1)' },        // 12-15% blue
+    { name: 'gold', value: 40, color: 'rgba(245, 158, 11, 0.1)' },        // 15-25% gold/amber
   ]
 
   return (
@@ -183,19 +183,19 @@ export function MarginGaugeChart({
           {/* Legend - 製造派遣 ranges (target 15%) */}
           <div className="flex flex-wrap justify-center gap-3 mt-4 text-xs">
             <div className="flex items-center gap-1">
-              <div className="w-2 h-2 rounded-full bg-amber-500" />
+              <div className="w-2 h-2 rounded-full bg-orange-500" />
               <span className="text-muted-foreground">7-10%</span>
             </div>
             <div className="flex items-center gap-1">
-              <div className="w-2 h-2 rounded-full bg-orange-500" />
+              <div className="w-2 h-2 rounded-full bg-green-500" />
               <span className="text-muted-foreground">10-12%</span>
             </div>
             <div className="flex items-center gap-1">
-              <div className="w-2 h-2 rounded-full bg-green-500" />
+              <div className="w-2 h-2 rounded-full bg-blue-500" />
               <span className="text-muted-foreground">12-15%</span>
             </div>
             <div className="flex items-center gap-1">
-              <div className="w-2 h-2 rounded-full bg-emerald-500" />
+              <div className="w-2 h-2 rounded-full bg-amber-500" />
               <span className="text-muted-foreground">&gt;15%</span>
             </div>
           </div>
@@ -205,8 +205,8 @@ export function MarginGaugeChart({
             <div className={cn(
               "flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium",
               isAboveTarget
-                ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20"
-                : "bg-amber-500/10 text-amber-500 border border-amber-500/20"
+                ? "bg-amber-500/10 text-amber-500 border border-amber-500/20"
+                : "bg-orange-500/10 text-orange-500 border border-orange-500/20"
             )}>
               <Target className="h-4 w-4" />
               {isAboveTarget ? '目標達成' : '目標未達'}
