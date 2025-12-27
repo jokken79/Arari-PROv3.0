@@ -251,7 +251,9 @@ export default function DashboardPage() {
     const currentIndex = periods.indexOf(selectedPeriod)
     let previousMargin: number | undefined
 
-    if (currentIndex > 0 && currentIndex < periods.length) {
+    // Fix: Changed from currentIndex > 0 to currentIndex >= 0
+    // When currentIndex = 0 (newest month), we need to look at index 1 (previous month)
+    if (currentIndex >= 0 && currentIndex < periods.length - 1) {
       const prevPeriod = periods[currentIndex + 1]
       const prevRecords = payrollRecords.filter(r => r.period === prevPeriod)
       if (prevRecords.length > 0) {
