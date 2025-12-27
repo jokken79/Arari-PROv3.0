@@ -1609,14 +1609,24 @@ async def download_report(
         else:
             raise HTTPException(status_code=400, detail="Invalid report parameters")
 
-        if format == "excel":
+        # Create ASCII-safe filename for HTTP headers
+        raw_name = period or employee_id or company or "report"
+        # Replace Japanese year/month markers
+        safe_name = raw_name.replace('年', '_').replace('月', '')
+        # Replace any remaining non-ASCII characters
+        safe_name = ''.join(c if ord(c) < 128 else '_' for c in safe_name)
+
+        if format == "pdf":
+            # Generate PDF report (available for summary, monthly, all-companies)
+            pdf_bytes = service.generate_pdf_report(report_type, data)
+            filename = f"{report_type}_{safe_name}_{datetime.now().strftime('%Y%m%d')}.pdf"
+            return Response(
+                content=pdf_bytes,
+                media_type="application/pdf",
+                headers={"Content-Disposition": f"attachment; filename={filename}"}
+            )
+        elif format == "excel":
             excel_bytes = service.generate_excel_report(report_type, data)
-            # Create ASCII-safe filename for HTTP headers
-            raw_name = period or employee_id or company or "report"
-            # Replace Japanese year/month markers
-            safe_name = raw_name.replace('年', '_').replace('月', '')
-            # Replace any remaining non-ASCII characters
-            safe_name = ''.join(c if ord(c) < 128 else '_' for c in safe_name)
             filename = f"{report_type}_{safe_name}_{datetime.now().strftime('%Y%m%d')}.xlsx"
             return Response(
                 content=excel_bytes,

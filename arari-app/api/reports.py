@@ -21,6 +21,33 @@ try:
 except ImportError:
     OPENPYXL_AVAILABLE = False
 
+# PDF generation with ReportLab
+try:
+    from reportlab.lib import colors
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib.units import mm, cm
+    from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+    from reportlab.graphics.shapes import Drawing, String, Rect
+    from reportlab.graphics.charts.barcharts import VerticalBarChart
+    from reportlab.pdfbase import pdfmetrics
+    from reportlab.pdfbase.ttfonts import TTFont
+    REPORTLAB_AVAILABLE = True
+except ImportError:
+    REPORTLAB_AVAILABLE = False
+
+# PDF Color scheme
+PDF_COLORS = {
+    'primary': colors.HexColor('#4472C4'),       # Blue (headers)
+    'secondary': colors.HexColor('#6B7280'),     # Gray
+    'success': colors.HexColor('#10B981'),       # Green (margin >= 15%)
+    'warning': colors.HexColor('#F59E0B'),       # Yellow (margin 10-15%)
+    'danger': colors.HexColor('#EF4444'),        # Red (margin < 10%)
+    'light': colors.HexColor('#F3F4F6'),         # Light gray background
+    'white': colors.white,
+    'black': colors.black,
+}
+
 
 def _q(query: str) -> str:
     """Convert SQLite query to PostgreSQL if needed (? -> %s)"""
@@ -1137,6 +1164,410 @@ class ReportService:
 
         for col in range(1, 6):
             ws.column_dimensions[get_column_letter(col)].width = 15
+
+    # ============== PDF GENERATION METHODS ==============
+
+    def _get_margin_color(self, margin: float) -> colors.Color:
+        """Get color based on profit margin"""
+        if margin >= 15:
+            return PDF_COLORS['success']
+        elif margin >= 10:
+            return PDF_COLORS['warning']
+        else:
+            return PDF_COLORS['danger']
+
+    def _format_yen(self, value: float) -> str:
+        """Format number as Japanese Yen"""
+        if value is None:
+            return "¥0"
+        if abs(value) >= 1000000:
+            return f"¥{value/1000000:.1f}M"
+        elif abs(value) >= 1000:
+            return f"¥{value/1000:.0f}K"
+        return f"¥{value:,.0f}"
+
+    def _create_bar_chart(self, data: List[Dict], width: float = 400, height: float = 200) -> Drawing:
+        """Create a bar chart for company profits"""
+        drawing = Drawing(width, height)
+
+        if not data:
+            return drawing
+
+        chart = VerticalBarChart()
+        chart.x = 50
+        chart.y = 30
+        chart.width = width - 80
+        chart.height = height - 60
+
+        # Prepare data
+        profits = [d.get('profit', 0) / 1000000 for d in data[:5]]  # Convert to millions
+        labels = [d.get('company', '')[:8] for d in data[:5]]  # Truncate labels
+
+        chart.data = [profits]
+        chart.categoryAxis.categoryNames = labels
+        chart.categoryAxis.labels.fontName = 'Helvetica'
+        chart.categoryAxis.labels.fontSize = 8
+        chart.categoryAxis.labels.angle = 0
+
+        chart.valueAxis.valueMin = 0
+        chart.valueAxis.valueMax = max(profits) * 1.2 if profits else 100
+        chart.valueAxis.labelTextFormat = '%.1fM'
+        chart.valueAxis.labels.fontName = 'Helvetica'
+        chart.valueAxis.labels.fontSize = 8
+
+        chart.bars[0].fillColor = PDF_COLORS['primary']
+
+        drawing.add(chart)
+        return drawing
+
+    def _create_kpi_table(self, metrics: List[Dict]) -> Table:
+        """Create KPI cards as a table"""
+        data = []
+        row1 = []  # Labels
+        row2 = []  # Values
+
+        for m in metrics:
+            row1.append(m.get('label', ''))
+            row2.append(m.get('value', ''))
+
+        data = [row1, row2]
+
+        table = Table(data, colWidths=[120] * len(metrics))
+        table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), PDF_COLORS['primary']),
+            ('TEXTCOLOR', (0, 0), (-1, 0), PDF_COLORS['white']),
+            ('BACKGROUND', (0, 1), (-1, 1), PDF_COLORS['light']),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTNAME', (0, 1), (-1, 1), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 10),
+            ('FONTSIZE', (0, 1), (-1, 1), 14),
+            ('TOPPADDING', (0, 0), (-1, -1), 8),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+            ('BOX', (0, 0), (-1, -1), 1, PDF_COLORS['primary']),
+            ('INNERGRID', (0, 0), (-1, -1), 0.5, PDF_COLORS['light']),
+        ]))
+        return table
+
+    def generate_pdf_report(self, report_type: str, data: Dict[str, Any]) -> bytes:
+        """Generate professional PDF report"""
+        if not REPORTLAB_AVAILABLE:
+            raise ImportError("reportlab is required for PDF generation. Install with: pip install reportlab")
+
+        output = BytesIO()
+        doc = SimpleDocTemplate(
+            output,
+            pagesize=A4,
+            rightMargin=20*mm,
+            leftMargin=20*mm,
+            topMargin=20*mm,
+            bottomMargin=20*mm
+        )
+
+        styles = getSampleStyleSheet()
+
+        # Custom styles
+        styles.add(ParagraphStyle(
+            'Title_Custom',
+            parent=styles['Title'],
+            fontSize=18,
+            spaceAfter=12,
+            textColor=PDF_COLORS['primary']
+        ))
+        styles.add(ParagraphStyle(
+            'Subtitle_Custom',
+            parent=styles['Normal'],
+            fontSize=12,
+            spaceAfter=20,
+            textColor=PDF_COLORS['secondary']
+        ))
+        styles.add(ParagraphStyle(
+            'Section_Header',
+            parent=styles['Heading2'],
+            fontSize=14,
+            spaceBefore=20,
+            spaceAfter=10,
+            textColor=PDF_COLORS['primary']
+        ))
+
+        story = []
+
+        if report_type == "summary":
+            self._write_summary_pdf(story, data, styles)
+        elif report_type == "monthly":
+            self._write_monthly_pdf(story, data, styles)
+        elif report_type == "all-companies":
+            self._write_companies_pdf(story, data, styles)
+        else:
+            # Default: basic PDF with data dump
+            story.append(Paragraph(f"Report: {report_type}", styles['Title_Custom']))
+            story.append(Paragraph(f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M')}", styles['Subtitle_Custom']))
+
+        doc.build(story)
+        output.seek(0)
+        return output.getvalue()
+
+    def _write_summary_pdf(self, story: List, data: Dict, styles) -> None:
+        """Write executive summary PDF"""
+        period = data.get('period', '')
+        summary = data.get('summary', {})
+
+        # Title
+        story.append(Paragraph("Arari PRO - Executive Summary", styles['Title_Custom']))
+        story.append(Paragraph(f"Period: {period} | Generated: {datetime.now().strftime('%Y-%m-%d %H:%M')}", styles['Subtitle_Custom']))
+
+        # KPI Cards
+        kpis = [
+            {'label': 'Employees', 'value': str(summary.get('employee_count', 0))},
+            {'label': 'Revenue', 'value': self._format_yen(summary.get('total_revenue', 0))},
+            {'label': 'Cost', 'value': self._format_yen(summary.get('total_cost', 0))},
+            {'label': 'Profit', 'value': self._format_yen(summary.get('total_profit', 0))},
+        ]
+        story.append(self._create_kpi_table(kpis))
+        story.append(Spacer(1, 10*mm))
+
+        # Margin indicator
+        margin = summary.get('avg_margin', 0) or 0
+        margin_color = self._get_margin_color(margin)
+        margin_text = f"Average Margin: {margin:.1f}%"
+        story.append(Paragraph(f"<font color='{margin_color.hexval()}'><b>{margin_text}</b></font>", styles['Normal']))
+        story.append(Spacer(1, 10*mm))
+
+        # Top Companies Chart
+        story.append(Paragraph("Top Companies by Profit", styles['Section_Header']))
+        by_company = data.get('by_company', [])[:5]
+        if by_company:
+            chart = self._create_bar_chart(by_company)
+            story.append(chart)
+            story.append(Spacer(1, 5*mm))
+
+        # Top Companies Table
+        if by_company:
+            table_data = [['Company', 'Employees', 'Revenue', 'Profit', 'Margin']]
+            for comp in by_company:
+                margin_val = comp.get('margin', 0) or 0
+                table_data.append([
+                    comp.get('company', '')[:15],
+                    str(comp.get('employee_count', 0)),
+                    self._format_yen(comp.get('revenue', 0)),
+                    self._format_yen(comp.get('profit', 0)),
+                    f"{margin_val:.1f}%"
+                ])
+
+            table = Table(table_data, colWidths=[100, 60, 80, 80, 60])
+            table_style = [
+                ('BACKGROUND', (0, 0), (-1, 0), PDF_COLORS['primary']),
+                ('TEXTCOLOR', (0, 0), (-1, 0), PDF_COLORS['white']),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, -1), 9),
+                ('ALIGN', (1, 0), (-1, -1), 'RIGHT'),
+                ('ALIGN', (0, 0), (0, -1), 'LEFT'),
+                ('TOPPADDING', (0, 0), (-1, -1), 6),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+                ('GRID', (0, 0), (-1, -1), 0.5, PDF_COLORS['secondary']),
+            ]
+            # Color code margins
+            for i, comp in enumerate(by_company, 1):
+                margin_val = comp.get('margin', 0) or 0
+                color = self._get_margin_color(margin_val)
+                table_style.append(('TEXTCOLOR', (4, i), (4, i), color))
+
+            table.setStyle(TableStyle(table_style))
+            story.append(table)
+            story.append(Spacer(1, 10*mm))
+
+        # Top/Bottom Performers
+        story.append(Paragraph("Top Performers", styles['Section_Header']))
+        top_performers = data.get('top_performers', [])[:5]
+        if top_performers:
+            perf_data = [['Name', 'Company', 'Profit', 'Margin']]
+            for emp in top_performers:
+                margin_val = emp.get('margin', 0) or 0
+                perf_data.append([
+                    emp.get('name', '')[:12],
+                    emp.get('company', '')[:10],
+                    self._format_yen(emp.get('profit', 0)),
+                    f"{margin_val:.1f}%"
+                ])
+
+            perf_table = Table(perf_data, colWidths=[100, 100, 80, 60])
+            perf_table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), PDF_COLORS['success']),
+                ('TEXTCOLOR', (0, 0), (-1, 0), PDF_COLORS['white']),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, -1), 9),
+                ('ALIGN', (2, 0), (-1, -1), 'RIGHT'),
+                ('TOPPADDING', (0, 0), (-1, -1), 5),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
+                ('GRID', (0, 0), (-1, -1), 0.5, PDF_COLORS['secondary']),
+            ]))
+            story.append(perf_table)
+
+        # Bottom Performers (attention needed)
+        bottom_performers = data.get('bottom_performers', [])[:5]
+        if bottom_performers:
+            story.append(Spacer(1, 5*mm))
+            story.append(Paragraph("Attention Needed (Low Margin)", styles['Section_Header']))
+
+            bottom_data = [['Name', 'Company', 'Profit', 'Margin']]
+            for emp in bottom_performers:
+                margin_val = emp.get('margin', 0) or 0
+                bottom_data.append([
+                    emp.get('name', '')[:12],
+                    emp.get('company', '')[:10],
+                    self._format_yen(emp.get('profit', 0)),
+                    f"{margin_val:.1f}%"
+                ])
+
+            bottom_table = Table(bottom_data, colWidths=[100, 100, 80, 60])
+            bottom_table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), PDF_COLORS['danger']),
+                ('TEXTCOLOR', (0, 0), (-1, 0), PDF_COLORS['white']),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, -1), 9),
+                ('ALIGN', (2, 0), (-1, -1), 'RIGHT'),
+                ('TOPPADDING', (0, 0), (-1, -1), 5),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
+                ('GRID', (0, 0), (-1, -1), 0.5, PDF_COLORS['secondary']),
+            ]))
+            story.append(bottom_table)
+
+    def _write_monthly_pdf(self, story: List, data: Dict, styles) -> None:
+        """Write monthly profit report PDF"""
+        period = data.get('period', '')
+        summary = data.get('summary', {})
+
+        # Title
+        story.append(Paragraph("Monthly Profit Report", styles['Title_Custom']))
+        story.append(Paragraph(f"Period: {period} | Generated: {datetime.now().strftime('%Y-%m-%d %H:%M')}", styles['Subtitle_Custom']))
+
+        # KPI Cards
+        kpis = [
+            {'label': 'Employees', 'value': str(summary.get('employee_count', 0))},
+            {'label': 'Revenue', 'value': self._format_yen(summary.get('total_revenue', 0))},
+            {'label': 'Cost', 'value': self._format_yen(summary.get('total_cost', 0))},
+            {'label': 'Profit', 'value': self._format_yen(summary.get('total_profit', 0))},
+        ]
+        story.append(self._create_kpi_table(kpis))
+        story.append(Spacer(1, 5*mm))
+
+        # Hours breakdown
+        hours_kpis = [
+            {'label': 'Work Hours', 'value': f"{summary.get('total_work_hours', 0) or 0:,.0f}h"},
+            {'label': 'Overtime', 'value': f"{summary.get('total_overtime', 0) or 0:,.0f}h"},
+            {'label': 'Night', 'value': f"{summary.get('total_night_hours', 0) or 0:,.0f}h"},
+            {'label': 'Holiday', 'value': f"{summary.get('total_holiday_hours', 0) or 0:,.0f}h"},
+        ]
+        story.append(self._create_kpi_table(hours_kpis))
+        story.append(Spacer(1, 10*mm))
+
+        # By Company breakdown
+        story.append(Paragraph("Breakdown by Company", styles['Section_Header']))
+        by_company = data.get('by_company', [])
+
+        if by_company:
+            # Chart
+            chart = self._create_bar_chart(by_company[:8])
+            story.append(chart)
+            story.append(Spacer(1, 5*mm))
+
+            # Table
+            table_data = [['Company', 'Employees', 'Revenue', 'Cost', 'Profit', 'Margin']]
+            for comp in by_company:
+                margin_val = comp.get('margin', 0) or 0
+                table_data.append([
+                    comp.get('company', '')[:15],
+                    str(comp.get('employee_count', 0)),
+                    self._format_yen(comp.get('revenue', 0)),
+                    self._format_yen(comp.get('cost', 0)),
+                    self._format_yen(comp.get('profit', 0)),
+                    f"{margin_val:.1f}%"
+                ])
+
+            table = Table(table_data, colWidths=[100, 55, 70, 70, 70, 50])
+            table_style = [
+                ('BACKGROUND', (0, 0), (-1, 0), PDF_COLORS['primary']),
+                ('TEXTCOLOR', (0, 0), (-1, 0), PDF_COLORS['white']),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, -1), 8),
+                ('ALIGN', (1, 0), (-1, -1), 'RIGHT'),
+                ('ALIGN', (0, 0), (0, -1), 'LEFT'),
+                ('TOPPADDING', (0, 0), (-1, -1), 4),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+                ('GRID', (0, 0), (-1, -1), 0.5, PDF_COLORS['secondary']),
+                ('ROWBACKGROUNDS', (0, 1), (-1, -1), [PDF_COLORS['white'], PDF_COLORS['light']]),
+            ]
+            # Color code margins
+            for i, comp in enumerate(by_company, 1):
+                margin_val = comp.get('margin', 0) or 0
+                color = self._get_margin_color(margin_val)
+                table_style.append(('TEXTCOLOR', (5, i), (5, i), color))
+
+            table.setStyle(TableStyle(table_style))
+            story.append(table)
+
+    def _write_companies_pdf(self, story: List, data: Dict, styles) -> None:
+        """Write all companies analysis PDF"""
+        period = data.get('period', '')
+        totals = data.get('totals', {})
+
+        # Title
+        story.append(Paragraph("Company Analysis Report", styles['Title_Custom']))
+        story.append(Paragraph(f"Period: {period} | Generated: {datetime.now().strftime('%Y-%m-%d %H:%M')}", styles['Subtitle_Custom']))
+
+        # KPI Cards
+        kpis = [
+            {'label': 'Companies', 'value': str(totals.get('company_count', 0))},
+            {'label': 'Employees', 'value': str(totals.get('employee_count', 0))},
+            {'label': 'Revenue', 'value': self._format_yen(totals.get('total_revenue', 0))},
+            {'label': 'Profit', 'value': self._format_yen(totals.get('total_profit', 0))},
+        ]
+        story.append(self._create_kpi_table(kpis))
+        story.append(Spacer(1, 10*mm))
+
+        # Chart
+        story.append(Paragraph("Profit by Company", styles['Section_Header']))
+        companies = data.get('companies', [])
+        if companies:
+            chart = self._create_bar_chart(companies[:8])
+            story.append(chart)
+            story.append(Spacer(1, 5*mm))
+
+            # Full table
+            table_data = [['Company', 'Employees', 'Hours', 'Revenue', 'Cost', 'Profit', 'Margin']]
+            for comp in companies:
+                margin_val = comp.get('margin', 0) or 0
+                table_data.append([
+                    comp.get('company', '')[:15],
+                    str(comp.get('employee_count', 0)),
+                    f"{comp.get('work_hours', 0) or 0:,.0f}",
+                    self._format_yen(comp.get('revenue', 0)),
+                    self._format_yen(comp.get('cost', 0)),
+                    self._format_yen(comp.get('profit', 0)),
+                    f"{margin_val:.1f}%"
+                ])
+
+            table = Table(table_data, colWidths=[90, 50, 55, 65, 65, 65, 45])
+            table_style = [
+                ('BACKGROUND', (0, 0), (-1, 0), PDF_COLORS['primary']),
+                ('TEXTCOLOR', (0, 0), (-1, 0), PDF_COLORS['white']),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, -1), 8),
+                ('ALIGN', (1, 0), (-1, -1), 'RIGHT'),
+                ('ALIGN', (0, 0), (0, -1), 'LEFT'),
+                ('TOPPADDING', (0, 0), (-1, -1), 4),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+                ('GRID', (0, 0), (-1, -1), 0.5, PDF_COLORS['secondary']),
+                ('ROWBACKGROUNDS', (0, 1), (-1, -1), [PDF_COLORS['white'], PDF_COLORS['light']]),
+            ]
+            # Color margins
+            for i, comp in enumerate(companies, 1):
+                margin_val = comp.get('margin', 0) or 0
+                color = self._get_margin_color(margin_val)
+                table_style.append(('TEXTCOLOR', (6, i), (6, i), color))
+
+            table.setStyle(TableStyle(table_style))
+            story.append(table)
 
     def log_report_generation(
         self,

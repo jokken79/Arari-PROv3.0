@@ -40,7 +40,7 @@ const reports = [
     title: '月次粗利レポート',
     description: '月別の粗利詳細と従業員別内訳',
     icon: FileBarChart,
-    format: 'Excel',
+    formats: ['excel', 'pdf'] as const,
     category: '粗利分析',
   },
   {
@@ -48,7 +48,7 @@ const reports = [
     title: '従業員別詳細レポート',
     description: '全従業員の給与・コスト・粗利の詳細',
     icon: Users,
-    format: 'Excel',
+    formats: ['excel'] as const,
     category: '従業員分析',
   },
   {
@@ -56,7 +56,7 @@ const reports = [
     title: '派遣先別分析レポート',
     description: '全派遣先の収益性分析',
     icon: Building2,
-    format: 'Excel',
+    formats: ['excel', 'pdf'] as const,
     category: '企業分析',
   },
   {
@@ -64,7 +64,7 @@ const reports = [
     title: 'コスト内訳レポート',
     description: '社会保険・有給・通勤費の詳細内訳',
     icon: FilePieChart,
-    format: 'Excel',
+    formats: ['excel'] as const,
     category: 'コスト分析',
   },
   {
@@ -72,8 +72,9 @@ const reports = [
     title: '経営サマリーレポート',
     description: '経営層向けの概要レポート',
     icon: FileText,
-    format: 'Excel',
+    formats: ['excel', 'pdf'] as const,
     category: 'サマリー',
+    recommended: 'pdf' as const,
   },
 ]
 
@@ -98,8 +99,9 @@ export default function ReportsPage() {
     }
   }, [sortedPeriods, selectedPeriod])
 
-  const handleGenerate = async (reportId: string) => {
-    setGenerating(reportId)
+  const handleGenerate = async (reportId: string, format: 'excel' | 'pdf' = 'excel') => {
+    const generatingKey = `${reportId}-${format}`
+    setGenerating(generatingKey)
     setDownloadStatus(null)
 
     try {
@@ -120,8 +122,8 @@ export default function ReportsPage() {
         return
       }
 
-      // Build API URL - all reports use period parameter
-      const url = `${API_URL}/api/reports/download/${reportType}?format=excel&period=${encodeURIComponent(selectedPeriod)}`
+      // Build API URL with format parameter
+      const url = `${API_URL}/api/reports/download/${reportType}?format=${format}&period=${encodeURIComponent(selectedPeriod)}`
 
       // Fetch the report
       const response = await fetch(url)
@@ -138,7 +140,8 @@ export default function ReportsPage() {
 
       // Extract filename from Content-Disposition header or create one
       const contentDisposition = response.headers.get('Content-Disposition')
-      let filename = `report_${reportId}_${new Date().toISOString().split('T')[0]}.xlsx`
+      const extension = format === 'pdf' ? 'pdf' : 'xlsx'
+      let filename = `report_${reportId}_${new Date().toISOString().split('T')[0]}.${extension}`
       if (contentDisposition) {
         const filenameMatch = contentDisposition.match(/filename=(.+)/)
         if (filenameMatch) {
@@ -152,7 +155,8 @@ export default function ReportsPage() {
       document.body.removeChild(link)
       window.URL.revokeObjectURL(downloadUrl)
 
-      setDownloadStatus({ success: true, message: 'レポートをダウンロードしました' })
+      const formatLabel = format === 'pdf' ? 'PDF' : 'Excel'
+      setDownloadStatus({ success: true, message: `${formatLabel}レポートをダウンロードしました` })
     } catch (error) {
       console.error('Report generation error:', error)
       setDownloadStatus({
@@ -244,7 +248,9 @@ export default function ReportsPage() {
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             {reports.map((report, index) => {
               const Icon = report.icon
-              const isGenerating = generating === report.id
+              const hasPdf = report.formats.includes('pdf')
+              const hasExcel = report.formats.includes('excel')
+              const isRecommendedPdf = 'recommended' in report && report.recommended === 'pdf'
 
               return (
                 <motion.div
@@ -259,7 +265,10 @@ export default function ReportsPage() {
                         <div className="p-2 rounded-lg bg-primary/10">
                           <Icon className="h-6 w-6 text-primary" />
                         </div>
-                        <Badge variant="secondary">{report.format}</Badge>
+                        <div className="flex gap-1">
+                          {hasExcel && <Badge variant="secondary">Excel</Badge>}
+                          {hasPdf && <Badge variant="default" className="bg-red-500">PDF</Badge>}
+                        </div>
                       </div>
                       <CardTitle className="mt-4">{report.title}</CardTitle>
                       <CardDescription>{report.description}</CardDescription>
@@ -267,24 +276,51 @@ export default function ReportsPage() {
                     <CardContent>
                       <div className="flex items-center justify-between">
                         <Badge variant="outline">{report.category}</Badge>
-                        <Button
-                          onClick={() => handleGenerate(report.id)}
-                          disabled={isGenerating}
-                          size="sm"
-                          aria-label={`${report.title}をダウンロード`}
-                        >
-                          {isGenerating ? (
-                            <>
-                              <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent mr-2" />
-                              生成中...
-                            </>
-                          ) : (
-                            <>
-                              <Download className="h-4 w-4 mr-2" />
-                              ダウンロード
-                            </>
+                        <div className="flex gap-2">
+                          {hasExcel && (
+                            <Button
+                              onClick={() => handleGenerate(report.id, 'excel')}
+                              disabled={generating === `${report.id}-excel`}
+                              size="sm"
+                              variant={isRecommendedPdf ? "outline" : "default"}
+                              aria-label={`${report.title}をExcelでダウンロード`}
+                            >
+                              {generating === `${report.id}-excel` ? (
+                                <>
+                                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent mr-1" />
+                                  生成中
+                                </>
+                              ) : (
+                                <>
+                                  <FileSpreadsheet className="h-4 w-4 mr-1" />
+                                  Excel
+                                </>
+                              )}
+                            </Button>
                           )}
-                        </Button>
+                          {hasPdf && (
+                            <Button
+                              onClick={() => handleGenerate(report.id, 'pdf')}
+                              disabled={generating === `${report.id}-pdf`}
+                              size="sm"
+                              variant={isRecommendedPdf ? "default" : "outline"}
+                              className={isRecommendedPdf ? "bg-red-500 hover:bg-red-600" : "border-red-500 text-red-500 hover:bg-red-50"}
+                              aria-label={`${report.title}をPDFでダウンロード`}
+                            >
+                              {generating === `${report.id}-pdf` ? (
+                                <>
+                                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent mr-1" />
+                                  生成中
+                                </>
+                              ) : (
+                                <>
+                                  <FileText className="h-4 w-4 mr-1" />
+                                  PDF
+                                </>
+                              )}
+                            </Button>
+                          )}
+                        </div>
                       </div>
                     </CardContent>
                   </Card>
