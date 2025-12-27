@@ -545,7 +545,7 @@ class ReportService:
                 p.social_insurance, p.welfare_pension, p.employment_insurance,
                 p.company_social_insurance,
                 p.company_employment_insurance, p.company_workers_comp,
-                p.commuting_allowance, p.paid_leave_amount,
+                p.transport_allowance, p.paid_leave_amount,
                 p.total_company_cost, p.billing_amount, p.gross_profit
             FROM payroll_records p
             JOIN employees e ON p.employee_id = e.employee_id
@@ -568,7 +568,7 @@ class ReportService:
                 "company_social_insurance": _get_row_value(row, "company_social_insurance", 7, 0),
                 "company_employment_insurance": _get_row_value(row, "company_employment_insurance", 8, 0),
                 "company_workers_comp": _get_row_value(row, "company_workers_comp", 9, 0),
-                "commuting_allowance": _get_row_value(row, "commuting_allowance", 10, 0),
+                "commuting_allowance": _get_row_value(row, "transport_allowance", 10, 0),
                 "paid_leave_amount": _get_row_value(row, "paid_leave_amount", 11, 0),
                 "total_cost": _get_row_value(row, "total_company_cost", 12, 0),
                 "billing_amount": _get_row_value(row, "billing_amount", 13, 0),
@@ -584,7 +584,7 @@ class ReportService:
                 SUM(company_social_insurance) as total_company_insurance,
                 SUM(company_employment_insurance) as total_employment_ins,
                 SUM(company_workers_comp) as total_workers_comp,
-                SUM(commuting_allowance) as total_commuting,
+                SUM(transport_allowance) as total_commuting,
                 SUM(total_company_cost) as total_cost,
                 SUM(billing_amount) as total_revenue,
                 SUM(gross_profit) as total_profit
