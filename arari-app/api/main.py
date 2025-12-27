@@ -385,33 +385,39 @@ async def create_payroll_record(
 
 # ============== Statistics ==============
 
-# In-memory cache for statistics (TTL: 60 seconds)
-_stats_cache: Dict[str, Any] = {}
-_stats_cache_time: Dict[str, float] = {}
-STATS_CACHE_TTL = 60  # seconds
+# Cache TTL for statistics (120 seconds = 2 minutes)
+STATS_CACHE_TTL = 120
 
 @app.get("/api/statistics")
 async def get_statistics(
     db: sqlite3.Connection = Depends(get_db),
     period: Optional[str] = None
 ):
-    """Get dashboard statistics (cached for 60 seconds)"""
-    cache_key = f"stats:{period or 'latest'}"
-    current_time = time.time()
+    """Get dashboard statistics (cached for 2 minutes using persistent DB cache)"""
+    from cache import CacheService
 
-    # Check cache
-    if cache_key in _stats_cache:
-        cache_age = current_time - _stats_cache_time.get(cache_key, 0)
-        if cache_age < STATS_CACHE_TTL:
-            return _stats_cache[cache_key]
+    cache_key = f"stats:{period or 'latest'}"
+    cache_service = CacheService(conn=db, default_ttl=STATS_CACHE_TTL)
+
+    # Try to get from persistent cache (works across Railway workers)
+    try:
+        cached_result = cache_service.get_persistent(cache_key)
+        if cached_result is not None:
+            return cached_result
+    except Exception:
+        # If cache fails, continue to fetch from DB
+        pass
 
     # Cache miss - fetch from database
     service = PayrollService(db)
     result = service.get_statistics(period=period)
 
-    # Store in cache
-    _stats_cache[cache_key] = result
-    _stats_cache_time[cache_key] = current_time
+    # Store in persistent cache
+    try:
+        cache_service.set_persistent(cache_key, result, STATS_CACHE_TTL)
+    except Exception:
+        # If cache fails, just return result without caching
+        pass
 
     return result
 

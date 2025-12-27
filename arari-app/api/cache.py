@@ -171,9 +171,7 @@ class CacheService:
 
         cursor = self.conn.cursor()
         cursor.execute(
-            """
-            SELECT value, expires_at FROM cache_store WHERE cache_key = ?
-        """,
+            _q("SELECT value, expires_at FROM cache_store WHERE cache_key = ?"),
             (key,),
         )
 
@@ -181,19 +179,24 @@ class CacheService:
         if not row:
             return None
 
-        value, expires_at = row
+        # Handle both tuple (SQLite) and dict (PostgreSQL) row formats
+        if isinstance(row, dict):
+            value = row.get("value")
+            expires_at = row.get("expires_at")
+        else:
+            value, expires_at = row
 
         # Check expiration
-        if expires_at and datetime.now() > datetime.fromisoformat(expires_at):
-            cursor.execute("DELETE FROM cache_store WHERE cache_key = ?", (key,))
-            self.conn.commit()
-            return None
+        if expires_at:
+            exp_str = str(expires_at) if not isinstance(expires_at, str) else expires_at
+            if datetime.now() > datetime.fromisoformat(exp_str.replace('+00:00', '').replace('Z', '')):
+                cursor.execute(_q("DELETE FROM cache_store WHERE cache_key = ?"), (key,))
+                self.conn.commit()
+                return None
 
         # Update hit count
         cursor.execute(
-            """
-            UPDATE cache_store SET hit_count = hit_count + 1 WHERE cache_key = ?
-        """,
+            _q("UPDATE cache_store SET hit_count = hit_count + 1 WHERE cache_key = ?"),
             (key,),
         )
         self.conn.commit()
@@ -211,13 +214,30 @@ class CacheService:
         )
 
         cursor = self.conn.cursor()
-        cursor.execute(
-            """
-            INSERT OR REPLACE INTO cache_store (cache_key, value, expires_at)
-            VALUES (?, ?, ?)
-        """,
-            (key, json.dumps(value), expires_at),
-        )
+        json_value = json.dumps(value)
+
+        if USE_POSTGRES:
+            # PostgreSQL: use INSERT ... ON CONFLICT
+            cursor.execute(
+                """
+                INSERT INTO cache_store (cache_key, value, expires_at, hit_count)
+                VALUES (%s, %s, %s, 0)
+                ON CONFLICT (cache_key) DO UPDATE SET
+                    value = EXCLUDED.value,
+                    expires_at = EXCLUDED.expires_at,
+                    hit_count = 0
+                """,
+                (key, json_value, expires_at),
+            )
+        else:
+            # SQLite: use INSERT OR REPLACE
+            cursor.execute(
+                """
+                INSERT OR REPLACE INTO cache_store (cache_key, value, expires_at)
+                VALUES (?, ?, ?)
+                """,
+                (key, json_value, expires_at),
+            )
         self.conn.commit()
 
     def delete_persistent(self, key: str) -> bool:
@@ -226,7 +246,7 @@ class CacheService:
             return False
 
         cursor = self.conn.cursor()
-        cursor.execute("DELETE FROM cache_store WHERE cache_key = ?", (key,))
+        cursor.execute(_q("DELETE FROM cache_store WHERE cache_key = ?"), (key,))
         self.conn.commit()
         return cursor.rowcount > 0
 
@@ -241,7 +261,7 @@ class CacheService:
             # Convert glob pattern to SQL LIKE
             sql_pattern = pattern.replace("*", "%")
             cursor.execute(
-                "DELETE FROM cache_store WHERE cache_key LIKE ?", (sql_pattern,)
+                _q("DELETE FROM cache_store WHERE cache_key LIKE ?"), (sql_pattern,)
             )
         else:
             cursor.execute("DELETE FROM cache_store")
@@ -256,10 +276,10 @@ class CacheService:
 
         cursor = self.conn.cursor()
         cursor.execute(
-            """
+            _q("""
             DELETE FROM cache_store
             WHERE expires_at IS NOT NULL AND expires_at < ?
-        """,
+            """),
             (datetime.now().isoformat(),),
         )
         self.conn.commit()
