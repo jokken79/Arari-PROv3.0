@@ -90,7 +90,7 @@ export default function HelpPage() {
       <Header onMenuClick={() => setSidebarOpen(!sidebarOpen)} />
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
-      <main className="md:pl-[280px] transition-all duration-300">
+      <main className="md:pl-[280px] pt-16 transition-all duration-300">
         <div className="container py-6 px-4 md:px-6 max-w-4xl mx-auto">
           <motion.div
             initial={{ opacity: 0, y: -20 }}
