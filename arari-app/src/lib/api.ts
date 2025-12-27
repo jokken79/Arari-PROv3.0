@@ -139,10 +139,16 @@ export const statisticsApi = {
 // ============== Sync API ==============
 
 export const syncApi = {
-  syncEmployees: async () => {
+  syncEmployees: async (token?: string) => {
     try {
+      const headers: Record<string, string> = {}
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`
+      }
+
       const response = await fetch(`${API_BASE_URL}/api/sync-employees`, {
         method: 'POST',
+        headers,
       })
 
       if (!response.ok) {

@@ -97,6 +97,12 @@ export default function SettingsPage() {
     setIsSavingInsurance(true)
     setInsuranceSaveStatus(null)
 
+    if (!token) {
+      setInsuranceSaveStatus({ success: false, message: '認証が必要です。再度ログインしてください。' })
+      setIsSavingInsurance(false)
+      return
+    }
+
     try {
       const updates = [
         { key: 'employment_insurance_rate', value: insuranceSettings.employment_insurance_rate, description: `雇用保険（会社負担）- ${insuranceSettings.fiscal_year}年度` },
@@ -106,11 +112,17 @@ export default function SettingsPage() {
       ]
 
       for (const update of updates) {
-        await fetch(`${API_URL}/api/settings/${update.key}`, {
+        const res = await fetch(`${API_URL}/api/settings/${update.key}`, {
           method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
           body: JSON.stringify({ value: update.value, description: update.description }),
         })
+        if (!res.ok) {
+          throw new Error(`Failed to update ${update.key}`)
+        }
       }
 
       setInsuranceSaveStatus({ success: true, message: '設定を保存しました' })
@@ -130,7 +142,13 @@ export default function SettingsPage() {
     setIsSyncing(true)
     setSyncStatus(null)
 
-    const { data, error } = await syncApi.syncEmployees()
+    if (!token) {
+      setSyncStatus({ success: false, message: '認証が必要です。再度ログインしてください。' })
+      setIsSyncing(false)
+      return
+    }
+
+    const { data, error } = await syncApi.syncEmployees(token)
 
     if (error) {
       setSyncStatus({
