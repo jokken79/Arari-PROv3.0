@@ -52,7 +52,7 @@ export function SalaryDetailsColumn({ record, employee }: SalaryDetailsColumnPro
           <CreditCard className="h-5 w-5" aria-hidden="true" />
           給与支給明細
         </h3>
-        <p className="text-xs text-blue-400/60 mt-0.5">作業者への支払額</p>
+        <p className="text-xs text-blue-400/60 mt-0.5">派遣社員への支払額</p>
       </div>
 
       <div className="p-4 space-y-4">
