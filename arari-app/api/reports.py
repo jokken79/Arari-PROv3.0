@@ -401,6 +401,18 @@ class ReportService:
             "generated_at": datetime.now().isoformat(),
         }
 
+    def _safe_sheet_title(self, title: str) -> str:
+        """Create safe worksheet title (ASCII-only, max 31 chars)"""
+        # Replace Japanese year/month markers
+        safe = title.replace('年', '_').replace('月', '')
+        # Remove or replace any remaining non-ASCII characters
+        safe = ''.join(c if ord(c) < 128 else '_' for c in safe)
+        # Remove invalid Excel sheet name characters
+        for char in ['/', '\\', '?', '*', '[', ']', ':']:
+            safe = safe.replace(char, '_')
+        # Limit to 31 characters (Excel limit)
+        return safe[:31]
+
     def generate_excel_report(self, report_type: str, data: Dict[str, Any]) -> bytes:
         """Generate Excel report from data"""
         if not OPENPYXL_AVAILABLE:
@@ -422,16 +434,18 @@ class ReportService:
         )
 
         if report_type == "monthly":
-            ws.title = f"月次レポート_{data.get('period', '')}"
+            period = data.get('period', '')
+            ws.title = self._safe_sheet_title(f"Monthly_{period}")
             self._write_monthly_excel(ws, data, header_font, header_fill, border)
 
         elif report_type == "employee":
             emp = data.get("employee", {})
-            ws.title = f"従業員_{emp.get('employee_id', '')}"
+            ws.title = self._safe_sheet_title(f"Employee_{emp.get('employee_id', '')}")
             self._write_employee_excel(ws, data, header_font, header_fill, border)
 
         elif report_type == "company":
-            ws.title = f"派遣先_{data.get('company', '')[:20]}"
+            company = data.get('company', '')
+            ws.title = self._safe_sheet_title(f"Company_{company}")
             self._write_company_excel(ws, data, header_font, header_fill, border)
 
         # Save to bytes
