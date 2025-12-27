@@ -27,6 +27,7 @@ import { Input } from '@/components/ui/input'
 import { useTheme } from '@/components/ui/theme-provider'
 import { cn } from '@/lib/utils'
 import { syncApi, API_BASE_URL } from '@/lib/api'
+import { useAuth } from '@/hooks/useAuth'
 
 // API base URL - FastAPI backend (port 8000)
 import { useAppStore } from '@/store/appStore'
@@ -49,6 +50,7 @@ export default function SettingsPage() {
     stats?: any
   } | null>(null)
   const [deleteTarget, setDeleteTarget] = useState('payroll');
+  const { token } = useAuth();
 
   // Insurance settings state
   const [insuranceSettings, setInsuranceSettings] = useState<InsuranceSettings>({
@@ -579,12 +581,23 @@ export default function SettingsPage() {
                             }
 
                             try {
-                              const res = await fetch(`${API_URL}/api/reset-db?target=${deleteTarget}`, { method: 'DELETE' });
+                              if (!token) {
+                                alert('認証が必要です。再度ログインしてください。\nAuthentication required. Please login again.');
+                                return;
+                              }
+                              const res = await fetch(`${API_URL}/api/reset-db?target=${deleteTarget}`, {
+                                method: 'DELETE',
+                                headers: {
+                                  'Authorization': `Bearer ${token}`,
+                                  'Content-Type': 'application/json',
+                                },
+                              });
                               if (res.ok) {
                                 alert('データを削除しました。\nData deleted successfully.');
                                 window.location.reload();
                               } else {
-                                alert('削除に失敗しました。\nFailed to delete data.');
+                                const errorData = await res.json().catch(() => ({}));
+                                alert(`削除に失敗しました: ${errorData.detail || res.statusText}\nFailed to delete data.`);
                               }
                             } catch (e) {
                               console.error(e);
