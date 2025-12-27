@@ -13,6 +13,15 @@ from typing import Any, Dict, List
 # For Excel: openpyxl is already installed
 
 
+def _get_row_value(row, key: str, index: int, default=None):
+    """Extract value from row - handles both dict (PostgreSQL) and tuple (SQLite)"""
+    if row is None:
+        return default
+    if isinstance(row, dict):
+        return row.get(key, default)
+    return row[index] if len(row) > index else default
+
+
 def init_reports_tables(conn: sqlite3.Connection):
     """Initialize reports tables"""
     cursor = conn.cursor()
@@ -87,16 +96,16 @@ class ReportService:
 
         row = self.cursor.fetchone()
         summary = {
-            "employee_count": row[0] or 0,
-            "total_revenue": row[1] or 0,
-            "total_cost": row[2] or 0,
-            "total_profit": row[3] or 0,
-            "avg_margin": row[4] or 0,
-            "total_work_hours": row[5] or 0,
-            "total_overtime": row[6] or 0,
-            "total_overtime_60h": row[7] or 0,
-            "total_night_hours": row[8] or 0,
-            "total_holiday_hours": row[9] or 0,
+            "employee_count": _get_row_value(row, "employee_count", 0, 0),
+            "total_revenue": _get_row_value(row, "total_revenue", 1, 0),
+            "total_cost": _get_row_value(row, "total_cost", 2, 0),
+            "total_profit": _get_row_value(row, "total_profit", 3, 0),
+            "avg_margin": _get_row_value(row, "avg_margin", 4, 0),
+            "total_work_hours": _get_row_value(row, "total_work_hours", 5, 0),
+            "total_overtime": _get_row_value(row, "total_overtime", 6, 0),
+            "total_overtime_60h": _get_row_value(row, "total_overtime_60h", 7, 0),
+            "total_night_hours": _get_row_value(row, "total_night_hours", 8, 0),
+            "total_holiday_hours": _get_row_value(row, "total_holiday_hours", 9, 0),
         }
 
         # By company breakdown
@@ -122,12 +131,12 @@ class ReportService:
         for row in self.cursor.fetchall():
             by_company.append(
                 {
-                    "company": row[0],
-                    "employee_count": row[1],
-                    "revenue": row[2] or 0,
-                    "cost": row[3] or 0,
-                    "profit": row[4] or 0,
-                    "margin": row[5] or 0,
+                    "company": _get_row_value(row, "dispatch_company", 0),
+                    "employee_count": _get_row_value(row, "employee_count", 1, 0),
+                    "revenue": _get_row_value(row, "revenue", 2, 0),
+                    "cost": _get_row_value(row, "cost", 3, 0),
+                    "profit": _get_row_value(row, "profit", 4, 0),
+                    "margin": _get_row_value(row, "avg_margin", 5, 0),
                 }
             )
 
@@ -150,13 +159,13 @@ class ReportService:
         for row in self.cursor.fetchall():
             top_performers.append(
                 {
-                    "employee_id": row[0],
-                    "name": row[1],
-                    "company": row[2],
-                    "revenue": row[3] or 0,
-                    "cost": row[4] or 0,
-                    "profit": row[5] or 0,
-                    "margin": row[6] or 0,
+                    "employee_id": _get_row_value(row, "employee_id", 0),
+                    "name": _get_row_value(row, "name", 1),
+                    "company": _get_row_value(row, "dispatch_company", 2),
+                    "revenue": _get_row_value(row, "billing_amount", 3, 0),
+                    "cost": _get_row_value(row, "total_company_cost", 4, 0),
+                    "profit": _get_row_value(row, "gross_profit", 5, 0),
+                    "margin": _get_row_value(row, "profit_margin", 6, 0),
                 }
             )
 
@@ -178,13 +187,13 @@ class ReportService:
         for row in self.cursor.fetchall():
             bottom_performers.append(
                 {
-                    "employee_id": row[0],
-                    "name": row[1],
-                    "company": row[2],
-                    "revenue": row[3] or 0,
-                    "cost": row[4] or 0,
-                    "profit": row[5] or 0,
-                    "margin": row[6] or 0,
+                    "employee_id": _get_row_value(row, "employee_id", 0),
+                    "name": _get_row_value(row, "name", 1),
+                    "company": _get_row_value(row, "dispatch_company", 2),
+                    "revenue": _get_row_value(row, "billing_amount", 3, 0),
+                    "cost": _get_row_value(row, "total_company_cost", 4, 0),
+                    "profit": _get_row_value(row, "gross_profit", 5, 0),
+                    "margin": _get_row_value(row, "profit_margin", 6, 0),
                 }
             )
 
@@ -217,14 +226,14 @@ class ReportService:
             return {"error": "Employee not found"}
 
         employee = {
-            "employee_id": emp_row[0],
-            "name": emp_row[1],
-            "name_kana": emp_row[2],
-            "company": emp_row[3],
-            "hourly_rate": emp_row[4],
-            "billing_rate": emp_row[5],
-            "status": emp_row[6],
-            "hire_date": emp_row[7],
+            "employee_id": _get_row_value(emp_row, "employee_id", 0),
+            "name": _get_row_value(emp_row, "name", 1),
+            "name_kana": _get_row_value(emp_row, "name_kana", 2),
+            "company": _get_row_value(emp_row, "dispatch_company", 3),
+            "hourly_rate": _get_row_value(emp_row, "hourly_rate", 4),
+            "billing_rate": _get_row_value(emp_row, "billing_rate", 5),
+            "status": _get_row_value(emp_row, "status", 6),
+            "hire_date": _get_row_value(emp_row, "hire_date", 7),
         }
 
         # Historical payroll data
@@ -246,19 +255,19 @@ class ReportService:
         for row in self.cursor.fetchall():
             history.append(
                 {
-                    "period": row[0],
-                    "work_hours": row[1],
-                    "overtime_hours": row[2],
-                    "overtime_over_60h": row[3],
-                    "night_hours": row[4],
-                    "holiday_hours": row[5],
-                    "gross_salary": row[6],
-                    "billing_amount": row[7],
-                    "cost": row[8],
-                    "profit": row[9],
-                    "margin": row[10],
-                    "paid_leave_days": row[11],
-                    "paid_leave_amount": row[12],
+                    "period": _get_row_value(row, "period", 0),
+                    "work_hours": _get_row_value(row, "work_hours", 1, 0),
+                    "overtime_hours": _get_row_value(row, "overtime_hours", 2, 0),
+                    "overtime_over_60h": _get_row_value(row, "overtime_over_60h", 3, 0),
+                    "night_hours": _get_row_value(row, "night_hours", 4, 0),
+                    "holiday_hours": _get_row_value(row, "holiday_hours", 5, 0),
+                    "gross_salary": _get_row_value(row, "gross_salary", 6, 0),
+                    "billing_amount": _get_row_value(row, "billing_amount", 7, 0),
+                    "cost": _get_row_value(row, "total_company_cost", 8, 0),
+                    "profit": _get_row_value(row, "gross_profit", 9, 0),
+                    "margin": _get_row_value(row, "profit_margin", 10, 0),
+                    "paid_leave_days": _get_row_value(row, "paid_leave_days", 11, 0),
+                    "paid_leave_amount": _get_row_value(row, "paid_leave_amount", 12, 0),
                 }
             )
 
@@ -301,11 +310,11 @@ class ReportService:
         for row in self.cursor.fetchall():
             employees.append(
                 {
-                    "employee_id": row[0],
-                    "name": row[1],
-                    "hourly_rate": row[2],
-                    "billing_rate": row[3],
-                    "status": row[4],
+                    "employee_id": _get_row_value(row, "employee_id", 0),
+                    "name": _get_row_value(row, "name", 1),
+                    "hourly_rate": _get_row_value(row, "hourly_rate", 2, 0),
+                    "billing_rate": _get_row_value(row, "billing_rate", 3, 0),
+                    "status": _get_row_value(row, "status", 4),
                 }
             )
 
@@ -333,12 +342,12 @@ class ReportService:
         for row in self.cursor.fetchall():
             monthly_data.append(
                 {
-                    "period": row[0],
-                    "employee_count": row[1],
-                    "revenue": row[2] or 0,
-                    "cost": row[3] or 0,
-                    "profit": row[4] or 0,
-                    "margin": row[5] or 0,
+                    "period": _get_row_value(row, "period", 0),
+                    "employee_count": _get_row_value(row, "employee_count", 1, 0),
+                    "revenue": _get_row_value(row, "revenue", 2, 0),
+                    "cost": _get_row_value(row, "cost", 3, 0),
+                    "profit": _get_row_value(row, "profit", 4, 0),
+                    "margin": _get_row_value(row, "avg_margin", 5, 0),
                 }
             )
 
@@ -365,10 +374,10 @@ class ReportService:
             "employee_count": len(employees),
             "monthly_data": monthly_data,
             "totals": {
-                "revenue": totals[0] or 0,
-                "cost": totals[1] or 0,
-                "profit": totals[2] or 0,
-                "avg_margin": totals[3] or 0,
+                "revenue": _get_row_value(totals, "total_revenue", 0, 0),
+                "cost": _get_row_value(totals, "total_cost", 1, 0),
+                "profit": _get_row_value(totals, "total_profit", 2, 0),
+                "avg_margin": _get_row_value(totals, "avg_margin", 3, 0),
             },
             "generated_at": datetime.now().isoformat(),
         }
@@ -654,14 +663,14 @@ class ReportService:
 
         return [
             {
-                "id": row[0],
-                "type": row[1],
-                "name": row[2],
-                "period": row[3],
-                "format": row[4],
-                "generated_by": row[5],
-                "file_size": row[6],
-                "created_at": row[7],
+                "id": _get_row_value(row, "id", 0),
+                "type": _get_row_value(row, "report_type", 1),
+                "name": _get_row_value(row, "report_name", 2),
+                "period": _get_row_value(row, "period", 3),
+                "format": _get_row_value(row, "format", 4),
+                "generated_by": _get_row_value(row, "generated_by", 5),
+                "file_size": _get_row_value(row, "file_size", 6),
+                "created_at": _get_row_value(row, "created_at", 7),
             }
             for row in self.cursor.fetchall()
         ]
