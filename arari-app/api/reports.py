@@ -9,8 +9,17 @@ from datetime import datetime
 from io import BytesIO
 from typing import Any, Dict, List
 
+from database import USE_POSTGRES
+
 # Note: For PDF generation, you'll need to install: pip install reportlab
 # For Excel: openpyxl is already installed
+
+
+def _q(query: str) -> str:
+    """Convert SQLite query to PostgreSQL if needed (? -> %s)"""
+    if USE_POSTGRES:
+        return query.replace("?", "%s")
+    return query
 
 
 def _get_row_value(row, key: str, index: int, default=None):
@@ -76,7 +85,7 @@ class ReportService:
 
         # Summary statistics
         self.cursor.execute(
-            """
+            _q("""
             SELECT
                 COUNT(*) as employee_count,
                 SUM(billing_amount) as total_revenue,
@@ -90,7 +99,7 @@ class ReportService:
                 SUM(holiday_hours) as total_holiday_hours
             FROM payroll_records
             WHERE period = ?
-        """,
+        """),
             (period,),
         )
 
@@ -110,7 +119,7 @@ class ReportService:
 
         # By company breakdown
         self.cursor.execute(
-            """
+            _q("""
             SELECT
                 e.dispatch_company,
                 COUNT(*) as employee_count,
@@ -123,7 +132,7 @@ class ReportService:
             WHERE p.period = ?
             GROUP BY e.dispatch_company
             ORDER BY profit DESC
-        """,
+        """),
             (period,),
         )
 
@@ -142,7 +151,7 @@ class ReportService:
 
         # Top/Bottom performers
         self.cursor.execute(
-            """
+            _q("""
             SELECT
                 p.employee_id, e.name, e.dispatch_company,
                 p.billing_amount, p.total_company_cost, p.gross_profit, p.profit_margin
@@ -151,7 +160,7 @@ class ReportService:
             WHERE p.period = ?
             ORDER BY p.profit_margin DESC
             LIMIT 5
-        """,
+        """),
             (period,),
         )
 
@@ -170,7 +179,7 @@ class ReportService:
             )
 
         self.cursor.execute(
-            """
+            _q("""
             SELECT
                 p.employee_id, e.name, e.dispatch_company,
                 p.billing_amount, p.total_company_cost, p.gross_profit, p.profit_margin
@@ -179,7 +188,7 @@ class ReportService:
             WHERE p.period = ?
             ORDER BY p.profit_margin ASC
             LIMIT 5
-        """,
+        """),
             (period,),
         )
 
@@ -213,11 +222,11 @@ class ReportService:
 
         # Employee info
         self.cursor.execute(
-            """
+            _q("""
             SELECT employee_id, name, name_kana, dispatch_company,
                    hourly_rate, billing_rate, status, hire_date
             FROM employees WHERE employee_id = ?
-        """,
+        """),
             (employee_id,),
         )
 
@@ -238,7 +247,7 @@ class ReportService:
 
         # Historical payroll data
         self.cursor.execute(
-            """
+            _q("""
             SELECT period, work_hours, overtime_hours, overtime_over_60h,
                    night_hours, holiday_hours, gross_salary, billing_amount,
                    total_company_cost, gross_profit, profit_margin,
@@ -247,7 +256,7 @@ class ReportService:
             WHERE employee_id = ?
             ORDER BY period DESC
             LIMIT ?
-        """,
+        """),
             (employee_id, months),
         )
 
@@ -298,11 +307,11 @@ class ReportService:
 
         # Employees in this company
         self.cursor.execute(
-            """
+            _q("""
             SELECT employee_id, name, hourly_rate, billing_rate, status
             FROM employees
             WHERE dispatch_company = ?
-        """,
+        """),
             (company,),
         )
 
@@ -320,7 +329,7 @@ class ReportService:
 
         # Monthly aggregates
         self.cursor.execute(
-            """
+            _q("""
             SELECT
                 p.period,
                 COUNT(*) as employee_count,
@@ -334,7 +343,7 @@ class ReportService:
             GROUP BY p.period
             ORDER BY p.period DESC
             LIMIT 12
-        """,
+        """),
             (company,),
         )
 
@@ -353,7 +362,7 @@ class ReportService:
 
         # Overall summary
         self.cursor.execute(
-            """
+            _q("""
             SELECT
                 SUM(p.billing_amount) as total_revenue,
                 SUM(p.total_company_cost) as total_cost,
@@ -362,7 +371,7 @@ class ReportService:
             FROM payroll_records p
             JOIN employees e ON p.employee_id = e.employee_id
             WHERE e.dispatch_company = ?
-        """,
+        """),
             (company,),
         )
 
@@ -626,12 +635,12 @@ class ReportService:
         report_name = f"{report_type}_{period or 'all'}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
 
         self.cursor.execute(
-            """
+            _q("""
             INSERT INTO generated_reports (
                 report_type, report_name, period, entity_type, entity_id,
                 format, generated_by, file_size, parameters
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """,
+        """),
             (
                 report_type,
                 report_name,
@@ -651,13 +660,13 @@ class ReportService:
     def get_report_history(self, limit: int = 50) -> List[Dict[str, Any]]:
         """Get history of generated reports"""
         self.cursor.execute(
-            """
+            _q("""
             SELECT id, report_type, report_name, period, format,
                    generated_by, file_size, created_at
             FROM generated_reports
             ORDER BY created_at DESC
             LIMIT ?
-        """,
+        """),
             (limit,),
         )
 
