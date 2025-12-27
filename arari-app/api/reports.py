@@ -32,9 +32,14 @@ try:
     from reportlab.graphics.charts.barcharts import VerticalBarChart
     from reportlab.pdfbase import pdfmetrics
     from reportlab.pdfbase.ttfonts import TTFont
+    from reportlab.pdfbase.cidfonts import UnicodeCIDFont
+    # Register Japanese font
+    pdfmetrics.registerFont(UnicodeCIDFont('HeiseiKakuGo-W5'))
     REPORTLAB_AVAILABLE = True
+    JAPANESE_FONT = 'HeiseiKakuGo-W5'
 except ImportError:
     REPORTLAB_AVAILABLE = False
+    JAPANESE_FONT = 'Helvetica'
 
 # PDF Color scheme
 PDF_COLORS = {
@@ -1205,14 +1210,14 @@ class ReportService:
 
         chart.data = [profits]
         chart.categoryAxis.categoryNames = labels
-        chart.categoryAxis.labels.fontName = 'Helvetica'
+        chart.categoryAxis.labels.fontName = JAPANESE_FONT
         chart.categoryAxis.labels.fontSize = 8
         chart.categoryAxis.labels.angle = 0
 
         chart.valueAxis.valueMin = 0
         chart.valueAxis.valueMax = max(profits) * 1.2 if profits else 100
         chart.valueAxis.labelTextFormat = '%.1fM'
-        chart.valueAxis.labels.fontName = 'Helvetica'
+        chart.valueAxis.labels.fontName = JAPANESE_FONT
         chart.valueAxis.labels.fontSize = 8
 
         chart.bars[0].fillColor = PDF_COLORS['primary']
@@ -1238,8 +1243,7 @@ class ReportService:
             ('TEXTCOLOR', (0, 0), (-1, 0), PDF_COLORS['white']),
             ('BACKGROUND', (0, 1), (-1, 1), PDF_COLORS['light']),
             ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('FONTNAME', (0, 1), (-1, 1), 'Helvetica-Bold'),
+            ('FONTNAME', (0, 0), (-1, -1), JAPANESE_FONT),
             ('FONTSIZE', (0, 0), (-1, 0), 10),
             ('FONTSIZE', (0, 1), (-1, 1), 14),
             ('TOPPADDING', (0, 0), (-1, -1), 8),
@@ -1266,10 +1270,11 @@ class ReportService:
 
         styles = getSampleStyleSheet()
 
-        # Custom styles
+        # Custom styles with Japanese font support
         styles.add(ParagraphStyle(
             'Title_Custom',
             parent=styles['Title'],
+            fontName=JAPANESE_FONT,
             fontSize=18,
             spaceAfter=12,
             textColor=PDF_COLORS['primary']
@@ -1277,6 +1282,7 @@ class ReportService:
         styles.add(ParagraphStyle(
             'Subtitle_Custom',
             parent=styles['Normal'],
+            fontName=JAPANESE_FONT,
             fontSize=12,
             spaceAfter=20,
             textColor=PDF_COLORS['secondary']
@@ -1284,11 +1290,14 @@ class ReportService:
         styles.add(ParagraphStyle(
             'Section_Header',
             parent=styles['Heading2'],
+            fontName=JAPANESE_FONT,
             fontSize=14,
             spaceBefore=20,
             spaceAfter=10,
             textColor=PDF_COLORS['primary']
         ))
+        # Override Normal style for Japanese
+        styles['Normal'].fontName = JAPANESE_FONT
 
         story = []
 
@@ -1358,7 +1367,7 @@ class ReportService:
             table_style = [
                 ('BACKGROUND', (0, 0), (-1, 0), PDF_COLORS['primary']),
                 ('TEXTCOLOR', (0, 0), (-1, 0), PDF_COLORS['white']),
-                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTNAME', (0, 0), (-1, 0), JAPANESE_FONT),
                 ('FONTSIZE', (0, 0), (-1, -1), 9),
                 ('ALIGN', (1, 0), (-1, -1), 'RIGHT'),
                 ('ALIGN', (0, 0), (0, -1), 'LEFT'),
@@ -1394,7 +1403,7 @@ class ReportService:
             perf_table.setStyle(TableStyle([
                 ('BACKGROUND', (0, 0), (-1, 0), PDF_COLORS['success']),
                 ('TEXTCOLOR', (0, 0), (-1, 0), PDF_COLORS['white']),
-                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTNAME', (0, 0), (-1, 0), JAPANESE_FONT),
                 ('FONTSIZE', (0, 0), (-1, -1), 9),
                 ('ALIGN', (2, 0), (-1, -1), 'RIGHT'),
                 ('TOPPADDING', (0, 0), (-1, -1), 5),
@@ -1423,7 +1432,7 @@ class ReportService:
             bottom_table.setStyle(TableStyle([
                 ('BACKGROUND', (0, 0), (-1, 0), PDF_COLORS['danger']),
                 ('TEXTCOLOR', (0, 0), (-1, 0), PDF_COLORS['white']),
-                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTNAME', (0, 0), (-1, 0), JAPANESE_FONT),
                 ('FONTSIZE', (0, 0), (-1, -1), 9),
                 ('ALIGN', (2, 0), (-1, -1), 'RIGHT'),
                 ('TOPPADDING', (0, 0), (-1, -1), 5),
@@ -1488,7 +1497,7 @@ class ReportService:
             table_style = [
                 ('BACKGROUND', (0, 0), (-1, 0), PDF_COLORS['primary']),
                 ('TEXTCOLOR', (0, 0), (-1, 0), PDF_COLORS['white']),
-                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTNAME', (0, 0), (-1, 0), JAPANESE_FONT),
                 ('FONTSIZE', (0, 0), (-1, -1), 8),
                 ('ALIGN', (1, 0), (-1, -1), 'RIGHT'),
                 ('ALIGN', (0, 0), (0, -1), 'LEFT'),
@@ -1551,7 +1560,7 @@ class ReportService:
             table_style = [
                 ('BACKGROUND', (0, 0), (-1, 0), PDF_COLORS['primary']),
                 ('TEXTCOLOR', (0, 0), (-1, 0), PDF_COLORS['white']),
-                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTNAME', (0, 0), (-1, 0), JAPANESE_FONT),
                 ('FONTSIZE', (0, 0), (-1, -1), 8),
                 ('ALIGN', (1, 0), (-1, -1), 'RIGHT'),
                 ('ALIGN', (0, 0), (0, -1), 'LEFT'),
