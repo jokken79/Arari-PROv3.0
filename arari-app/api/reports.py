@@ -1322,15 +1322,15 @@ class ReportService:
         summary = data.get('summary', {})
 
         # Title
-        story.append(Paragraph("Arari PRO - Executive Summary", styles['Title_Custom']))
-        story.append(Paragraph(f"Period: {period} | Generated: {datetime.now().strftime('%Y-%m-%d %H:%M')}", styles['Subtitle_Custom']))
+        story.append(Paragraph("粗利 PRO - 経営サマリー", styles['Title_Custom']))
+        story.append(Paragraph(f"対象期間: {period} | 作成日: {datetime.now().strftime('%Y-%m-%d %H:%M')}", styles['Subtitle_Custom']))
 
         # KPI Cards
         kpis = [
-            {'label': 'Employees', 'value': str(summary.get('employee_count', 0))},
-            {'label': 'Revenue', 'value': self._format_yen(summary.get('total_revenue', 0))},
-            {'label': 'Cost', 'value': self._format_yen(summary.get('total_cost', 0))},
-            {'label': 'Profit', 'value': self._format_yen(summary.get('total_profit', 0))},
+            {'label': '従業員数', 'value': str(summary.get('employee_count', 0))},
+            {'label': '売上', 'value': self._format_yen(summary.get('total_revenue', 0))},
+            {'label': 'コスト', 'value': self._format_yen(summary.get('total_cost', 0))},
+            {'label': '粗利', 'value': self._format_yen(summary.get('total_profit', 0))},
         ]
         story.append(self._create_kpi_table(kpis))
         story.append(Spacer(1, 10*mm))
@@ -1338,12 +1338,12 @@ class ReportService:
         # Margin indicator
         margin = summary.get('avg_margin', 0) or 0
         margin_color = self._get_margin_color(margin)
-        margin_text = f"Average Margin: {margin:.1f}%"
+        margin_text = f"平均マージン: {margin:.1f}%"
         story.append(Paragraph(f"<font color='{margin_color.hexval()}'><b>{margin_text}</b></font>", styles['Normal']))
         story.append(Spacer(1, 10*mm))
 
         # Top Companies Chart
-        story.append(Paragraph("Top Companies by Profit", styles['Section_Header']))
+        story.append(Paragraph("利益上位派遣先", styles['Section_Header']))
         by_company = data.get('by_company', [])[:5]
         if by_company:
             chart = self._create_bar_chart(by_company)
@@ -1352,7 +1352,7 @@ class ReportService:
 
         # Top Companies Table
         if by_company:
-            table_data = [['Company', 'Employees', 'Revenue', 'Profit', 'Margin']]
+            table_data = [['派遣先', '従業員数', '売上', '粗利', 'マージン']]
             for comp in by_company:
                 margin_val = comp.get('margin', 0) or 0
                 table_data.append([
@@ -1386,14 +1386,15 @@ class ReportService:
             story.append(Spacer(1, 10*mm))
 
         # Top/Bottom Performers
-        story.append(Paragraph("Top Performers", styles['Section_Header']))
+        story.append(Paragraph("利益率上位", styles['Section_Header']))
         top_performers = data.get('top_performers', [])[:5]
         if top_performers:
-            perf_data = [['Name', 'Company', 'Profit', 'Margin']]
+            perf_data = [['氏名', '派遣先', '粗利', 'マージン']]
             for emp in top_performers:
                 margin_val = emp.get('margin', 0) or 0
+                emp_name = emp.get('name_kana') or emp.get('name', '')
                 perf_data.append([
-                    emp.get('name', '')[:12],
+                    emp_name[:12],
                     emp.get('company', '')[:10],
                     self._format_yen(emp.get('profit', 0)),
                     f"{margin_val:.1f}%"
@@ -1416,13 +1417,14 @@ class ReportService:
         bottom_performers = data.get('bottom_performers', [])[:5]
         if bottom_performers:
             story.append(Spacer(1, 5*mm))
-            story.append(Paragraph("Attention Needed (Low Margin)", styles['Section_Header']))
+            story.append(Paragraph("要注意（低マージン）", styles['Section_Header']))
 
-            bottom_data = [['Name', 'Company', 'Profit', 'Margin']]
+            bottom_data = [['氏名', '派遣先', '粗利', 'マージン']]
             for emp in bottom_performers:
                 margin_val = emp.get('margin', 0) or 0
+                emp_name = emp.get('name_kana') or emp.get('name', '')
                 bottom_data.append([
-                    emp.get('name', '')[:12],
+                    emp_name[:12],
                     emp.get('company', '')[:10],
                     self._format_yen(emp.get('profit', 0)),
                     f"{margin_val:.1f}%"
@@ -1447,31 +1449,31 @@ class ReportService:
         summary = data.get('summary', {})
 
         # Title
-        story.append(Paragraph("Monthly Profit Report", styles['Title_Custom']))
-        story.append(Paragraph(f"Period: {period} | Generated: {datetime.now().strftime('%Y-%m-%d %H:%M')}", styles['Subtitle_Custom']))
+        story.append(Paragraph("月次粗利レポート", styles['Title_Custom']))
+        story.append(Paragraph(f"対象期間: {period} | 作成日: {datetime.now().strftime('%Y-%m-%d %H:%M')}", styles['Subtitle_Custom']))
 
         # KPI Cards
         kpis = [
-            {'label': 'Employees', 'value': str(summary.get('employee_count', 0))},
-            {'label': 'Revenue', 'value': self._format_yen(summary.get('total_revenue', 0))},
-            {'label': 'Cost', 'value': self._format_yen(summary.get('total_cost', 0))},
-            {'label': 'Profit', 'value': self._format_yen(summary.get('total_profit', 0))},
+            {'label': '従業員数', 'value': str(summary.get('employee_count', 0))},
+            {'label': '売上', 'value': self._format_yen(summary.get('total_revenue', 0))},
+            {'label': 'コスト', 'value': self._format_yen(summary.get('total_cost', 0))},
+            {'label': '粗利', 'value': self._format_yen(summary.get('total_profit', 0))},
         ]
         story.append(self._create_kpi_table(kpis))
         story.append(Spacer(1, 5*mm))
 
         # Hours breakdown
         hours_kpis = [
-            {'label': 'Work Hours', 'value': f"{summary.get('total_work_hours', 0) or 0:,.0f}h"},
-            {'label': 'Overtime', 'value': f"{summary.get('total_overtime', 0) or 0:,.0f}h"},
-            {'label': 'Night', 'value': f"{summary.get('total_night_hours', 0) or 0:,.0f}h"},
-            {'label': 'Holiday', 'value': f"{summary.get('total_holiday_hours', 0) or 0:,.0f}h"},
+            {'label': '労働時間', 'value': f"{summary.get('total_work_hours', 0) or 0:,.0f}h"},
+            {'label': '残業', 'value': f"{summary.get('total_overtime', 0) or 0:,.0f}h"},
+            {'label': '深夜', 'value': f"{summary.get('total_night_hours', 0) or 0:,.0f}h"},
+            {'label': '休日', 'value': f"{summary.get('total_holiday_hours', 0) or 0:,.0f}h"},
         ]
         story.append(self._create_kpi_table(hours_kpis))
         story.append(Spacer(1, 10*mm))
 
         # By Company breakdown
-        story.append(Paragraph("Breakdown by Company", styles['Section_Header']))
+        story.append(Paragraph("派遣先別内訳", styles['Section_Header']))
         by_company = data.get('by_company', [])
 
         if by_company:
@@ -1481,7 +1483,7 @@ class ReportService:
             story.append(Spacer(1, 5*mm))
 
             # Table
-            table_data = [['Company', 'Employees', 'Revenue', 'Cost', 'Profit', 'Margin']]
+            table_data = [['派遣先', '従業員数', '売上', 'コスト', '粗利', 'マージン']]
             for comp in by_company:
                 margin_val = comp.get('margin', 0) or 0
                 table_data.append([
@@ -1521,21 +1523,21 @@ class ReportService:
         totals = data.get('totals', {})
 
         # Title
-        story.append(Paragraph("Company Analysis Report", styles['Title_Custom']))
-        story.append(Paragraph(f"Period: {period} | Generated: {datetime.now().strftime('%Y-%m-%d %H:%M')}", styles['Subtitle_Custom']))
+        story.append(Paragraph("派遣先別分析レポート", styles['Title_Custom']))
+        story.append(Paragraph(f"対象期間: {period} | 作成日: {datetime.now().strftime('%Y-%m-%d %H:%M')}", styles['Subtitle_Custom']))
 
         # KPI Cards
         kpis = [
-            {'label': 'Companies', 'value': str(totals.get('company_count', 0))},
-            {'label': 'Employees', 'value': str(totals.get('employee_count', 0))},
-            {'label': 'Revenue', 'value': self._format_yen(totals.get('total_revenue', 0))},
-            {'label': 'Profit', 'value': self._format_yen(totals.get('total_profit', 0))},
+            {'label': '派遣先数', 'value': str(totals.get('company_count', 0))},
+            {'label': '従業員数', 'value': str(totals.get('employee_count', 0))},
+            {'label': '売上', 'value': self._format_yen(totals.get('total_revenue', 0))},
+            {'label': '粗利', 'value': self._format_yen(totals.get('total_profit', 0))},
         ]
         story.append(self._create_kpi_table(kpis))
         story.append(Spacer(1, 10*mm))
 
         # Chart
-        story.append(Paragraph("Profit by Company", styles['Section_Header']))
+        story.append(Paragraph("派遣先別利益", styles['Section_Header']))
         companies = data.get('companies', [])
         if companies:
             chart = self._create_bar_chart(companies[:8])
@@ -1543,7 +1545,7 @@ class ReportService:
             story.append(Spacer(1, 5*mm))
 
             # Full table
-            table_data = [['Company', 'Employees', 'Hours', 'Revenue', 'Cost', 'Profit', 'Margin']]
+            table_data = [['派遣先', '従業員数', '時間', '売上', 'コスト', '粗利', 'マージン']]
             for comp in companies:
                 margin_val = comp.get('margin', 0) or 0
                 table_data.append([
