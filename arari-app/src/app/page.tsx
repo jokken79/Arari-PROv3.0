@@ -13,6 +13,10 @@ import {
   BadgeJapaneseYen,
   RefreshCw,
   Calendar,
+  AlertTriangle,
+  AlertCircle,
+  TrendingDown,
+  Target,
 } from 'lucide-react'
 import { Header } from '@/components/layout/Header'
 import { Sidebar } from '@/components/layout/Sidebar'
@@ -323,6 +327,47 @@ export default function DashboardPage() {
       ...data,
     }))
 
+    // Cost breakdown data by company
+    const costBreakdownData = Array.from(companyMap.entries()).slice(0, 8).map(([name, data]) => {
+      // Calculate cost breakdown from current period records for this company
+      const companyRecords = currentPeriodRecords.filter(r => {
+        const employee = employees.find(e => e.employeeId === r.employeeId)
+        return employee?.dispatchCompany === name
+      })
+
+      const totalSalary = companyRecords.reduce((sum, r) => sum + r.grossSalary, 0)
+      const totalSocialIns = companyRecords.reduce((sum, r) => sum + (r.socialInsurance || 0) + (r.welfarePension || 0), 0)
+      const totalEmploymentIns = companyRecords.reduce((sum, r) => sum + (r.employmentInsurance || 0), 0)
+      const totalPaidLeave = companyRecords.reduce((sum, r) => sum + (r.paidLeaveAmount || 0), 0)
+      const totalTransport = companyRecords.reduce((sum, r) => sum + (r.transportAllowance || 0), 0)
+
+      return {
+        category: name.length > 8 ? name.substring(0, 8) + '...' : name,
+        salary: totalSalary,
+        socialInsurance: totalSocialIns,
+        employmentInsurance: totalEmploymentIns,
+        paidLeave: totalPaidLeave,
+        transport: totalTransport,
+      }
+    })
+
+    // Full employee ranking with rate analysis
+    const allEmployeesRanking = recordsWithNames.map(r => ({
+      ...r,
+      rateGap: r.billingRate - r.hourlyRate,
+      rateRatio: r.hourlyRate > 0 ? ((r.billingRate / r.hourlyRate) - 1) * 100 : 0,
+      isUnderTarget: r.margin < 15,
+      isCritical: r.margin < 10,
+    })).sort((a, b) => b.profit - a.profit)
+
+    // Alerts summary
+    const alertsSummary = {
+      criticalCount: allEmployeesRanking.filter(e => e.isCritical).length,
+      underTargetCount: allEmployeesRanking.filter(e => e.isUnderTarget && !e.isCritical).length,
+      negativeProfit: allEmployeesRanking.filter(e => e.profit < 0).length,
+      lowRateRatio: allEmployeesRanking.filter(e => e.rateRatio < 20).length,
+    }
+
     return {
       topPerformers,
       bottomPerformers,
@@ -337,6 +382,9 @@ export default function DashboardPage() {
       },
       previousMargin,
       paidLeaveData,
+      costBreakdownData,
+      allEmployeesRanking,
+      alertsSummary,
     }
   }, [dashboardStats, payrollRecords, employees, selectedPeriod, availablePeriods])
 
@@ -530,6 +578,50 @@ export default function DashboardPage() {
                 />
               </div>
 
+              {/* Alerts Panel */}
+              {chartData && chartData.alertsSummary && (
+                (chartData.alertsSummary.criticalCount > 0 ||
+                 chartData.alertsSummary.negativeProfit > 0 ||
+                 chartData.alertsSummary.underTargetCount > 0) && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="mb-6 p-4 rounded-lg border border-amber-500/30 bg-amber-500/10"
+                  >
+                    <div className="flex items-center gap-2 mb-3">
+                      <AlertTriangle className="h-5 w-5 text-amber-500" />
+                      <span className="font-semibold text-amber-500">アラート通知</span>
+                    </div>
+                    <div className="grid gap-3 md:grid-cols-4">
+                      {chartData.alertsSummary.negativeProfit > 0 && (
+                        <div className="flex items-center gap-2 text-sm">
+                          <AlertCircle className="h-4 w-4 text-red-500" />
+                          <span className="text-red-400">赤字: {chartData.alertsSummary.negativeProfit}名</span>
+                        </div>
+                      )}
+                      {chartData.alertsSummary.criticalCount > 0 && (
+                        <div className="flex items-center gap-2 text-sm">
+                          <TrendingDown className="h-4 w-4 text-red-500" />
+                          <span className="text-red-400">マージン&lt;10%: {chartData.alertsSummary.criticalCount}名</span>
+                        </div>
+                      )}
+                      {chartData.alertsSummary.underTargetCount > 0 && (
+                        <div className="flex items-center gap-2 text-sm">
+                          <Target className="h-4 w-4 text-amber-500" />
+                          <span className="text-amber-400">目標未達(10-15%): {chartData.alertsSummary.underTargetCount}名</span>
+                        </div>
+                      )}
+                      {chartData.alertsSummary.lowRateRatio > 0 && (
+                        <div className="flex items-center gap-2 text-sm">
+                          <AlertTriangle className="h-4 w-4 text-orange-500" />
+                          <span className="text-orange-400">単価率&lt;20%: {chartData.alertsSummary.lowRateRatio}名</span>
+                        </div>
+                      )}
+                    </div>
+                  </motion.div>
+                )
+              )}
+
               {/* Margin Gauge + Hours Breakdown Row */}
               <div className="grid gap-6 lg:grid-cols-3 mb-6">
                 <MarginGaugeChart
@@ -575,11 +667,109 @@ export default function DashboardPage() {
                 </div>
               )}
 
+              {/* Cost Breakdown Chart */}
+              {chartData && chartData.costBreakdownData.length > 0 && (
+                <div className="mb-6">
+                  <CostBreakdownChart data={chartData.costBreakdownData} />
+                </div>
+              )}
+
               {/* Profit Trend + Company Profit */}
               <div className="grid gap-6 lg:grid-cols-2 mb-6">
                 <ProfitTrendChart data={dashboardStats.profit_trend} />
                 <CompanyProfitChart data={companySummaries} />
               </div>
+
+              {/* Full Employee Ranking with Rate Analysis */}
+              {chartData && chartData.allEmployeesRanking.length > 0 && (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.5 }}
+                  className="mb-6"
+                >
+                  <div className="rounded-xl border border-white/10 bg-black/40 backdrop-blur-sm overflow-hidden">
+                    <div className="p-4 border-b border-white/10">
+                      <h3 className="text-lg font-semibold text-slate-200 flex items-center gap-2">
+                        <Users className="h-5 w-5 text-blue-500" />
+                        従業員別収益分析（全{chartData.allEmployeesRanking.length}名）
+                      </h3>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        単価率 = (請求単価 - 時給) / 時給 × 100 | 目標マージン: {targetMargin}%
+                      </p>
+                    </div>
+                    <div className="overflow-x-auto max-h-[400px] overflow-y-auto">
+                      <table className="w-full text-sm">
+                        <thead className="sticky top-0 bg-slate-900/95 backdrop-blur-sm">
+                          <tr className="border-b border-white/10">
+                            <th className="text-left p-3 text-muted-foreground font-medium">#</th>
+                            <th className="text-left p-3 text-muted-foreground font-medium">氏名</th>
+                            <th className="text-left p-3 text-muted-foreground font-medium">派遣先</th>
+                            <th className="text-right p-3 text-muted-foreground font-medium">時給</th>
+                            <th className="text-right p-3 text-muted-foreground font-medium">単価</th>
+                            <th className="text-right p-3 text-muted-foreground font-medium">単価率</th>
+                            <th className="text-right p-3 text-muted-foreground font-medium">粗利</th>
+                            <th className="text-right p-3 text-muted-foreground font-medium">マージン</th>
+                            <th className="text-center p-3 text-muted-foreground font-medium">状態</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {chartData.allEmployeesRanking.map((emp, idx) => (
+                            <tr
+                              key={emp.employeeId}
+                              className={cn(
+                                "border-b border-white/5 hover:bg-white/5 transition-colors",
+                                emp.profit < 0 && "bg-red-500/10",
+                                emp.isCritical && emp.profit >= 0 && "bg-orange-500/5"
+                              )}
+                            >
+                              <td className="p-3 text-muted-foreground">{idx + 1}</td>
+                              <td className="p-3 font-medium text-slate-200">{emp.name}</td>
+                              <td className="p-3 text-muted-foreground">{emp.company}</td>
+                              <td className="p-3 text-right font-mono">¥{emp.hourlyRate.toLocaleString()}</td>
+                              <td className="p-3 text-right font-mono">¥{emp.billingRate.toLocaleString()}</td>
+                              <td className={cn(
+                                "p-3 text-right font-mono",
+                                emp.rateRatio >= 30 ? "text-emerald-400" :
+                                emp.rateRatio >= 20 ? "text-green-400" :
+                                emp.rateRatio >= 10 ? "text-amber-400" : "text-red-400"
+                              )}>
+                                {emp.rateRatio.toFixed(1)}%
+                              </td>
+                              <td className={cn(
+                                "p-3 text-right font-mono font-semibold",
+                                emp.profit >= 0 ? "text-emerald-400" : "text-red-400"
+                              )}>
+                                {formatYen(emp.profit)}
+                              </td>
+                              <td className={cn(
+                                "p-3 text-right font-mono",
+                                emp.margin >= 15 ? "text-emerald-400" :
+                                emp.margin >= 12 ? "text-green-400" :
+                                emp.margin >= 10 ? "text-orange-400" :
+                                emp.margin >= 7 ? "text-amber-400" : "text-red-400"
+                              )}>
+                                {emp.margin.toFixed(1)}%
+                              </td>
+                              <td className="p-3 text-center">
+                                {emp.profit < 0 ? (
+                                  <span className="px-2 py-1 rounded-full text-xs bg-red-500/20 text-red-400">赤字</span>
+                                ) : emp.isCritical ? (
+                                  <span className="px-2 py-1 rounded-full text-xs bg-orange-500/20 text-orange-400">要注意</span>
+                                ) : emp.isUnderTarget ? (
+                                  <span className="px-2 py-1 rounded-full text-xs bg-amber-500/20 text-amber-400">目標未達</span>
+                                ) : (
+                                  <span className="px-2 py-1 rounded-full text-xs bg-emerald-500/20 text-emerald-400">良好</span>
+                                )}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
 
               {/* Recent Payrolls */}
               <RecentPayrolls

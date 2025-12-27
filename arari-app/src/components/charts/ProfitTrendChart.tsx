@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
-  AreaChart,
+  ComposedChart,
   Area,
+  Line,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -36,7 +37,11 @@ const CustomTooltip = ({ active, payload, label }: any) => {
               style={{ backgroundColor: entry.color }}
             />
             <span className="text-muted-foreground">{entry.name}:</span>
-            <span className="font-medium">{formatYen(entry.value)}</span>
+            <span className="font-medium">
+              {entry.dataKey === 'margin'
+                ? `${entry.value.toFixed(1)}%`
+                : formatYen(entry.value)}
+            </span>
           </div>
         ))}
       </div>
@@ -48,12 +53,18 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 export function ProfitTrendChart({ data }: ProfitTrendChartProps) {
   const [isExpanded, setIsExpanded] = useState(false)
 
+  // Add margin % calculation to data
+  const dataWithMargin = data.map(d => ({
+    ...d,
+    margin: d.revenue > 0 ? (d.profit / d.revenue) * 100 : 0,
+  }))
+
   const ChartContent = ({ height = "100%" }: { height?: string | number }) => (
     <div style={{ height }} className="w-full">
       <ResponsiveContainer width="100%" height="100%">
-        <AreaChart
-          data={data}
-          margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
+        <ComposedChart
+          data={dataWithMargin}
+          margin={{ top: 10, right: 60, left: 0, bottom: 0 }}
         >
           <defs>
             <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
@@ -82,11 +93,22 @@ export function ProfitTrendChart({ data }: ProfitTrendChartProps) {
             tick={{ fill: '#94a3b8' }}
           />
           <YAxis
+            yAxisId="left"
             tickFormatter={(value) => `${(value / 10000).toFixed(0)}万`}
             className="text-xs"
             tickLine={false}
             axisLine={false}
             tick={{ fill: '#94a3b8' }}
+          />
+          <YAxis
+            yAxisId="right"
+            orientation="right"
+            tickFormatter={(value) => `${value}%`}
+            domain={[0, 30]}
+            className="text-xs"
+            tickLine={false}
+            axisLine={false}
+            tick={{ fill: '#f59e0b' }}
           />
           <Tooltip
             content={<CustomTooltip />}
@@ -97,6 +119,7 @@ export function ProfitTrendChart({ data }: ProfitTrendChartProps) {
             iconType="circle"
           />
           <Area
+            yAxisId="left"
             type="monotone"
             dataKey="revenue"
             name="売上"
@@ -106,6 +129,7 @@ export function ProfitTrendChart({ data }: ProfitTrendChartProps) {
             fill="url(#colorRevenue)"
           />
           <Area
+            yAxisId="left"
             type="monotone"
             dataKey="cost"
             name="コスト"
@@ -116,6 +140,7 @@ export function ProfitTrendChart({ data }: ProfitTrendChartProps) {
             fill="url(#colorCost)"
           />
           <Area
+            yAxisId="left"
             type="monotone"
             dataKey="profit"
             name="粗利"
@@ -124,7 +149,17 @@ export function ProfitTrendChart({ data }: ProfitTrendChartProps) {
             fillOpacity={1}
             fill="url(#colorProfit)"
           />
-        </AreaChart>
+          <Line
+            yAxisId="right"
+            type="monotone"
+            dataKey="margin"
+            name="マージン率"
+            stroke="#f59e0b"
+            strokeWidth={3}
+            dot={{ fill: '#f59e0b', strokeWidth: 2, r: 4 }}
+            activeDot={{ r: 6, stroke: '#fff', strokeWidth: 2 }}
+          />
+        </ComposedChart>
       </ResponsiveContainer>
     </div>
   )
