@@ -1603,7 +1603,13 @@ async def download_report(
 
         if format == "excel":
             excel_bytes = service.generate_excel_report(report_type, data)
-            filename = f"{report_type}_{period or employee_id or company}_{datetime.now().strftime('%Y%m%d')}.xlsx"
+            # Create ASCII-safe filename for HTTP headers
+            raw_name = period or employee_id or company or "report"
+            # Replace Japanese year/month markers
+            safe_name = raw_name.replace('年', '_').replace('月', '')
+            # Replace any remaining non-ASCII characters
+            safe_name = ''.join(c if ord(c) < 128 else '_' for c in safe_name)
+            filename = f"{report_type}_{safe_name}_{datetime.now().strftime('%Y%m%d')}.xlsx"
             return Response(
                 content=excel_bytes,
                 media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
