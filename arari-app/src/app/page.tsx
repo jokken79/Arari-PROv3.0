@@ -12,7 +12,6 @@ import {
   Receipt,
   BadgeJapaneseYen,
   RefreshCw,
-  Calendar,
   AlertTriangle,
   AlertCircle,
   TrendingDown,
@@ -33,6 +32,7 @@ import { HoursBreakdownChart } from '@/components/charts/HoursBreakdownChart'
 import { OvertimeByFactoryChart } from '@/components/charts/OvertimeByFactoryChart'
 import { PaidLeaveChart } from '@/components/charts/PaidLeaveChart'
 import { RecentPayrolls } from '@/components/dashboard/RecentPayrolls'
+import { PeriodSelector } from '@/components/dashboard/PeriodSelector'
 import { PayrollSlipModal } from '@/components/payroll/PayrollSlipModal'
 import { useAppStore } from '@/store/appStore'
 import { useDashboardStats, useEmployees, usePayrollRecords, usePayrollPeriods } from '@/hooks'
@@ -541,41 +541,53 @@ export default function DashboardPage() {
           <motion.div
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="mb-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4"
+            className="mb-8 space-y-4"
           >
-            <div>
-              <h1 className="text-3xl font-bold bg-gradient-to-r from-cyan-400 via-blue-500 to-indigo-600 bg-clip-text text-transparent">
-                粗利ダッシュボード
-              </h1>
-              <p className="text-slate-400 mt-1 flex items-center gap-2">
-                <Calendar className="h-4 w-4" />
-                {selectedPeriod || '期間を選択してください'}
-                {hasData && (
-                  <span className="text-xs bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded-full shadow-[0_0_10px_rgba(52,211,153,0.2)]">
-                    リアルデータ
+            {/* Header Row */}
+            <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+              <div>
+                <h1 className="text-3xl font-bold bg-gradient-to-r from-cyan-400 via-blue-500 to-indigo-600 bg-clip-text text-transparent">
+                  粗利ダッシュボード
+                </h1>
+                <p className="text-slate-400 mt-1 text-sm">
+                  リアルタイムで収益性を分析
+                </p>
+              </div>
+              <div className="flex items-center gap-4">
+                {dataUpdatedAt > 0 && (
+                  <span className="text-xs text-muted-foreground hidden sm:block">
+                    最終更新: {new Date(dataUpdatedAt).toLocaleString('ja-JP', {
+                      hour: '2-digit',
+                      minute: '2-digit',
+                      second: '2-digit'
+                    })}
                   </span>
                 )}
-              </p>
+                <NeonButton
+                  onClick={handleRefresh}
+                  disabled={isLoading}
+                  glowColor="blue"
+                  className="flex items-center gap-2"
+                >
+                  <RefreshCw className={cn("h-4 w-4", isLoading && "animate-spin")} aria-hidden="true" />
+                  データ更新
+                </NeonButton>
+              </div>
             </div>
-            <div className="flex items-center gap-4">
-              {dataUpdatedAt > 0 && (
-                <span className="text-xs text-muted-foreground hidden sm:block">
-                  最終更新: {new Date(dataUpdatedAt).toLocaleString('ja-JP', {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                    second: '2-digit'
-                  })}
+
+            {/* Period Selector Row */}
+            <div className="flex items-center gap-4 flex-wrap">
+              <PeriodSelector
+                periods={availablePeriods}
+                selectedPeriod={selectedPeriod}
+                onPeriodChange={setSelectedPeriod}
+                showNavigation={true}
+              />
+              {hasData && selectedPeriod && (
+                <span className="text-xs bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-3 py-1 rounded-full shadow-[0_0_10px_rgba(52,211,153,0.2)]">
+                  📊 {payrollRecords.filter(r => r.period === selectedPeriod).length}件のデータ
                 </span>
               )}
-              <NeonButton
-                onClick={handleRefresh}
-                disabled={isLoading}
-                glowColor="blue"
-                className="flex items-center gap-2"
-              >
-                <RefreshCw className={cn("h-4 w-4", isLoading && "animate-spin")} aria-hidden="true" />
-                データ更新
-              </NeonButton>
             </div>
           </motion.div>
 
