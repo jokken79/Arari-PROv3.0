@@ -35,11 +35,11 @@ export function MarginGaugeChart({
 
   // Determine color based on margin (製造派遣 target: 15%)
   const getMarginColor = (margin: number) => {
-    if (margin >= 18) return '#10b981' // emerald - excellent
-    if (margin >= 15) return '#22c55e' // green - target achieved
-    if (margin >= 12) return '#eab308' // yellow - close to target
+    if (margin >= 15) return '#10b981' // emerald - target achieved/excellent
+    if (margin >= 12) return '#22c55e' // green - close to target
     if (margin >= 10) return '#f97316' // orange - improvement needed
-    return '#ef4444' // red - critical
+    if (margin >= 7) return '#eab308' // yellow - warning
+    return '#ef4444' // red - critical (<7%)
   }
 
   const marginColor = getMarginColor(currentMargin)
@@ -48,17 +48,17 @@ export function MarginGaugeChart({
 
   // Background segments for better gauge visualization
   // Scale is 0-25%, distribution based on 製造派遣 ranges:
-  // 0-10%: 10 points / 25 = 40% (critical/improve)
-  // 10-12%: 2 points / 25 = 8% (orange)
-  // 12-15%: 3 points / 25 = 12% (warning)
-  // 15-18%: 3 points / 25 = 12% (target)
-  // 18-25%: 7 points / 25 = 28% (excellent)
+  // 0-7%: 7 points / 25 = 28% (critical - red)
+  // 7-10%: 3 points / 25 = 12% (warning - yellow)
+  // 10-12%: 2 points / 25 = 8% (improve - orange)
+  // 12-15%: 3 points / 25 = 12% (close - green)
+  // 15-25%: 10 points / 25 = 40% (excellent - emerald)
   const backgroundSegments = [
-    { name: 'danger', value: 40, color: 'rgba(239, 68, 68, 0.1)' },       // 0-10%
+    { name: 'critical', value: 28, color: 'rgba(239, 68, 68, 0.1)' },     // 0-7%
+    { name: 'warning', value: 12, color: 'rgba(234, 179, 8, 0.1)' },      // 7-10%
     { name: 'improve', value: 8, color: 'rgba(249, 115, 22, 0.1)' },      // 10-12%
-    { name: 'warning', value: 12, color: 'rgba(234, 179, 8, 0.1)' },      // 12-15%
-    { name: 'target', value: 12, color: 'rgba(34, 197, 94, 0.1)' },       // 15-18%
-    { name: 'excellent', value: 28, color: 'rgba(16, 185, 129, 0.1)' },   // 18-25%
+    { name: 'close', value: 12, color: 'rgba(34, 197, 94, 0.1)' },        // 12-15%
+    { name: 'excellent', value: 40, color: 'rgba(16, 185, 129, 0.1)' },   // 15-25%
   ]
 
   return (
@@ -183,24 +183,20 @@ export function MarginGaugeChart({
           {/* Legend - 製造派遣 ranges (target 15%) */}
           <div className="flex flex-wrap justify-center gap-3 mt-4 text-xs">
             <div className="flex items-center gap-1">
-              <div className="w-2 h-2 rounded-full bg-red-500" />
-              <span className="text-muted-foreground">&lt;10%</span>
+              <div className="w-2 h-2 rounded-full bg-amber-500" />
+              <span className="text-muted-foreground">7-10%</span>
             </div>
             <div className="flex items-center gap-1">
               <div className="w-2 h-2 rounded-full bg-orange-500" />
               <span className="text-muted-foreground">10-12%</span>
             </div>
             <div className="flex items-center gap-1">
-              <div className="w-2 h-2 rounded-full bg-amber-500" />
+              <div className="w-2 h-2 rounded-full bg-green-500" />
               <span className="text-muted-foreground">12-15%</span>
             </div>
             <div className="flex items-center gap-1">
-              <div className="w-2 h-2 rounded-full bg-green-500" />
-              <span className="text-muted-foreground">15-18%</span>
-            </div>
-            <div className="flex items-center gap-1">
               <div className="w-2 h-2 rounded-full bg-emerald-500" />
-              <span className="text-muted-foreground">&gt;18%</span>
+              <span className="text-muted-foreground">&gt;15%</span>
             </div>
           </div>
 

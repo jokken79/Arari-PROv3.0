@@ -162,11 +162,11 @@ arari-app/
 ### Margin Targets (製造派遣)
 | Margin | Rating | Color |
 |--------|--------|-------|
-| ≥18% | Excellent | Emerald |
-| 15-18% | Target | Green |
-| 12-15% | Close | Amber |
-| 10-12% | Improve | Orange |
-| <10% | Low | Red |
+| ≥15% | Excellent | Emerald |
+| 12-15% | Good | Green |
+| 10-12% | Average | Orange |
+| 7-10% | Needs Work | Amber |
+| <7% | Warning | Red |
 
 **Important**: Manufacturing dispatch target is **15%** (not 25% like office/IT dispatch).
 
