@@ -33,6 +33,7 @@ import { HoursBreakdownChart } from '@/components/charts/HoursBreakdownChart'
 import { OvertimeByFactoryChart } from '@/components/charts/OvertimeByFactoryChart'
 import { PaidLeaveChart } from '@/components/charts/PaidLeaveChart'
 import { RecentPayrolls } from '@/components/dashboard/RecentPayrolls'
+import { PayrollSlipModal } from '@/components/payroll/PayrollSlipModal'
 import { useAppStore } from '@/store/appStore'
 import { useDashboardStats, useEmployees, usePayrollRecords, usePayrollPeriods } from '@/hooks'
 import { useQuery } from '@tanstack/react-query'
@@ -48,6 +49,7 @@ export default function DashboardPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [alertModal, setAlertModal] = useState<AlertType>(null)
   const [factoryChartPeriod, setFactoryChartPeriod] = useState<string | null>(null)
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | null>(null)
   const {
     selectedPeriod,
     setSelectedPeriod,
@@ -809,7 +811,14 @@ export default function DashboardPage() {
                                 return 0
                               })
                               .map((emp, idx) => (
-                                <tr key={emp.employeeId} className="border-b border-white/5 hover:bg-white/5">
+                                <tr
+                                  key={emp.employeeId}
+                                  className="border-b border-white/5 hover:bg-white/10 cursor-pointer transition-colors"
+                                  onClick={() => {
+                                    setSelectedEmployeeId(emp.employeeId)
+                                    setAlertModal(null)
+                                  }}
+                                >
                                   <td className="p-3 text-muted-foreground">{idx + 1}</td>
                                   <td className="p-3 font-medium text-slate-200">{emp.name}</td>
                                   <td className="p-3 text-muted-foreground">{emp.company}</td>
@@ -1009,6 +1018,25 @@ export default function DashboardPage() {
           )}
         </div>
       </main>
+
+      {/* Payroll Slip Modal */}
+      {selectedEmployeeId && (() => {
+        const record = payrollRecords.find(
+          r => r.employeeId === selectedEmployeeId && r.period === selectedPeriod
+        )
+        const employee = employees.find(e => e.employeeId === selectedEmployeeId)
+
+        if (!record || !employee) return null
+
+        return (
+          <PayrollSlipModal
+            isOpen={!!selectedEmployeeId}
+            onClose={() => setSelectedEmployeeId(null)}
+            record={record}
+            employee={employee}
+          />
+        )
+      })()}
     </div>
   )
 }
