@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { motion } from 'framer-motion'
 import {
   FileText,
@@ -13,15 +13,23 @@ import {
   Building2,
   AlertCircle,
   CheckCircle,
+  ChevronDown,
 } from 'lucide-react'
 import { Header } from '@/components/layout/Header'
 import { Sidebar } from '@/components/layout/Sidebar'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { useAppStore } from '@/store/appStore'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { usePayrollPeriods } from '@/hooks/usePayroll'
 import { API_BASE_URL } from '@/lib/api'
+import { sortPeriodsDescending } from '@/lib/utils'
 
 // API base URL - FastAPI backend
 const API_URL = API_BASE_URL
@@ -81,10 +89,22 @@ export default function ReportsPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [generating, setGenerating] = useState<string | null>(null)
   const [downloadStatus, setDownloadStatus] = useState<{success?: boolean, message?: string} | null>(null)
-  const { selectedPeriod } = useAppStore()
+  const [selectedPeriod, setSelectedPeriod] = useState<string>('')
 
   // Fetch available periods from API
   const { data: availablePeriods = [] } = usePayrollPeriods()
+
+  // Sort periods descending (newest first) and auto-select latest
+  const sortedPeriods = useMemo(() => {
+    return sortPeriodsDescending(availablePeriods)
+  }, [availablePeriods])
+
+  // Auto-select latest period when data loads
+  useEffect(() => {
+    if (sortedPeriods.length > 0 && !selectedPeriod) {
+      setSelectedPeriod(sortedPeriods[0])
+    }
+  }, [sortedPeriods, selectedPeriod])
 
   const handleGenerate = async (reportId: string) => {
     setGenerating(reportId)
@@ -102,9 +122,8 @@ export default function ReportsPage() {
       }
 
       const reportType = reportTypeMap[reportId] || 'monthly'
-      const period = selectedPeriod || availablePeriods[0]
 
-      if (!period) {
+      if (!selectedPeriod) {
         setDownloadStatus({ success: false, message: 'データがありません。給与明細をアップロードしてください。' })
         setGenerating(null)
         return
@@ -113,7 +132,7 @@ export default function ReportsPage() {
       // Build API URL
       let url = `${API_URL}/api/reports/download/${reportType}?format=excel`
       if (reportType === 'monthly') {
-        url += `&period=${encodeURIComponent(period)}`
+        url += `&period=${encodeURIComponent(selectedPeriod)}`
       }
 
       // Fetch the report
@@ -202,12 +221,36 @@ export default function ReportsPage() {
             animate={{ opacity: 1, y: 0 }}
             className="mb-8"
           >
-            <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 bg-clip-text text-transparent">
-              詳細レポート
-            </h1>
-            <p className="text-muted-foreground mt-1">
-              各種分析レポートの出力
-            </p>
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+              <div>
+                <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 bg-clip-text text-transparent">
+                  詳細レポート
+                </h1>
+                <p className="text-muted-foreground mt-1">
+                  各種分析レポートの出力
+                </p>
+              </div>
+
+              {/* Period Selector */}
+              <div className="flex items-center gap-3">
+                <Calendar className="h-5 w-5 text-muted-foreground" />
+                <Select
+                  value={selectedPeriod}
+                  onValueChange={setSelectedPeriod}
+                >
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="期間を選択" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {sortedPeriods.map((period) => (
+                      <SelectItem key={period} value={period}>
+                        {period}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
           </motion.div>
 
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
