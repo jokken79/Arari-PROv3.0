@@ -20,6 +20,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { useAppStore } from '@/store/appStore'
+import { usePayrollPeriods } from '@/hooks/usePayroll'
 import { API_BASE_URL } from '@/lib/api'
 
 // API base URL - FastAPI backend
@@ -80,7 +81,10 @@ export default function ReportsPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [generating, setGenerating] = useState<string | null>(null)
   const [downloadStatus, setDownloadStatus] = useState<{success?: boolean, message?: string} | null>(null)
-  const { availablePeriods, selectedPeriod } = useAppStore()
+  const { selectedPeriod } = useAppStore()
+
+  // Fetch available periods from API
+  const { data: availablePeriods = [] } = usePayrollPeriods()
 
   const handleGenerate = async (reportId: string) => {
     setGenerating(reportId)
