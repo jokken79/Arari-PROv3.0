@@ -369,12 +369,13 @@ export default function DashboardPage() {
     })
 
     // Full employee ranking with rate analysis
+    // 4-tier system: <7% (critical), 7-10% (warning), 10-12% (close), ≥12% (target)
     const allEmployeesRanking = recordsWithNames.map(r => ({
       ...r,
       rateGap: r.billingRate - r.hourlyRate,
       rateRatio: r.hourlyRate > 0 ? ((r.billingRate / r.hourlyRate) - 1) * 100 : 0,
-      isUnderTarget: r.margin < 15,
-      isCritical: r.margin < 10,
+      isUnderTarget: r.margin < 12,  // Below 12% target
+      isCritical: r.margin < 7,      // Critical: below 7%
     })).sort((a, b) => b.profit - a.profit)
 
     // Alerts summary
@@ -703,7 +704,7 @@ export default function DashboardPage() {
                           className="flex items-center gap-2 text-sm hover:bg-orange-500/20 p-2 rounded-lg transition-colors cursor-pointer text-left"
                         >
                           <TrendingDown className="h-4 w-4 text-orange-500" />
-                          <span className="text-orange-400">マージン&lt;10%: {chartData.alertsSummary.criticalCount}名</span>
+                          <span className="text-orange-400">マージン&lt;7%: {chartData.alertsSummary.criticalCount}名</span>
                         </button>
                       )}
                       {chartData.alertsSummary.underTargetCount > 0 && (
@@ -712,7 +713,7 @@ export default function DashboardPage() {
                           className="flex items-center gap-2 text-sm hover:bg-amber-500/20 p-2 rounded-lg transition-colors cursor-pointer text-left"
                         >
                           <Target className="h-4 w-4 text-amber-500" />
-                          <span className="text-amber-400">目標未達(10-15%): {chartData.alertsSummary.underTargetCount}名</span>
+                          <span className="text-amber-400">目標未達(7-12%): {chartData.alertsSummary.underTargetCount}名</span>
                         </button>
                       )}
                       {chartData.alertsSummary.lowRateRatio > 0 && (
@@ -757,13 +758,13 @@ export default function DashboardPage() {
                           {alertModal === 'critical' && (
                             <>
                               <TrendingDown className="h-5 w-5 text-orange-500" />
-                              マージン10%未満の従業員
+                              マージン7%未満の従業員
                             </>
                           )}
                           {alertModal === 'underTarget' && (
                             <>
                               <Target className="h-5 w-5 text-amber-500" />
-                              目標未達（10-15%）の従業員
+                              目標未達（7-12%）の従業員
                             </>
                           )}
                           {alertModal === 'lowRate' && (
@@ -798,8 +799,8 @@ export default function DashboardPage() {
                             {chartData.allEmployeesRanking
                               .filter(emp => {
                                 if (alertModal === 'negative') return emp.profit < 0
-                                if (alertModal === 'critical') return emp.margin < 10
-                                if (alertModal === 'underTarget') return emp.margin >= 10 && emp.margin < 15
+                                if (alertModal === 'critical') return emp.margin < 7  // <7% is critical
+                                if (alertModal === 'underTarget') return emp.margin >= 7 && emp.margin < 12  // 7-12% under target
                                 if (alertModal === 'lowRate') return emp.rateRatio < 20
                                 return false
                               })
@@ -839,9 +840,9 @@ export default function DashboardPage() {
                                   </td>
                                   <td className={cn(
                                     "p-3 text-right font-mono",
-                                    emp.margin >= 15 ? "text-amber-400" :
-                                    emp.margin >= 12 ? "text-blue-400" :
-                                    emp.margin >= 10 ? "text-green-400" : "text-red-400"
+                                    emp.margin >= 12 ? "text-emerald-400" :
+                                    emp.margin >= 10 ? "text-green-400" :
+                                    emp.margin >= 7 ? "text-orange-400" : "text-red-400"
                                   )}>
                                     {emp.margin.toFixed(1)}%
                                   </td>
@@ -982,8 +983,7 @@ export default function DashboardPage() {
                               </td>
                               <td className={cn(
                                 "p-3 text-right font-mono",
-                                emp.margin >= 15 ? "text-amber-400" :
-                                emp.margin >= 12 ? "text-blue-400" :
+                                emp.margin >= 12 ? "text-emerald-400" :
                                 emp.margin >= 10 ? "text-green-400" :
                                 emp.margin >= 7 ? "text-orange-400" : "text-red-400"
                               )}>
@@ -997,7 +997,7 @@ export default function DashboardPage() {
                                 ) : emp.isUnderTarget ? (
                                   <span className="px-2 py-1 rounded-full text-xs bg-green-500/20 text-green-400">目標近い</span>
                                 ) : (
-                                  <span className="px-2 py-1 rounded-full text-xs bg-amber-500/20 text-amber-400">良好</span>
+                                  <span className="px-2 py-1 rounded-full text-xs bg-emerald-500/20 text-emerald-400">目標達成</span>
                                 )}
                               </td>
                             </tr>

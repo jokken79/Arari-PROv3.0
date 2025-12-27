@@ -106,12 +106,12 @@ function generateDashboardStats(employees: Employee[], payrollRecords: PayrollRe
     return { period, revenue, cost, profit, margin }
   }).reverse()
 
-  // Calculate profit distribution
+  // Calculate profit distribution - 4-tier system aligned with target margin of 12%
   const marginRanges = [
-    { range: '<3%', min: -999, max: 3 },
-    { range: '3-7%', min: 3, max: 7 },
-    { range: '7-10%', min: 7, max: 10 },
-    { range: '>10%', min: 10, max: 999 },
+    { range: '<7%', min: -999, max: 7 },      // Critical
+    { range: '7-10%', min: 7, max: 10 },      // Warning
+    { range: '10-12%', min: 10, max: 12 },    // Close to target
+    { range: '≥12%', min: 12, max: 999 },     // Target achieved
   ]
 
   const profitDistribution = marginRanges.map(range => {
