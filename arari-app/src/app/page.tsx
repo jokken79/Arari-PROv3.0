@@ -927,9 +927,9 @@ export default function DashboardPage() {
                   transition={{ delay: 0.5 }}
                   className="mb-6"
                 >
-                  <div className="rounded-xl border border-white/10 bg-black/40 backdrop-blur-sm overflow-hidden">
-                    <div className="p-4 border-b border-white/10">
-                      <h3 className="text-lg font-semibold text-slate-200 flex items-center gap-2">
+                  <div className="rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-black/40 backdrop-blur-sm overflow-hidden shadow-sm">
+                    <div className="p-4 border-b border-slate-200 dark:border-white/10">
+                      <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-2">
                         <Users className="h-5 w-5 text-blue-500" />
                         従業員別収益分析（全{chartData.allEmployeesRanking.length}名）
                       </h3>
@@ -939,8 +939,8 @@ export default function DashboardPage() {
                     </div>
                     <div className="overflow-x-auto max-h-[400px] overflow-y-auto">
                       <table className="w-full text-sm">
-                        <thead className="sticky top-0 bg-slate-900/95 backdrop-blur-sm">
-                          <tr className="border-b border-white/10">
+                        <thead className="sticky top-0 bg-slate-100 dark:bg-slate-900/95 backdrop-blur-sm">
+                          <tr className="border-b border-slate-200 dark:border-white/10">
                             <th className="text-left p-3 text-muted-foreground font-medium">#</th>
                             <th className="text-left p-3 text-muted-foreground font-medium">氏名</th>
                             <th className="text-left p-3 text-muted-foreground font-medium">派遣先</th>
