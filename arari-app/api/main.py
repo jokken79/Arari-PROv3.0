@@ -46,6 +46,7 @@ from validation import ValidationService
 from backup import BackupService
 from roi import ROIService
 from additional_costs import AdditionalCostsService, COST_TYPES as ADDITIONAL_COST_TYPES
+from agent_commissions import AgentCommissionService, AGENT_CONFIGS
 from auth_dependencies import (
     require_auth,
     require_admin,
@@ -1281,6 +1282,101 @@ async def copy_additional_costs(
                f"{payload.get('source_period')}→{payload.get('target_period')}",
                f"Copied {result.get('copied', 0)} costs")
     return result
+
+
+# ============== AGENT COMMISSIONS (仲介手数料) ==============
+
+@app.get("/api/agent-commissions/agents")
+async def get_available_agents(db: sqlite3.Connection = Depends(get_db)):
+    """Get list of available agents with their configurations"""
+    service = AgentCommissionService(db)
+    return service.get_available_agents()
+
+
+@app.get("/api/agent-commissions/calculate/{agent_id}")
+async def calculate_agent_commission(
+    agent_id: str,
+    period: str,
+    company: Optional[str] = None,
+    db: sqlite3.Connection = Depends(get_db)
+):
+    """Calculate commission for an agent for a given period"""
+    service = AgentCommissionService(db)
+    result = service.calculate_commission(
+        agent_id=agent_id,
+        period=period,
+        company_filter=company
+    )
+    if "error" in result:
+        raise HTTPException(status_code=400, detail=result["error"])
+    return result
+
+
+@app.post("/api/agent-commissions/register")
+async def register_commission_to_costs(
+    payload: dict,
+    db: sqlite3.Connection = Depends(get_db),
+    current_user: Dict[str, Any] = Depends(require_auth)
+):
+    """Register calculated commission to additional costs"""
+    service = AgentCommissionService(db)
+
+    agent_id = payload.get("agent_id")
+    period = payload.get("period")
+    company = payload.get("company")
+    amount = payload.get("amount")
+    notes = payload.get("notes")
+
+    if not all([agent_id, period, company, amount]):
+        raise HTTPException(status_code=400, detail="Missing required fields")
+
+    # Check if already registered
+    if service.is_already_registered(agent_id, period, company):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Commission already registered for {agent_id} / {period} / {company}"
+        )
+
+    result = service.register_to_additional_costs(
+        agent_id=agent_id,
+        period=period,
+        company=company,
+        amount=amount,
+        notes=notes
+    )
+
+    if "error" in result:
+        raise HTTPException(status_code=400, detail=result["error"])
+
+    log_action(db, current_user, "create", "agent_commission",
+               f"{agent_id}_{period}_{company}",
+               f"Registered commission: ¥{amount}")
+
+    return result
+
+
+@app.get("/api/agent-commissions/history")
+async def get_commission_history(
+    agent_id: Optional[str] = None,
+    period: Optional[str] = None,
+    db: sqlite3.Connection = Depends(get_db)
+):
+    """Get history of registered commissions"""
+    service = AgentCommissionService(db)
+    return service.get_commission_history(agent_id=agent_id, period=period)
+
+
+@app.get("/api/agent-commissions/check/{agent_id}")
+async def check_commission_registered(
+    agent_id: str,
+    period: str,
+    company: str,
+    db: sqlite3.Connection = Depends(get_db)
+):
+    """Check if commission is already registered"""
+    service = AgentCommissionService(db)
+    is_registered = service.is_already_registered(agent_id, period, company)
+    return {"registered": is_registered}
 
 
 # ============== TEMPLATES ============== 

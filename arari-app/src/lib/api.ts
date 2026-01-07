@@ -292,6 +292,101 @@ export const additionalCostsApi = {
   },
 }
 
+// ============== Agent Commissions API (仲介手数料) ==============
+
+export interface AgentInfo {
+  id: string
+  name: string
+  display_name: string
+  target_companies: string[]
+}
+
+export interface CommissionEmployee {
+  employee_id: string
+  name: string
+  nationality: string
+  paid_leave_days: number
+  absence_days: number
+  work_days: number
+  rate: number
+  category: 'vietnam_normal' | 'vietnam_reduced' | 'other'
+  company?: string
+}
+
+export interface CommissionCompanyResult {
+  company: string
+  vietnam_normal: { count: number; amount: number; employees: CommissionEmployee[] }
+  vietnam_reduced: { count: number; amount: number; employees: CommissionEmployee[] }
+  other: { count: number; amount: number; employees: CommissionEmployee[] }
+  total_employees: number
+  total_amount: number
+}
+
+export interface CommissionCalculation {
+  agent_id: string
+  agent_name: string
+  period: string
+  companies: CommissionCompanyResult[]
+  employees: CommissionEmployee[]
+  summary: {
+    total_employees: number
+    vietnam_normal: number
+    vietnam_reduced: number
+    other: number
+    total_amount: number
+  }
+  rules: {
+    vietnam_normal_rate: number
+    vietnam_reduced_rate: number
+    other_rate: number
+  }
+}
+
+export const agentCommissionsApi = {
+  getAgents: async () => {
+    return fetchApi<AgentInfo[]>('/api/agent-commissions/agents')
+  },
+
+  calculate: async (agentId: string, period: string, company?: string) => {
+    const params = new URLSearchParams({ period })
+    if (company) params.append('company', company)
+    return fetchApi<CommissionCalculation>(
+      `/api/agent-commissions/calculate/${encodeURIComponent(agentId)}?${params.toString()}`
+    )
+  },
+
+  register: async (agentId: string, period: string, company: string, amount: number, notes?: string) => {
+    return fetchApi<{ status: string; cost_id: number }>(
+      '/api/agent-commissions/register',
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          agent_id: agentId,
+          period,
+          company,
+          amount,
+          notes,
+        }),
+      }
+    )
+  },
+
+  checkRegistered: async (agentId: string, period: string, company: string) => {
+    const params = new URLSearchParams({ period, company })
+    return fetchApi<{ registered: boolean }>(
+      `/api/agent-commissions/check/${encodeURIComponent(agentId)}?${params.toString()}`
+    )
+  },
+
+  getHistory: async (agentId?: string, period?: string) => {
+    const params = new URLSearchParams()
+    if (agentId) params.append('agent_id', agentId)
+    if (period) params.append('period', period)
+    const query = params.toString() ? `?${params.toString()}` : ''
+    return fetchApi<any[]>(`/api/agent-commissions/history${query}`)
+  },
+}
+
 // ============== Upload API ==============
 
 export const uploadApi = {
