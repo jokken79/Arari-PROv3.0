@@ -10,6 +10,18 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 
 from database import get_db, init_db
 from main import app
+from auth_dependencies import _rate_limit_store
+
+
+@pytest.fixture(autouse=True)
+def clear_rate_limits():
+    """
+    Clear rate limit store before each test to prevent 429 errors.
+    This runs automatically for every test.
+    """
+    _rate_limit_store.clear()
+    yield
+    _rate_limit_store.clear()
 
 
 @pytest.fixture(scope="function")
@@ -49,7 +61,7 @@ def auth_headers(test_client):
     """
     response = test_client.post(
         "/api/auth/login",
-        json={"username": "Admin", "password": "admin123"}
+        json={"username": "admin", "password": "admin123"}
     )
     assert response.status_code == 200, f"Login failed: {response.json()}"
     token = response.json().get("token")

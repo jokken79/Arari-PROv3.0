@@ -11,19 +11,19 @@ load_dotenv()
 def test_login_correct_credentials(test_client: TestClient):
     """Test login with correct credentials."""
     response = test_client.post(
-        "/api/auth/login", json={"username": "Admin", "password": "admin123"}
+        "/api/auth/login", json={"username": "admin", "password": "admin123"}
     )
     assert response.status_code == 200
     data = response.json()
     assert "access_token" in data or "token" in data  # Check for either token key
-    assert data["user"]["username"] == "Admin"
+    assert data["user"]["username"] == "admin"
     assert data["user"]["role"] == "admin"
 
 
 def test_login_incorrect_password(test_client: TestClient):
     """Test login with incorrect password."""
     response = test_client.post(
-        "/api/auth/login", json={"username": "Admin", "password": "WrongPassword"}
+        "/api/auth/login", json={"username": "admin", "password": "WrongPassword"}
     )
     assert response.status_code == 401
     assert response.json()["detail"] == "Invalid credentials"
