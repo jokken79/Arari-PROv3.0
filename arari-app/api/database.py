@@ -302,14 +302,14 @@ def init_db(conn=None):
     # FACTORY TEMPLATES TABLE - For Excel parser templates per factory
     # ================================================================
     if USE_POSTGRES:
-        factory_templates_sql = f"""
+        factory_templates_sql = """
             CREATE TABLE IF NOT EXISTS factory_templates (
                 id SERIAL PRIMARY KEY,
                 factory_identifier TEXT UNIQUE NOT NULL,
                 template_name TEXT,
                 field_positions JSONB NOT NULL,
                 column_offsets JSONB NOT NULL,
-                detected_allowances JSONB DEFAULT '{{}}'::jsonb,
+                detected_allowances JSONB DEFAULT '{}'::jsonb,
                 non_billable_allowances JSONB DEFAULT '[]'::jsonb,
                 employee_column_width INTEGER DEFAULT 14,
                 detection_confidence DOUBLE PRECISION DEFAULT 0.0,

@@ -8,9 +8,8 @@ Main use case: 丸山さん commission for 加藤木材
 - Other nationalities: ¥5,000 (always)
 """
 
-import sqlite3
-from typing import List, Dict, Any, Optional
 from datetime import datetime
+from typing import Any, Dict, List, Optional
 
 # Check if using PostgreSQL
 try:

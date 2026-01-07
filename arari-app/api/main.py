@@ -8,63 +8,59 @@ FastAPI + SQLite backend for profit management system
 """
 
 # Load environment variables from .env file
-from dotenv import load_dotenv
-import sys
+import json
+import logging  # Import logging
 import os
 import sqlite3
+import sys
 import tempfile
+import webbrowser
 from contextlib import asynccontextmanager
 from datetime import datetime
-from io import BytesIO
 from pathlib import Path
-import json
+from typing import Any, Dict, List, Optional
+
 import uvicorn
-import webbrowser
-import logging # Import logging
-
-from fastapi import FastAPI, UploadFile, File, HTTPException, Depends, Header, Request
+from dotenv import load_dotenv
+from fastapi import Depends, FastAPI, File, Header, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, Response, StreamingResponse, FileResponse
-from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse, Response, StreamingResponse
 from pydantic import BaseModel
-from typing import List, Optional, Dict, Any
 
-from database import init_db, get_db
-from models import Employee, PayrollRecord, EmployeeCreate, PayrollRecordCreate
-from services import PayrollService, ExcelParser
-from salary_parser import SalaryStatementParser
-from employee_parser import DBGenzaiXParser
-from template_manager import TemplateManager, create_template_from_excel
-from auth import AuthService, validate_token
+from additional_costs import COST_TYPES as ADDITIONAL_COST_TYPES
+from additional_costs import AdditionalCostsService
+from agent_commissions import AgentCommissionService
 from alerts import AlertService
 from audit import AuditService
-from reports import ReportService
-from budget import BudgetService
-from notifications import NotificationService
-from search import SearchService
-from validation import ValidationService
-from backup import BackupService
-from roi import ROIService
-from additional_costs import AdditionalCostsService, COST_TYPES as ADDITIONAL_COST_TYPES
-from agent_commissions import AgentCommissionService, AGENT_CONFIGS
+from auth import AuthService, validate_token
 from auth_dependencies import (
-    require_auth,
-    require_admin,
-    require_manager_or_admin,
-    require_permission,
-    rate_limit_login,
     clear_rate_limit,
     log_action,
-    get_current_user
+    rate_limit_login,
+    require_admin,
+    require_auth,
 )
+from backup import BackupService
+from budget import BudgetService
+from database import get_db, init_db
+from employee_parser import DBGenzaiXParser
+from models import Employee, EmployeeCreate, PayrollRecord, PayrollRecordCreate
+from notifications import NotificationService
+from reports import ReportService
+from roi import ROIService
+from salary_parser import SalaryStatementParser
+from search import SearchService
+from services import ExcelParser, PayrollService
+from template_manager import TemplateManager, create_template_from_excel
+from validation import ValidationService
 
-load_dotenv() 
+load_dotenv()
 
 frontend_process = None
 
 def start_frontend_in_thread(app_dir: Path, port: int):
     global frontend_process
-    
+
     frontend_path = app_dir # The bundled arari-app directory
     node_exe = None
     npm_exe = None
@@ -78,7 +74,7 @@ def start_frontend_in_thread(app_dir: Path, port: int):
             # Assuming node.exe is in the root of the bundle, or a specific path
             # within the bundle depending on how they are added.
             # It's usually in the base of the bundle or a 'node' subfolder
-            
+
             # Search for node.exe and npm.cmd in common PyInstaller locations
             possible_node_paths = [
                 Path(sys._MEIPASS) / "node" / "node.exe",
@@ -88,7 +84,7 @@ def start_frontend_in_thread(app_dir: Path, port: int):
                 Path(sys._MEIPASS) / "node" / "npm.cmd",
                 Path(sys._MEIPASS) / "npm.cmd",
             ]
-            
+
             for p in possible_node_paths:
                 if p.exists():
                     node_exe = p
@@ -97,7 +93,7 @@ def start_frontend_in_thread(app_dir: Path, port: int):
                 if p.exists():
                     npm_exe = p
                     break
-            
+
             if not node_exe or not npm_exe:
                 logging.error(f"Node.js or npm not found in bundle at {sys._MEIPASS}. Node found: {node_exe}, NPM found: {npm_exe}")
                 logging.error("Trying system default npm/node. Ensure Node.js is installed on the target system.")
@@ -122,7 +118,7 @@ def start_frontend_in_thread(app_dir: Path, port: int):
     logging.info(f"Frontend API URL set to: {env['NEXT_PUBLIC_API_URL']}")
 
     try:
-        # Use shell=True for windows if npm.cmd is found as it's a batch file, 
+        # Use shell=True for windows if npm.cmd is found as it's a batch file,
         # or if falling back to system npm which might be a global shell command.
         # But for direct executable, it's usually better to be explicit.
         # Let's try without shell=True first and add if needed.
@@ -136,7 +132,7 @@ def start_frontend_in_thread(app_dir: Path, port: int):
             bufsize=1, # Line-buffered output
             creationflags=subprocess.CREATE_NEW_PROCESS_GROUP if sys.platform == "win32" else 0 # For Windows to allow graceful termination
         )
-        
+
         # Read stdout/stderr in separate threads to avoid deadlocks
         def log_stream(stream, log_func):
             for line in iter(stream.readline, ''):
@@ -148,10 +144,10 @@ def start_frontend_in_thread(app_dir: Path, port: int):
 
         logging.info(f"Frontend process started with PID: {frontend_process.pid}")
         # Give frontend some time to start up
-        time.sleep(5) 
+        time.sleep(5)
 
     except FileNotFoundError:
-        logging.error(f"Failed to start frontend: npm/node command not found. Please ensure Node.js and npm are installed and in PATH, or correctly bundled.")
+        logging.error("Failed to start frontend: npm/node command not found. Please ensure Node.js and npm are installed and in PATH, or correctly bundled.")
     except Exception as e:
         logging.error(f"Unhandled error starting frontend: {e}")
 
@@ -161,7 +157,7 @@ async def lifespan(app: FastAPI):
     # Startup: Initialize database
     init_db()
     logging.info("Database initialized successfully")
-    
+
     # Configure logging
     log_dir = Path("logs")
     log_dir.mkdir(exist_ok=True)
@@ -182,7 +178,7 @@ async def lifespan(app: FastAPI):
         # sys._MEIPASS is where PyInstaller extracts bundled files
         # The arari-app folder is added as data: --add-data "arari-app;arari-app"
         bundled_app_path = Path(sys._MEIPASS) / "arari-app"
-        
+
         # Ensure node_modules exist, if not, attempt npm install
         # This is a fallback in case node_modules were not bundled or corrupted
         if not (bundled_app_path / "node_modules").exists():
@@ -198,14 +194,14 @@ async def lifespan(app: FastAPI):
                         if p.exists():
                             npm_exe = p
                             break
-                
+
                 npm_command = [str(npm_exe)] if npm_exe else ["npm"]
-                
+
                 logging.info(f"Running npm install with command: {' '.join(npm_command + ['install', '--force'])} in {bundled_app_path}")
                 subprocess.run(
-                    npm_command + ["install", "--force"], 
-                    cwd=bundled_app_path, 
-                    check=True, 
+                    npm_command + ["install", "--force"],
+                    cwd=bundled_app_path,
+                    check=True,
                     capture_output=True,
                     text=True,
                     creationflags=subprocess.CREATE_NEW_PROCESS_GROUP if sys.platform == "win32" else 0
@@ -222,15 +218,15 @@ async def lifespan(app: FastAPI):
         frontend_port = 3000 # Default Next.js port
         # Start frontend in a separate thread
         threading.Thread(target=start_frontend_in_thread, args=(bundled_app_path, frontend_port)).start()
-        
+
         logging.info(f"Frontend started (or attempting to start) on port {frontend_port}")
-        
+
         # Give frontend some time to fully initialize
-        time.sleep(10) 
+        time.sleep(10)
         webbrowser.open(f"http://127.0.0.1:{frontend_port}")
     else:
         logging.info("Running in development/unfrozen environment. Frontend should be started separately.")
-    
+
     yield
     # Shutdown
     if frontend_process:
@@ -286,13 +282,13 @@ app.add_middleware(
     max_age=3600,  # Cache preflight requests for 1 hour
 )
 
-# ============== Health Check ============== 
+# ============== Health Check ==============
 
 @app.get("/api/health")
 async def health_check():
     return {"status": "healthy", "version": "2.0.0"}
 
-# ============== Employees ============== 
+# ============== Employees ==============
 
 @app.get("/api/employees", response_model=List[Employee])
 async def get_employees(
@@ -354,7 +350,7 @@ async def delete_employee(
     log_action(db, current_user, "delete", "employee", employee_id, "Employee deleted")
     return {"message": "Employee deleted successfully"}
 
-# ============== Payroll Records ============== 
+# ============== Payroll Records ==============
 
 @app.get("/api/payroll", response_model=List[PayrollRecord])
 async def get_payroll_records(
@@ -421,7 +417,7 @@ async def get_profit_trend(
     service = PayrollService(db)
     return service.get_profit_trend(months=months)
 
-# ============== Sync Employees ============== 
+# ============== Sync Employees ==============
 
 @app.post("/api/sync-employees")
 async def sync_employees(
@@ -447,7 +443,7 @@ async def sync_employees(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
 
-# ============== Import Employees Endpoint ============== 
+# ============== Import Employees Endpoint ==============
 
 @app.post("/api/import-employees")
 async def import_employees(
@@ -469,24 +465,24 @@ async def import_employees(
 
     try:
         content = await file.read()
-        
+
         # Save temp file for parser
-        import tempfile
         import os
-        
+        import tempfile
+
         with tempfile.NamedTemporaryFile(delete=False, suffix=file_ext) as tmp:
             tmp.write(content)
             tmp_path = tmp.name
-            
+
         try:
             parser = DBGenzaiXParser()
             employees, stats = parser.parse_employees(tmp_path)
             logging.info(f"/api/import-employees: Parsed {len(employees)} employees. Stats: {stats}")
-            
+
             service = PayrollService(db)
             added_count = 0
             updated_count = 0
-            
+
             for emp in employees:
                 emp_data = EmployeeCreate(
                     employee_id=emp.employee_id,
@@ -503,7 +499,7 @@ async def import_employees(
                     birth_date=emp.birth_date,
                     termination_date=emp.termination_date,
                 )
-                
+
                 existing = service.get_employee(emp.employee_id)
                 if existing:
                     service.update_employee(emp.employee_id, emp_data)
@@ -511,7 +507,7 @@ async def import_employees(
                 else:
                     service.create_employee(emp_data)
                     added_count += 1
-            
+
             return {
                 "status": "success",
                 "message": f"Successfully imported {len(employees)} employees",
@@ -521,11 +517,11 @@ async def import_employees(
                 "total_employees": len(employees),
                 "errors": parser.errors
             }
-            
+
         finally:
             if os.path.exists(tmp_path):
                 os.unlink(tmp_path)
-                
+
     except Exception as e:
         logging.error(f"Import failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -539,7 +535,7 @@ async def upload_payroll_file(
     """Upload and parse a payroll file (Excel or CSV) with Streaming Log"""
     import asyncio
     import concurrent.futures
-    from fastapi.concurrency import run_in_threadpool
+
 
     async def log_generator():
         try:
@@ -605,13 +601,13 @@ async def upload_payroll_file(
 
                 if records is None:
                     records = []
-                
+
                 yield json.dumps({"type": "info", "message": f"Parsed {len(records)} records. Saving to database..."}) + "\n"
-                
+
                 service = PayrollService(db)
                 saved_count = 0
                 error_count = 0
-                
+
                 # Batch save or single transaction? Using single transaction for speed/consistency
                 cursor = db.cursor()
                 cursor.execute("BEGIN TRANSACTION")
@@ -621,13 +617,13 @@ async def upload_payroll_file(
                         try:
                             service.create_payroll_record(record_data)
                             saved_count += 1
-                        except Exception as e:
+                        except Exception:
                             error_count += 1
-                        
+
                         # Report progress every 50 records
                         if (i+1) % 50 == 0:
                              yield json.dumps({
-                                 "type": "progress", 
+                                 "type": "progress",
                                  "message": f"Saving records [{i+1}/{total}]...",
                                  "current": i+1,
                                  "total": total
@@ -639,7 +635,7 @@ async def upload_payroll_file(
                         "message": f"Successfully saved {saved_count} records.",
                         "stats": {"total": total, "saved": saved_count, "errors": error_count}
                     }) + "\n"
-                    
+
                 except Exception as e:
                     db.rollback()
                     yield json.dumps({"type": "error", "message": f"Database Error: {str(e)}"}) + "\n"
@@ -681,7 +677,7 @@ async def upload_payroll_file(
                     service = PayrollService(db)
                     imported_count = 0
                     total = len(employees)
-                    
+
                     for i, emp in enumerate(employees):
                         # Convert/Upsert logic...
                         emp_data = EmployeeCreate(
@@ -704,17 +700,17 @@ async def upload_payroll_file(
                             service.update_employee(emp.employee_id, emp_data)
                         else:
                             service.create_employee(emp_data)
-                        
+
                         imported_count += 1
-                        
+
                         if (i+1) % 50 == 0:
                              yield json.dumps({
-                                 "type": "progress", 
+                                 "type": "progress",
                                  "message": f"Syncing employees [{i+1}/{total}]...",
                                  "current": i+1,
                                  "total": total
                              }) + "\n"
-                    
+
                     yield json.dumps({
                         "type": "success",
                         "message": f"Imported {imported_count} employees.",
@@ -782,7 +778,7 @@ async def upload_payroll_file(
     }
     return StreamingResponse(log_generator(), media_type="application/x-ndjson", headers=headers)
 
-# ============== Export ============== 
+# ============== Export ==============
 
 @app.get("/api/export/employees")
 async def export_employees(db: sqlite3.Connection = Depends(get_db)):
@@ -811,8 +807,9 @@ async def export_all_data(
     payroll = service.get_payroll_records()
 
     if format == "excel":
-        import openpyxl
         from io import BytesIO
+
+        import openpyxl
 
         wb = openpyxl.Workbook()
 
@@ -870,63 +867,62 @@ async def export_wage_ledger(
     db: sqlite3.Connection = Depends(get_db)
 ):
     from api.export_service import WageLedgerExportService
-    from fastapi.responses import FileResponse
     from starlette.background import BackgroundTask
-    
+
     # Path to templates
     BASE_DIR = os.path.dirname(os.path.abspath(__file__))
     TEMPLATE_DIR = os.path.join(BASE_DIR, "templates")
-    
+
     export_service = WageLedgerExportService(TEMPLATE_DIR)
     payroll_service = PayrollService(db)
-    
+
     try:
         if request.target == 'single':
             if not request.employee_id:
                 raise HTTPException(status_code=400, detail="Employee ID required for single export")
-            
+
             # Fetch employee as dict (handling object or dict return)
             emp_obj = payroll_service.get_employee(request.employee_id)
             if not emp_obj:
                  raise HTTPException(status_code=404, detail="Employee not found")
-            
+
             # Convert to dict for export service
             employee = emp_obj.__dict__ if hasattr(emp_obj, '__dict__') else emp_obj
 
             records = payroll_service.get_payroll_by_employee_year(request.employee_id, request.year)
-            
+
             file_path = await run_in_threadpool(
-                export_service.generate_ledger, 
+                export_service.generate_ledger,
                 employee, records, request.template_name, request.year
             )
-            
+
             filename = f"賃金台帳_{employee['name']}_{request.year}.xlsx"
             return FileResponse(
-                path=file_path, 
-                filename=filename, 
+                path=file_path,
+                filename=filename,
                 media_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-                background=BackgroundTask(lambda: os.unlink(file_path)) 
+                background=BackgroundTask(lambda: os.unlink(file_path))
             )
 
         elif request.target == 'all_in_company':
             if not request.company_name:
                 raise HTTPException(status_code=400, detail="Company Name required for batch export")
-            
+
             # 1. Get all employees in company
             all_employees = payroll_service.get_employees(company=request.company_name)
-            
+
             export_requests = []
-            
+
             for emp in all_employees:
                 emp_dict = emp.__dict__ if hasattr(emp, '__dict__') else emp
                 records = payroll_service.get_payroll_by_employee_year(emp_dict['employee_id'], request.year)
-                
+
                 export_requests.append({
                     "employee": emp_dict,
                     "records": records,
                     "template": request.template_name
                 })
-            
+
             if not export_requests:
                 raise HTTPException(status_code=404, detail=f"No employees found for company: {request.company_name}")
 
@@ -934,7 +930,7 @@ async def export_wage_ledger(
                 export_service.create_batch_zip,
                 export_requests, request.year
             )
-            
+
             filename = f"賃金台帳_{request.company_name}_{request.year}.zip"
             return FileResponse(
                 path=zip_path,
@@ -942,7 +938,7 @@ async def export_wage_ledger(
                 media_type='application/zip',
                 background=BackgroundTask(lambda: os.unlink(zip_path))
             )
-            
+
         else:
              raise HTTPException(status_code=400, detail="Invalid target specified")
 
@@ -957,9 +953,9 @@ async def sync_from_folder(
     current_user: Dict[str, Any] = Depends(require_admin)
 ):
     """Sync all .xlsm files from a folder path (Streaming Log) (requires admin)"""
-    from pathlib import Path
-    import os
     import json
+    from pathlib import Path
+
     from fastapi.responses import StreamingResponse
 
     folder_path = payload.get("folder_path", "").strip()
@@ -980,19 +976,19 @@ async def sync_from_folder(
     async def log_generator():
         # Setup initial state
         yield json.dumps({"type": "info", "message": f"Scanning folder: {folder_path}..."}) + "\n"
-        
+
         xlsm_files = list(path.glob("*.xlsm"))
-        
+
         if not xlsm_files:
              yield json.dumps({
-                 "type": "error", 
+                 "type": "error",
                  "message": f"No .xlsm files found in {folder_path}",
                  "files_found": 0
              }) + "\n"
              return
 
         yield json.dumps({
-            "type": "info", 
+            "type": "info",
             "message": f"Found {len(xlsm_files)} .xlsm files. Starting process...",
             "files_found": len(xlsm_files)
         }) + "\n"
@@ -1006,7 +1002,7 @@ async def sync_from_folder(
             filename = file_path.name
             try:
                 yield json.dumps({
-                    "type": "progress", 
+                    "type": "progress",
                     "message": f"[{i+1}/{len(xlsm_files)}] Processing: {filename}...",
                     "current": i+1,
                     "total": len(xlsm_files),
@@ -1030,7 +1026,7 @@ async def sync_from_folder(
                 cursor = db.cursor()
                 cursor.execute("BEGIN TRANSACTION")
                 file_saved_count = 0
-                
+
                 try:
                     for record_data in payroll_records:
                         try:
@@ -1043,9 +1039,9 @@ async def sync_from_folder(
 
                     db.commit()
                     files_processed += 1
-                    
+
                     yield json.dumps({
-                        "type": "success", 
+                        "type": "success",
                         "message": f"  -> Success: Saved {file_saved_count} records.",
                         "file_saved": file_saved_count
                     }) + "\n"
@@ -1057,10 +1053,10 @@ async def sync_from_folder(
             except Exception as e:
                 total_errors += 1
                 yield json.dumps({
-                    "type": "error", 
+                    "type": "error",
                     "message": f"  -> Error processing {filename}: {str(e)}"
                 }) + "\n"
-        
+
         # Summary
         yield json.dumps({
             "type": "complete",
@@ -1077,7 +1073,7 @@ async def sync_from_folder(
 
 # NOTE: Duplicate endpoint removed - using /api/import-employees defined at line ~216
 
-# ============== SETTINGS ============== 
+# ============== SETTINGS ==============
 
 @app.get("/api/settings")
 async def get_settings(db: sqlite3.Connection = Depends(get_db)):
@@ -1135,10 +1131,10 @@ async def toggle_company_status(
     """Toggle company active status (requires authentication)"""
     service = PayrollService(db)
     active = payload.get("active", True)
-    
+
     # Decode double-encoded URL component if needed or handle raw string
     # FastAPI handles URL decoding for path params automatically
-    
+
     service.set_company_active(company_name, active)
     return {"status": "success", "company": company_name, "active": active}
 
@@ -1379,7 +1375,7 @@ async def check_commission_registered(
     return {"registered": is_registered}
 
 
-# ============== TEMPLATES ============== 
+# ============== TEMPLATES ==============
 
 @app.get("/api/templates")
 async def list_templates(include_inactive: bool = False):
@@ -1529,10 +1525,8 @@ async def create_template_manually(
 
     return {"status": "success", "message": f"Template '{factory_identifier}' created"}
 
-# ============== AUTH ENDPOINTS ============== 
+# ============== AUTH ENDPOINTS ==============
 
-from auth import AuthService, validate_token
-from fastapi import Header
 
 @app.post("/api/auth/login")
 async def login(
@@ -1683,9 +1677,8 @@ async def reset_password(
     log_action(db, current_user, "update", "user", str(user_id), "Reset password (admin)")
     return result
 
-# ============== ALERTS ENDPOINTS ============== 
+# ============== ALERTS ENDPOINTS ==============
 
-from alerts import AlertService
 
 @app.get("/api/alerts")
 async def get_alerts(
@@ -1754,9 +1747,8 @@ async def update_alert_threshold(
     service.update_threshold(key, float(value))
     return {"status": "updated", "key": key, "value": value}
 
-# ============== AUDIT ENDPOINTS ============== 
+# ============== AUDIT ENDPOINTS ==============
 
-from audit import AuditService
 
 @app.get("/api/audit")
 async def get_audit_logs(
@@ -1789,10 +1781,8 @@ async def get_entity_history(
     service = AuditService(db)
     return service.get_entity_history(entity_type, entity_id)
 
-# ============== REPORTS ENDPOINTS ============== 
+# ============== REPORTS ENDPOINTS ==============
 
-from reports import ReportService
-from fastapi.responses import Response
 
 @app.get("/api/reports/monthly/{period}")
 async def get_monthly_report_data(period: str, db: sqlite3.Connection = Depends(get_db)):
@@ -1887,9 +1877,8 @@ async def get_report_history(limit: int = 50, db: sqlite3.Connection = Depends(g
     service = ReportService(db)
     return service.get_report_history(limit)
 
-# ============== BUDGET ENDPOINTS ============== 
+# ============== BUDGET ENDPOINTS ==============
 
-from budget import BudgetService
 
 @app.get("/api/budgets")
 async def get_budgets(
@@ -1963,9 +1952,8 @@ async def delete_budget(
 
     return result
 
-# ============== NOTIFICATIONS ENDPOINTS ============== 
+# ============== NOTIFICATIONS ENDPOINTS ==============
 
-from notifications import NotificationService
 
 @app.get("/api/notifications")
 async def get_notifications(
@@ -2024,9 +2012,8 @@ async def update_notification_preferences(
     service = NotificationService(db)
     return service.update_preferences(user_id, **payload)
 
-# ============== SEARCH ENDPOINTS ============== 
+# ============== SEARCH ENDPOINTS ==============
 
-from search import SearchService
 
 @app.get("/api/search/employees")
 async def search_employees_get(
@@ -2094,9 +2081,8 @@ async def get_filter_options(db: sqlite3.Connection = Depends(get_db)):
     service = SearchService(db)
     return service.get_filter_options()
 
-# ============== VALIDATION ENDPOINTS ============== 
+# ============== VALIDATION ENDPOINTS ==============
 
-from validation import ValidationService
 
 @app.get("/api/validation")
 async def validate_all_data(db: sqlite3.Connection = Depends(get_db)):
@@ -2129,9 +2115,8 @@ async def auto_fix_issues(
     fix_types = payload.get("fix_types") if payload else None
     return service.auto_fix(fix_types)
 
-# ============== BACKUP ENDPOINTS ============== 
+# ============== BACKUP ENDPOINTS ==============
 
-from backup import BackupService
 
 @app.get("/api/backups")
 async def list_backups():
@@ -2194,9 +2179,8 @@ async def delete_backup_file(
 
     return result
 
-# ============== ROI ENDPOINTS ============== 
+# ============== ROI ENDPOINTS ==============
 
-from roi import ROIService
 
 @app.get("/api/roi/clients")
 async def get_client_roi(
@@ -2249,9 +2233,10 @@ async def compare_roi_periods(
     service = ROIService(db)
     return service.compare_periods(period1, period2)
 
-# ============== CACHE ENDPOINTS ============== 
+# ============== CACHE ENDPOINTS ==============
 
 from cache import CacheService
+
 
 @app.get("/api/cache/stats")
 async def get_cache_stats(db: sqlite3.Connection = Depends(get_db)):
@@ -2280,7 +2265,7 @@ async def clear_cache(
 
 
 
-# ============== RESET DATA ============== 
+# ============== RESET DATA ==============
 
 @app.delete("/api/reset-db")
 async def reset_database(

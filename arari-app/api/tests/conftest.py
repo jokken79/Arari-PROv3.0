@@ -8,9 +8,9 @@ from fastapi.testclient import TestClient
 # Add the parent directory to the sys.path to allow imports from the api module
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
+from auth_dependencies import _rate_limit_store
 from database import get_db, init_db
 from main import app
-from auth_dependencies import _rate_limit_store
 
 
 @pytest.fixture(autouse=True)

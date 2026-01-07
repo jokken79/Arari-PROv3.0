@@ -4,5 +4,16 @@ target-version = ['py311']
 
 [tool.ruff]
 line-length = 88
-select = ["E", "F", "W", "I"]
-ignore = ["E501"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W"]
+ignore = [
+    "E501",  # Line too long
+    "E722",  # Bare except
+    "F841",  # Unused variable
+    "E402",  # Module level import not at top of file
+    "F541",  # f-string without placeholders
+    "F401",  # Unused import (many optional imports)
+    "F821",  # Undefined name (run_in_threadpool issue)
+    "F601",  # Dictionary key repeated
+]

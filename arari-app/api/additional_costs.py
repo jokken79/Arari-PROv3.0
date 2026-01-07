@@ -5,9 +5,8 @@ Tracks costs like transport buses (送迎バス) per company per period
 These costs are subtracted from company profit calculations.
 """
 
-import sqlite3
-from typing import List, Dict, Any, Optional
 from datetime import datetime
+from typing import Any, Dict, List, Optional
 
 # Check if using PostgreSQL
 try:
@@ -141,7 +140,7 @@ class AdditionalCostsService:
             }
         except Exception as e:
             if "UNIQUE constraint" in str(e) or "duplicate key" in str(e).lower():
-                return {"error": f"この企業・期間・コストタイプの組み合わせは既に存在します"}
+                return {"error": "この企業・期間・コストタイプの組み合わせは既に存在します"}
             raise e
 
     def update_cost(self, cost_id: int, **kwargs) -> Dict[str, Any]:

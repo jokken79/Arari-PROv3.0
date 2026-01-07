@@ -7,13 +7,12 @@ import logging
 import sqlite3
 import time
 from collections import defaultdict
-from datetime import datetime, timedelta
-from functools import wraps
+from datetime import datetime
 from typing import Any, Dict, Optional
 
 from fastapi import Depends, Header, HTTPException, Request
 
-from auth import validate_token, has_permission, check_role_level
+from auth import check_role_level, has_permission, validate_token
 from database import get_db
 
 logger = logging.getLogger(__name__)
@@ -71,7 +70,7 @@ async def require_auth(
     user = validate_token(db, token)
 
     if not user:
-        logger.warning(f"Authentication failed: Invalid or expired token")
+        logger.warning("Authentication failed: Invalid or expired token")
         raise HTTPException(
             status_code=401,
             detail="Invalid or expired token",
