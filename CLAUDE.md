@@ -4,9 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**粗利 PRO v2.0** - Profit margin management system for ユニバーサル企画株式会社, a staffing company (派遣会社) specializing in manufacturing dispatch (製造派遣).
+**粗利 PRO v3.0** - Profit margin management system for ユニバーサル企画株式会社, a staffing company (派遣会社) specializing in manufacturing dispatch (製造派遣).
 
-The system calculates and visualizes profit margins for dispatch employees by parsing Excel payroll files, computing billing amounts, and tracking company costs.
+The system calculates and visualizes profit margins for dispatch employees by parsing Excel payroll files, computing billing amounts, and tracking company costs. It includes agent commission management (仲介手数料) and company-specific additional cost tracking (追加コスト).
 
 ## Development Commands
 
@@ -99,38 +99,61 @@ arari-app/
 │   ├── salary_parser.py          # Excel payroll parser (ChinginGenerator format)
 │   ├── employee_parser.py        # Employee master Excel parser
 │   ├── services.py               # Business logic (margin calculations)
-│   ├── database.py               # SQLite operations
+│   ├── database.py               # SQLite/PostgreSQL operations (dual-mode)
 │   ├── models.py                 # Pydantic models
 │   ├── auth.py, auth_dependencies.py  # Authentication
 │   ├── template_manager.py       # Factory Excel template detection
-│   └── tests/                    # pytest tests
+│   ├── additional_costs.py       # Company additional costs (送迎バス等)
+│   ├── agent_commissions.py      # Agent commission calculations (仲介手数料)
+│   ├── reports.py                # Excel report generation
+│   ├── budget.py                 # Budget management
+│   ├── alerts.py                 # Alert/notification system
+│   └── tests/                    # pytest tests (7 test files)
 │
 ├── src/
-│   ├── app/                      # Next.js App Router pages
+│   ├── app/                      # Next.js App Router pages (15 pages)
 │   │   ├── page.tsx              # Dashboard (home)
 │   │   ├── employees/            # Employee list & detail
+│   │   ├── companies/            # Company analysis & detail
 │   │   ├── monthly/              # Monthly analysis
-│   │   ├── upload/               # Excel upload
+│   │   ├── payroll/              # Payroll data verification
+│   │   ├── reports/              # Report download
+│   │   ├── upload/               # Excel upload (admin only)
+│   │   ├── templates/            # Template management (admin only)
 │   │   ├── alerts/               # Alert management
-│   │   └── settings/             # System settings
+│   │   ├── budgets/              # Budget vs actual
+│   │   ├── additional-costs/     # Additional costs management
+│   │   ├── agent-commissions/    # Agent commission tracking
+│   │   ├── settings/             # System settings
+│   │   ├── help/                 # Help page
+│   │   └── login/                # Authentication
 │   │
 │   ├── components/
-│   │   ├── charts/               # Recharts components (6 chart types)
+│   │   ├── charts/               # Recharts components (12 chart types)
+│   │   ├── dashboard/            # Dashboard components (StatsCard, PeriodSelector)
 │   │   ├── employees/            # Employee table, modals
 │   │   ├── layout/               # Header, Sidebar
-│   │   └── payroll/              # PayrollSlipModal (split into 5 files)
+│   │   ├── payroll/              # PayrollSlipModal (split into 5 files)
+│   │   ├── auth/                 # AuthGuard
+│   │   └── ui/                   # Reusable UI components
 │   │
-│   ├── hooks/                    # TanStack Query hooks
+│   ├── hooks/                    # TanStack Query hooks (10 hook files)
 │   │   ├── useEmployees.ts
 │   │   ├── usePayroll.ts
-│   │   └── useStatistics.ts
+│   │   ├── useStatistics.ts
+│   │   ├── useCompanies.ts
+│   │   ├── useSettings.ts
+│   │   ├── useAuth.ts
+│   │   ├── useAdditionalCosts.ts  # Additional costs CRUD
+│   │   ├── useAgentCommissions.ts # Agent commission queries
+│   │   └── index.ts              # Aggregated exports
 │   │
 │   └── lib/
 │       ├── api.ts                # API client
-│       ├── store.ts              # Zustand store
+│       ├── config.ts             # Frontend configuration
 │       └── utils.ts              # Utilities (comparePeriods, etc.)
 │
-└── arari_pro.db                  # SQLite database
+└── arari_pro.db                  # SQLite database (dev only)
 ```
 
 ## Critical Business Formulas
@@ -241,28 +264,68 @@ useEffect(() => {
 }, [availablePeriods, selectedPeriod])
 ```
 
+### 9. Admin-Only Pages
+Upload and Templates pages are restricted to admin users only:
+```typescript
+// In Sidebar.tsx - Bottom navigation only shown to admins
+{isAdmin && bottomNavigation.map((item) => {
+  // Upload, Templates, Settings links
+})}
+```
+Non-admin users won't see these navigation items and will be redirected if they try to access directly.
+
+### 10. Dual-Mode Database (SQLite/PostgreSQL)
+Backend supports both SQLite (local development) and PostgreSQL (production):
+```python
+# database.py - Automatic detection
+DATABASE_URL = os.environ.get("DATABASE_URL", "")
+USE_POSTGRES = DATABASE_URL.startswith("postgresql://")
+
+# Query adaptation for cross-database compatibility
+def _q(query: str) -> str:
+    """Convert SQLite ? placeholders to PostgreSQL %s if needed"""
+    if USE_POSTGRES:
+        return query.replace("?", "%s")
+    return query
+```
+
 ## Known Issues
 
 ### ESLint Circular Structure Warning
-Durante el build puede aparecer `ESLint: Converting circular structure to JSON` - es un warning cosmético interno de Next.js que se puede ignorar. El build completa exitosamente (17/17 páginas).
+During the build, `ESLint: Converting circular structure to JSON` may appear - this is a cosmetic Next.js internal warning that can be ignored. The build completes successfully.
 
 ### Package Manager
-Usar **npm** (no Yarn). Configurado en `package.json` con `"packageManager": "npm@10.9.2"`.
+Use **npm** (not Yarn). Configured in `package.json` with `"packageManager": "npm@10.9.2"`.
 
 ## Database Tables
 
 ### employees
-- `employee_id` (PK), `name`, `dispatch_company` (派遣先)
+- `employee_id` (PK), `name`, `name_kana`, `dispatch_company` (派遣先)
 - `hourly_rate` (時給), `billing_rate` (単価 - what we charge client)
-- `status` (active/inactive), `gender`, `birth_date`, `termination_date`
+- `nationality` - Used for agent commission calculations
+- `status` (active/inactive), `hire_date`, `department`
 
 ### payroll_records
 - `employee_id`, `period` (composite PK, e.g., "2025年10月")
 - Hours: `work_hours`, `overtime_hours`, `overtime_over_60h`, `night_hours`, `holiday_hours`
+- Days: `work_days`, `paid_leave_days`, `absence_days`
 - Salary: `base_salary`, `gross_salary`, `net_salary`
 - Insurance: `social_insurance`, `welfare_pension`, `employment_insurance`
 - Company costs: `company_social_insurance`, `company_employment_insurance`, `company_workers_comp`
 - Results: `billing_amount`, `total_company_cost`, `gross_profit`, `profit_margin`
+
+### company_additional_costs
+- `id` (PK), `dispatch_company`, `period`
+- `cost_type` (transport_bus, parking, facility, equipment, uniform, training, meal, other)
+- `amount`, `notes`, `created_by`, `created_at`, `updated_at`
+- Unique constraint: (dispatch_company, period, cost_type)
+
+### agent_commission_records
+- `id` (PK), `agent_id`, `period`, `dispatch_company`
+- `total_employees`, `vietnam_normal`, `vietnam_reduced`, `other_count`
+- `total_amount`, `breakdown`, `notes`, `calculated_at`
+- `registered_to_costs`, `cost_id` - Links to company_additional_costs
+- Unique constraint: (agent_id, period, dispatch_company)
 
 ## Insurance Rates (2025年度)
 
@@ -327,14 +390,21 @@ curl -X PUT http://localhost:8000/api/users/2/reset-password \
 ## API Base URL
 
 Development: `http://localhost:8000/api/`
+Production: `https://arari-prov20-production.up.railway.app/api/`
 
-Key endpoints:
-- `/employees` - CRUD employees
-- `/payroll` - Payroll records
-- `/statistics` - Dashboard stats
-- `/upload` - Excel file upload
-- `/auth/login` - Authentication
-- `/reports/download/{type}` - Excel report download
+### Key Endpoints
+| Category | Endpoints |
+|----------|-----------|
+| Employees | `/employees` - CRUD operations |
+| Payroll | `/payroll`, `/payroll/periods` - Records and periods |
+| Statistics | `/statistics` - Dashboard stats (cached) |
+| Upload | `/upload` - Excel file upload (admin only) |
+| Auth | `/auth/login`, `/auth/logout`, `/auth/me` |
+| Reports | `/reports/download/{type}` - Excel download |
+| Additional Costs | `/additional-costs` - Cost tracking |
+| Agent Commissions | `/agent-commissions/calculate`, `/agent-commissions/register` |
+| Companies | `/companies`, `/companies/toggle` - Company management |
+| Settings | `/settings` - System configuration |
 
 ## Reports System
 
@@ -394,6 +464,90 @@ const reportTypeMap: Record<string, string> = {
 | `arari-app/api/reports.py` | Report data queries + Excel generation |
 | `arari-app/api/main.py` | Download endpoint routing |
 | `arari-app/src/app/reports/page.tsx` | Reports UI with period selector |
+
+## Additional Costs System (追加コスト)
+
+Company-specific costs like transport buses (送迎バス) that reduce profit. These are tracked separately and deducted from company profit calculations.
+
+### Cost Types
+| ID | Japanese Label | Description |
+|----|----------------|-------------|
+| `transport_bus` | 送迎バス | Employee shuttle bus |
+| `parking` | 駐車場代 | Parking fees |
+| `facility` | 施設利用費 | Facility usage |
+| `equipment` | 設備費 | Equipment costs |
+| `uniform` | ユニフォーム | Work uniforms |
+| `training` | 研修費 | Training expenses |
+| `meal` | 食事補助 | Meal subsidies |
+| `other` | その他 | Other costs |
+
+### API Endpoints
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/additional-costs` | GET | List all costs (filter by company/period) |
+| `/api/additional-costs` | POST | Create new cost entry |
+| `/api/additional-costs/{id}` | GET | Get single cost |
+| `/api/additional-costs/{id}` | PUT | Update cost |
+| `/api/additional-costs/{id}` | DELETE | Delete cost |
+| `/api/additional-costs/summary` | GET | Get summary by company |
+| `/api/additional-costs/copy` | POST | Copy costs to new period |
+
+### Frontend Hook
+```typescript
+import {
+  useAdditionalCosts,
+  useCreateAdditionalCost,
+  useUpdateAdditionalCost,
+  useDeleteAdditionalCost,
+  useCopyAdditionalCosts,
+} from '@/hooks'
+```
+
+## Agent Commissions System (仲介手数料)
+
+Calculates commissions for recruitment agents based on employee nationality and attendance. Main use case: Maruyama-san commission for Kato Mokuzai employees.
+
+### Commission Rules (Maruyama)
+| Condition | Amount |
+|-----------|--------|
+| Vietnamese employee, no absence/yukyu | ¥10,000 |
+| Vietnamese employee, has absence/yukyu | ¥5,000 |
+| Other nationalities | ¥5,000 (always) |
+
+### API Endpoints
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/agent-commissions/agents` | GET | List available agents |
+| `/api/agent-commissions/calculate` | GET | Calculate commission for agent/period |
+| `/api/agent-commissions/register` | POST | Register commission to additional costs |
+| `/api/agent-commissions/history` | GET | Get commission registration history |
+| `/api/agent-commissions/check-registered` | GET | Check if already registered |
+
+### Frontend Hook
+```typescript
+import {
+  useAgents,
+  useAgentCommission,
+  useRegisterCommission,
+  useCommissionHistory,
+  useCheckRegistered,
+} from '@/hooks'
+```
+
+### Key Implementation
+```python
+# agent_commissions.py - Commission calculation
+AGENT_CONFIGS = {
+    "maruyama": {
+        "name": "丸山さん",
+        "target_companies": ["加藤木材"],
+        "rules": {
+            "Vietnam": {"normal": 10000, "reduced": 5000},
+            "default": {"normal": 5000, "reduced": 5000},
+        },
+    }
+}
+```
 
 ## Production Deployment (2025-12-26)
 
@@ -521,3 +675,11 @@ Las constantes de negocio están centralizadas en `arari-app/api/config.py`:
 | Global app state | `arari-app/src/store/appStore.ts` |
 | Add/modify reports | `arari-app/api/reports.py`, `arari-app/src/app/reports/page.tsx` |
 | Report Excel generation | `arari-app/api/reports.py` (ReportService class) |
+| Additional costs logic | `arari-app/api/additional_costs.py` |
+| Additional costs UI | `arari-app/src/app/additional-costs/page.tsx` |
+| Agent commissions logic | `arari-app/api/agent_commissions.py` |
+| Agent commissions UI | `arari-app/src/app/agent-commissions/page.tsx` |
+| Budget management | `arari-app/api/budget.py`, `arari-app/src/app/budgets/page.tsx` |
+| Navigation sidebar | `arari-app/src/components/layout/Sidebar.tsx` |
+| TanStack Query hooks | `arari-app/src/hooks/` (use index.ts for exports) |
+| Company analysis | `arari-app/src/app/companies/page.tsx` |

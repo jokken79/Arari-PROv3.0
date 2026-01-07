@@ -6,13 +6,13 @@ Supports both SQLite (local) and PostgreSQL (Railway production)
 
 import os
 import secrets
-import sqlite3
 from datetime import datetime, timedelta
 from functools import wraps
 from typing import Any, Dict, Optional
 
 import bcrypt
 from dotenv import load_dotenv
+
 from database import USE_POSTGRES
 
 load_dotenv()

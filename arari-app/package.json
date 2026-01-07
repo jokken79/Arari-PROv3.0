@@ -14,8 +14,9 @@
     "lint": "next lint",
     "lint:python": "python -m ruff check api",
     "format": "python -m black api",
-    "test": "echo \"No tests implemented yet. Run 'npm run test:setup' to create test structure.\" && exit 0",
-    "test:setup": "echo \"TODO: Implement test setup with Jest + React Testing Library\""
+    "test": "jest --passWithNoTests",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.2",

@@ -1,43 +1,66 @@
 import { render, screen } from '@testing-library/react'
 import { Header } from '@/components/layout/Header'
-import { useAuth } from '@/hooks'
-import { useAppStore } from '@/store/appStore'
-import { useTheme } from '@/components/ui/theme-provider'
+
+// Mock Next.js navigation
+jest.mock('next/navigation', () => ({
+  useRouter: () => ({
+    push: jest.fn(),
+    replace: jest.fn(),
+    prefetch: jest.fn(),
+  }),
+  usePathname: () => '/',
+}))
 
 // Mock the hooks used in the Header component
 jest.mock('@/hooks/useAuth', () => ({
-  useAuth: jest.fn(),
+  useAuth: jest.fn(() => ({
+    user: { username: 'admin', role: 'admin', email: 'admin@arari.jp' },
+    logout: jest.fn(),
+    isAuthenticated: true,
+  })),
+}))
+
+jest.mock('@/hooks/useEmployees', () => ({
+  useEmployees: jest.fn(() => ({
+    data: [],
+    isLoading: false,
+  })),
 }))
 
 jest.mock('@/store/appStore', () => ({
-  useAppStore: jest.fn(),
+  useAppStore: jest.fn(() => ({
+    payrollRecords: [],
+  })),
 }))
 
 jest.mock('@/components/ui/theme-provider', () => ({
-  useTheme: jest.fn(),
+  useTheme: jest.fn(() => ({
+    theme: 'dark',
+    setTheme: jest.fn(),
+    resolvedTheme: 'dark',
+  })),
+}))
+
+// Mock TanStack Query
+jest.mock('@tanstack/react-query', () => ({
+  ...jest.requireActual('@tanstack/react-query'),
+  useQueryClient: () => ({
+    invalidateQueries: jest.fn(),
+  }),
 }))
 
 describe('Header', () => {
-  beforeEach(() => {
-    (useAuth as jest.Mock).mockReturnValue({
-      user: null,
-      logout: jest.fn(),
-      isAuthenticated: false,
-    });
-    (useAppStore as jest.Mock).mockReturnValue({
-      payrollRecords: [],
-    });
-    (useTheme as jest.Mock).mockReturnValue({
-      theme: 'dark',
-      setTheme: jest.fn(),
-      resolvedTheme: 'dark',
-    })
-  })
-
   it('renders the header with the title', () => {
     render(<Header />)
 
     const titleElement = screen.getByText(/粗利 PRO/i)
     expect(titleElement).toBeInTheDocument()
+  })
+
+  it('displays user info when logged in', () => {
+    render(<Header />)
+
+    // Check for admin user display
+    expect(screen.getByText('管理者')).toBeInTheDocument()
   })
 })

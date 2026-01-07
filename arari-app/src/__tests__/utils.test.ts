@@ -1,4 +1,4 @@
-import { cn, formatCurrency, formatPercent, comparePeriods } from '@/lib/utils'
+import { cn, formatYen, formatPercent, comparePeriods } from '@/lib/utils'
 
 describe('Utils Functions', () => {
   describe('cn - className merge', () => {
@@ -21,26 +21,27 @@ describe('Utils Functions', () => {
     })
   })
 
-  describe('formatCurrency', () => {
+  describe('formatYen', () => {
     it('formats positive numbers with yen symbol', () => {
-      const result = formatCurrency(123456)
+      const result = formatYen(123456)
       expect(result).toContain('123,456')
-      expect(result).toContain('¥')
+      // Japanese yen can be either ¥ or ￥ depending on locale
+      expect(result).toMatch(/[¥￥]/)
     })
 
     it('formats zero correctly', () => {
-      const result = formatCurrency(0)
+      const result = formatYen(0)
       expect(result).toContain('0')
     })
 
     it('formats negative numbers', () => {
-      const result = formatCurrency(-50000)
+      const result = formatYen(-50000)
       expect(result).toContain('50,000')
       expect(result).toContain('-')
     })
 
     it('handles decimal values', () => {
-      const result = formatCurrency(12345.67)
+      const result = formatYen(12345.67)
       // Should round or truncate to whole yen
       expect(result).toMatch(/12,345|12,346/)
     })

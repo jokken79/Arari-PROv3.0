@@ -12,11 +12,11 @@ Usage:
 """
 
 import json
+import os
 import sqlite3
 import sys
-import os
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
 
 # Tables to migrate (in order for foreign key constraints)
 TABLES = [
@@ -78,7 +78,6 @@ def import_postgres(input_file: str):
         database_url = database_url.replace("postgres://", "postgresql://", 1)
 
     import psycopg2
-    from psycopg2.extras import execute_values
 
     with open(input_file, "r", encoding="utf-8") as f:
         data = json.load(f)
@@ -125,7 +124,7 @@ def import_postgres(input_file: str):
     conn.commit()
     conn.close()
 
-    print(f"\n[SUCCESS] Import complete")
+    print("\n[SUCCESS] Import complete")
 
 
 def main():
