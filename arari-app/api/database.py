@@ -421,6 +421,13 @@ def init_db(conn=None):
     except Exception as e:
         print(f"[WARN] Backup system: {e}")
 
+    try:
+        from additional_costs import init_additional_costs_tables
+
+        init_additional_costs_tables(conn)
+    except Exception as e:
+        print(f"[WARN] Additional costs tables: {e}")
+
     # NO sample data - start with clean database
     # Users will upload their own payroll files
     if close_conn:

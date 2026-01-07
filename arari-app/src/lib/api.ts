@@ -187,6 +187,111 @@ export const settingsApi = {
   },
 }
 
+// ============== Additional Costs API (追加コスト) ==============
+
+export interface AdditionalCost {
+  id: number
+  dispatch_company: string
+  period: string
+  cost_type: string
+  cost_type_label: string
+  amount: number
+  notes?: string
+  created_by?: string
+  created_at?: string
+  updated_at?: string
+}
+
+export interface AdditionalCostCreate {
+  dispatch_company: string
+  period: string
+  cost_type: string
+  amount: number
+  notes?: string
+}
+
+export interface AdditionalCostSummary {
+  dispatch_company: string
+  cost_count: number
+  total_amount: number
+}
+
+export const COST_TYPES: Record<string, string> = {
+  transport_bus: '送迎バス',
+  parking: '駐車場代',
+  facility: '施設利用費',
+  equipment: '設備費',
+  uniform: 'ユニフォーム',
+  training: '研修費',
+  meal: '食事補助',
+  other: 'その他',
+}
+
+export const additionalCostsApi = {
+  getAll: async (company?: string, period?: string) => {
+    const params = new URLSearchParams()
+    if (company) params.append('company', company)
+    if (period) params.append('period', period)
+    const query = params.toString() ? `?${params.toString()}` : ''
+    return fetchApi<AdditionalCost[]>(`/api/additional-costs${query}`)
+  },
+
+  getOne: async (id: number) => {
+    return fetchApi<AdditionalCost>(`/api/additional-costs/${id}`)
+  },
+
+  getTypes: async () => {
+    return fetchApi<Record<string, string>>('/api/additional-costs/types')
+  },
+
+  getSummary: async (period?: string) => {
+    const query = period ? `?period=${encodeURIComponent(period)}` : ''
+    return fetchApi<AdditionalCostSummary[]>(`/api/additional-costs/summary${query}`)
+  },
+
+  create: async (cost: AdditionalCostCreate) => {
+    return fetchApi<AdditionalCost>('/api/additional-costs', {
+      method: 'POST',
+      body: JSON.stringify(cost),
+    })
+  },
+
+  update: async (id: number, cost: Partial<AdditionalCostCreate>) => {
+    return fetchApi<AdditionalCost>(`/api/additional-costs/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(cost),
+    })
+  },
+
+  delete: async (id: number) => {
+    return fetchApi<{ status: string }>(`/api/additional-costs/${id}`, {
+      method: 'DELETE',
+    })
+  },
+
+  getCompanyTotal: async (company: string, period?: string) => {
+    const query = period ? `?period=${encodeURIComponent(period)}` : ''
+    return fetchApi<{ company: string; period: string | null; total_additional_costs: number }>(
+      `/api/additional-costs/company/${encodeURIComponent(company)}/total${query}`
+    )
+  },
+
+  copyToPeriod: async (sourcePeriod: string, targetPeriod: string, company?: string, adjustPercent?: number) => {
+    return fetchApi<{ source_period: string; target_period: string; copied: number; skipped: number }>(
+      '/api/additional-costs/copy',
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          source_period: sourcePeriod,
+          target_period: targetPeriod,
+          company,
+          adjust_percent: adjustPercent || 0,
+        }),
+      }
+    )
+  },
+}
+
 // ============== Upload API ==============
 
 export const uploadApi = {

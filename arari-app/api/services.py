@@ -960,16 +960,17 @@ class PayrollService:
         cursor.execute(query, params)
         return [dict(row) for row in cursor.fetchall()]
 
-    def get_company_statistics(self) -> List[Dict]:
-        """Get statistics by company"""
+    def get_company_statistics(self, period: str = None) -> List[Dict]:
+        """Get statistics by company, including additional costs"""
         cursor = self.db.cursor()
 
-        # Get latest period
-        cursor.execute("SELECT MAX(period) FROM payroll_records")
-        period = _get_first_col(cursor.fetchone())
+        # Get latest period if not specified
+        if not period:
+            cursor.execute("SELECT MAX(period) FROM payroll_records")
+            period = _get_first_col(cursor.fetchone())
 
         cursor.execute(
-            """
+            _q("""
             SELECT
                 e.dispatch_company as company_name,
                 COUNT(DISTINCT e.employee_id) as employee_count,
@@ -983,16 +984,44 @@ class PayrollService:
             LEFT JOIN payroll_records p ON e.employee_id = p.employee_id AND p.period = ?
             GROUP BY e.dispatch_company
             ORDER BY total_monthly_profit DESC
-        """,
+        """),
             (period,),
         )
 
         result = [dict(row) for row in cursor.fetchall()]
 
+        # Add additional costs and adjusted profit for each company
+        for c in result:
+            company_name = c["company_name"]
+            # Query additional costs for this company and period
+            cursor.execute(
+                _q("""
+                SELECT COALESCE(SUM(amount), 0) as additional_costs
+                FROM company_additional_costs
+                WHERE dispatch_company = ? AND period = ?
+            """),
+                (company_name, period),
+            )
+            add_cost_row = cursor.fetchone()
+            additional_costs = _get_first_col(add_cost_row) or 0
+
+            c["additional_costs"] = float(additional_costs)
+            c["adjusted_profit"] = float(c["total_monthly_profit"]) - float(additional_costs)
+
+            # Calculate adjusted margin
+            revenue = float(c["total_monthly_revenue"] or 0)
+            if revenue > 0:
+                c["adjusted_margin"] = (c["adjusted_profit"] / revenue) * 100
+            else:
+                c["adjusted_margin"] = 0.0
+
         # Add 'is_active' flag
         ignored = self.get_ignored_companies()
         for c in result:
             c["is_active"] = c["company_name"] not in ignored
+
+        # Re-sort by adjusted profit
+        result.sort(key=lambda x: x["adjusted_profit"], reverse=True)
 
         return result
 
