@@ -144,13 +144,20 @@ class AgentCommissionService:
         config = AGENT_CONFIGS[agent_id]
         cursor = self.db.cursor()
 
-        # Build company filter
+        # Build company filter with parameterized queries (prevent SQL injection)
+        ph = "%s" if USE_POSTGRES else "?"
         company_conditions = []
-        for target in config["target_companies"]:
-            company_conditions.append(f"e.dispatch_company LIKE '%{target}%'")
+        company_params = []
 
         if company_filter:
-            company_conditions = [f"e.dispatch_company LIKE '%{company_filter}%'"]
+            # User-specified filter takes precedence
+            company_conditions.append(f"e.dispatch_company LIKE {ph}")
+            company_params.append(f"%{company_filter}%")
+        else:
+            # Use configured target companies
+            for target in config["target_companies"]:
+                company_conditions.append(f"e.dispatch_company LIKE {ph}")
+                company_params.append(f"%{target}%")
 
         company_where = " OR ".join(company_conditions)
 
@@ -165,14 +172,16 @@ class AgentCommissionService:
                 COALESCE(p.absence_days, 0) as absence_days,
                 COALESCE(p.work_days, 0) as work_days
             FROM employees e
-            LEFT JOIN payroll_records p ON e.employee_id = p.employee_id AND p.period = ?
+            LEFT JOIN payroll_records p ON e.employee_id = p.employee_id AND p.period = {ph}
             WHERE ({company_where})
             AND e.status = 'active'
             AND p.employee_id IS NOT NULL
             ORDER BY e.dispatch_company, e.nationality, e.name
         """)
 
-        cursor.execute(query, (period,))
+        # Combine all params: period + company_params
+        all_params = [period] + company_params
+        cursor.execute(query, tuple(all_params))
         rows = cursor.fetchall()
 
         # Process results

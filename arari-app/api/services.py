@@ -338,6 +338,27 @@ class PayrollService:
         )
         return [row["period"] for row in cursor.fetchall()]
 
+    def get_payroll_by_employee_year(
+        self, employee_id: str, year: int
+    ) -> List[Dict]:
+        """Get payroll records for a specific employee and year (for wage ledger export)"""
+        cursor = self.db.cursor()
+
+        # Filter periods that match the year (e.g., "2025年1月", "2025年2月", etc.)
+        year_pattern = f"{year}年%"
+
+        cursor.execute(
+            _q("""
+            SELECT p.*, e.name as employee_name, e.dispatch_company
+            FROM payroll_records p
+            LEFT JOIN employees e ON p.employee_id = e.employee_id
+            WHERE p.employee_id = ? AND p.period LIKE ?
+            ORDER BY p.period ASC
+        """),
+            (employee_id, year_pattern),
+        )
+        return [dict(row) for row in cursor.fetchall()]
+
     # Insurance rates (2025年度) - configurable constants
     EMPLOYMENT_INSURANCE_RATE = 0.0090  # 雇用保険（会社負担）0.90% ← 2025年度
     WORKERS_COMP_RATE = 0.003  # 労災保険 0.3% (派遣業の場合、業種により0.25%~0.88%)
@@ -979,7 +1000,7 @@ class PayrollService:
                 AVG(e.hourly_rate) as average_hourly_rate,
                 AVG(e.billing_rate) as average_billing_rate,
                 AVG(e.billing_rate - e.hourly_rate) as average_profit,
-                AVG((e.billing_rate - e.hourly_rate) / e.billing_rate * 100) as average_margin,
+                AVG((e.billing_rate - e.hourly_rate) / NULLIF(e.billing_rate, 0) * 100) as average_margin,
                 COALESCE(SUM(p.gross_profit), 0) as total_monthly_profit,
                 COALESCE(SUM(p.billing_amount), 0) as total_monthly_revenue
             FROM employees e
