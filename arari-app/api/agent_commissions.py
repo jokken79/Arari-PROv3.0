@@ -144,13 +144,20 @@ class AgentCommissionService:
         config = AGENT_CONFIGS[agent_id]
         cursor = self.db.cursor()
 
-        # Build company filter
+        # Build company filter with parameterized queries (prevent SQL injection)
+        ph = "%s" if USE_POSTGRES else "?"
         company_conditions = []
-        for target in config["target_companies"]:
-            company_conditions.append(f"e.dispatch_company LIKE '%{target}%'")
+        company_params = []
 
         if company_filter:
-            company_conditions = [f"e.dispatch_company LIKE '%{company_filter}%'"]
+            # User-specified filter takes precedence
+            company_conditions.append(f"e.dispatch_company LIKE {ph}")
+            company_params.append(f"%{company_filter}%")
+        else:
+            # Use configured target companies
+            for target in config["target_companies"]:
+                company_conditions.append(f"e.dispatch_company LIKE {ph}")
+                company_params.append(f"%{target}%")
 
         company_where = " OR ".join(company_conditions)
 
@@ -165,14 +172,16 @@ class AgentCommissionService:
                 COALESCE(p.absence_days, 0) as absence_days,
                 COALESCE(p.work_days, 0) as work_days
             FROM employees e
-            LEFT JOIN payroll_records p ON e.employee_id = p.employee_id AND p.period = ?
+            LEFT JOIN payroll_records p ON e.employee_id = p.employee_id AND p.period = {ph}
             WHERE ({company_where})
             AND e.status = 'active'
             AND p.employee_id IS NOT NULL
             ORDER BY e.dispatch_company, e.nationality, e.name
         """)
 
-        cursor.execute(query, (period,))
+        # Combine all params: period + company_params
+        all_params = [period] + company_params
+        cursor.execute(query, tuple(all_params))
         rows = cursor.fetchall()
 
         # Process results
@@ -280,32 +289,52 @@ class AgentCommissionService:
         """
         Register calculated commission to additional_costs table.
         Creates a cost entry and records it in commission history.
+        Uses transaction to prevent TOCTOU race condition.
         """
         from additional_costs import AdditionalCostsService
 
         cursor = self.db.cursor()
         cost_service = AdditionalCostsService(self.db)
 
-        # Create the additional cost entry
-        config = AGENT_CONFIGS.get(agent_id, {})
-        agent_name = config.get("name", agent_id)
-
-        result = cost_service.create_cost(
-            dispatch_company=company,
-            period=period,
-            cost_type="other",  # Agent commission is "other" type
-            amount=amount,
-            notes=notes or f"{agent_name} 仲介手数料",
-            created_by="system",
-        )
-
-        if "error" in result:
-            return result
-
-        cost_id = result.get("id")
-
-        # Record in commission history
         try:
+            # Start transaction for atomic check-and-insert
+            cursor.execute("BEGIN")
+
+            # Check if already registered (within transaction to prevent race condition)
+            cursor.execute(
+                _q("""
+                SELECT registered_to_costs FROM agent_commission_records
+                WHERE agent_id = ? AND period = ? AND dispatch_company = ?
+            """),
+                (agent_id, period, company),
+            )
+            existing = cursor.fetchone()
+            if existing:
+                val = existing.get("registered_to_costs") if isinstance(existing, dict) else existing[0]
+                if val == 1:
+                    cursor.execute("ROLLBACK")
+                    return {"error": f"Commission already registered for {agent_id} / {period} / {company}"}
+
+            # Create the additional cost entry
+            config = AGENT_CONFIGS.get(agent_id, {})
+            agent_name = config.get("name", agent_id)
+
+            result = cost_service.create_cost(
+                dispatch_company=company,
+                period=period,
+                cost_type="other",  # Agent commission is "other" type
+                amount=amount,
+                notes=notes or f"{agent_name} 仲介手数料",
+                created_by="system",
+            )
+
+            if "error" in result:
+                cursor.execute("ROLLBACK")
+                return result
+
+            cost_id = result.get("id")
+
+            # Record in commission history
             cursor.execute(
                 _q("""
                 INSERT OR REPLACE INTO agent_commission_records
@@ -314,18 +343,23 @@ class AgentCommissionService:
             """),
                 (agent_id, period, company, amount, cost_id, datetime.now().isoformat()),
             )
-            self.db.commit()
-        except Exception as e:
-            print(f"Warning: Could not record commission history: {e}")
 
-        return {
-            "status": "registered",
-            "cost_id": cost_id,
-            "agent_id": agent_id,
-            "period": period,
-            "company": company,
-            "amount": amount,
-        }
+            cursor.execute("COMMIT")
+
+            return {
+                "status": "registered",
+                "cost_id": cost_id,
+                "agent_id": agent_id,
+                "period": period,
+                "company": company,
+                "amount": amount,
+            }
+        except Exception as e:
+            try:
+                cursor.execute("ROLLBACK")
+            except Exception:
+                pass
+            return {"error": f"Failed to register commission: {str(e)}"}
 
     def get_commission_history(
         self,

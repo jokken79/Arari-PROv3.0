@@ -272,12 +272,12 @@ export const useAppStore = create<AppState>()(
 
         try {
           // Parallel fetch all data at once (4x faster than sequential)
-          const [empResponse, payrollResponse, periodsResponse, statsResponse] = await Promise.all([
+          const [empResponse, payrollResponse, periodsResponse, statsResponse, _] = await Promise.all([
             employeeApi.getAll(),
             payrollApi.getAll(),
             payrollApi.getPeriods(),
             statisticsApi.getDashboard(),
-            get().loadSettings(),  // Load settings in parallel
+            get().loadSettings(),  // Load settings in parallel (result not needed)
           ])
 
           // Check for errors

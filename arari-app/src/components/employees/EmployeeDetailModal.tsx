@@ -23,15 +23,19 @@ export function EmployeeDetailModal({ employee, isOpen, onClose }: EmployeeDetai
   const [loading, setLoading] = useState(true)
   const focusTrapRef = useFocusTrap(isOpen)
 
+  // Load data from backend if needed
   useEffect(() => {
-    if (isOpen && employee) {
-      // Load payroll data if using backend
-      if (useBackend && payrollRecords.length === 0) {
-        loadDataFromBackend().finally(() => setLoading(false))
-      } else {
-        setLoading(false)
-      }
+    if (isOpen && employee && useBackend && payrollRecords.length === 0) {
+      setLoading(true)
+      loadDataFromBackend().finally(() => setLoading(false))
+    } else if (isOpen && employee) {
+      setLoading(false)
+    }
+  }, [isOpen, employee, useBackend, loadDataFromBackend, payrollRecords.length])
 
+  // Filter records AFTER data is loaded (separate effect to avoid race condition)
+  useEffect(() => {
+    if (isOpen && employee && !loading) {
       // Filter records for this employee and sort by period (newest first)
       // Use comparePeriods to handle 2025年10月 > 2025年9月 correctly
       const records = payrollRecords
@@ -40,7 +44,7 @@ export function EmployeeDetailModal({ employee, isOpen, onClose }: EmployeeDetai
 
       setEmployeeRecords(records)
     }
-  }, [isOpen, employee, payrollRecords, useBackend, loadDataFromBackend])
+  }, [isOpen, employee, payrollRecords, loading])
 
   if (!isOpen) return null
 

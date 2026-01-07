@@ -178,8 +178,16 @@ def check_rate_limit(client_ip: str, endpoint: str = "login") -> bool:
 async def rate_limit_login(request: Request):
     """
     Dependency for rate limiting login attempts.
+    Uses X-Forwarded-For header when behind a proxy (e.g., Railway, Vercel).
     """
-    client_ip = request.client.host if request.client else "unknown"
+    # Get client IP, checking X-Forwarded-For for proxy environments
+    forwarded_for = request.headers.get("X-Forwarded-For")
+    if forwarded_for:
+        # Take the first IP (original client) - proxies append to this header
+        client_ip = forwarded_for.split(",")[0].strip()
+    else:
+        client_ip = request.client.host if request.client else "unknown"
+
     check_rate_limit(client_ip, "login")
 
 

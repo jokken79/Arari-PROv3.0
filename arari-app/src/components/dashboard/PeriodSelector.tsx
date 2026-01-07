@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useEffect } from 'react'
+import { useMemo, useEffect, useCallback } from 'react'
 import { motion } from 'framer-motion'
 import { Calendar, ChevronLeft, ChevronRight } from 'lucide-react'
 import {
@@ -61,17 +61,17 @@ export function PeriodSelector({
   const canGoPrevious = currentIndex < sortedPeriods.length - 1
   const canGoNext = currentIndex > 0
 
-  const handlePrevious = () => {
+  const handlePrevious = useCallback(() => {
     if (canGoPrevious) {
       onPeriodChange(sortedPeriods[currentIndex + 1])
     }
-  }
+  }, [canGoPrevious, onPeriodChange, sortedPeriods, currentIndex])
 
-  const handleNext = () => {
+  const handleNext = useCallback(() => {
     if (canGoNext) {
       onPeriodChange(sortedPeriods[currentIndex - 1])
     }
-  }
+  }, [canGoNext, onPeriodChange, sortedPeriods, currentIndex])
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -96,7 +96,7 @@ export function PeriodSelector({
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [canGoPrevious, canGoNext, currentIndex])
+  }, [canGoPrevious, canGoNext, handlePrevious, handleNext])
 
   // Empty state
   if (periods.length === 0) {

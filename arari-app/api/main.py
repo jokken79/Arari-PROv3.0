@@ -26,6 +26,7 @@ from fastapi import Depends, FastAPI, File, Header, HTTPException, Request, Uplo
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, Response, StreamingResponse
 from pydantic import BaseModel
+from starlette.concurrency import run_in_threadpool
 
 from additional_costs import COST_TYPES as ADDITIONAL_COST_TYPES
 from additional_costs import AdditionalCostsService
@@ -448,11 +449,12 @@ async def sync_employees(
 @app.post("/api/import-employees")
 async def import_employees(
     file: UploadFile = File(...),
-    db: sqlite3.Connection = Depends(get_db)
+    db: sqlite3.Connection = Depends(get_db),
+    current_user: Dict[str, Any] = Depends(require_admin)
 ):
     """
     Dedicated endpoint for importing employees from Excel (DBGenzaiX format).
-    Used by EmployeeUploader.tsx
+    Used by EmployeeUploader.tsx (requires admin)
     """
     allowed_extensions = ['.xlsx', '.xlsm', '.xls']
     file_ext = '.' + file.filename.split('.')[-1].lower() if '.' in file.filename else ''
@@ -530,9 +532,10 @@ async def import_employees(
 @app.post("/api/upload")
 async def upload_payroll_file(
     file: UploadFile = File(...),
-    db: sqlite3.Connection = Depends(get_db)
+    db: sqlite3.Connection = Depends(get_db),
+    current_user: Dict[str, Any] = Depends(require_admin)
 ):
-    """Upload and parse a payroll file (Excel or CSV) with Streaming Log"""
+    """Upload and parse a payroll file (Excel or CSV) with Streaming Log (requires admin)"""
     import asyncio
     import concurrent.futures
 
@@ -610,7 +613,7 @@ async def upload_payroll_file(
 
                 # Batch save or single transaction? Using single transaction for speed/consistency
                 cursor = db.cursor()
-                cursor.execute("BEGIN TRANSACTION")
+                cursor.execute("BEGIN")  # Standard SQL (works in SQLite and PostgreSQL)
                 try:
                     total = len(records)
                     for i, record_data in enumerate(records):
@@ -1024,7 +1027,7 @@ async def sync_from_folder(
 
                 # Insert records
                 cursor = db.cursor()
-                cursor.execute("BEGIN TRANSACTION")
+                cursor.execute("BEGIN")  # Standard SQL (works in SQLite and PostgreSQL)
                 file_saved_count = 0
 
                 try:
@@ -1326,13 +1329,8 @@ async def register_commission_to_costs(
     if not all([agent_id, period, company, amount]):
         raise HTTPException(status_code=400, detail="Missing required fields")
 
-    # Check if already registered
-    if service.is_already_registered(agent_id, period, company):
-        raise HTTPException(
-            status_code=400,
-            detail=f"Commission already registered for {agent_id} / {period} / {company}"
-        )
-
+    # Registration now handles duplicate check atomically within a transaction
+    # to prevent TOCTOU race conditions
     result = service.register_to_additional_costs(
         agent_id=agent_id,
         period=period,
@@ -1641,7 +1639,7 @@ async def change_password(
 
     service = AuthService(db)
     result = service.change_password(
-        user_id=current_user.get("id"),
+        user_id=current_user.get("user_id"),
         old_password=old_password,
         new_password=new_password
     )

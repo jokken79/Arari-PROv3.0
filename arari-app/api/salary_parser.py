@@ -1287,7 +1287,8 @@ class SalaryStatementParser:
 
         # Check if hours already has decimal (e.g., 13.5)
         # If yes, it's already in decimal format - don't add minutes
-        if hours != int(hours):
+        # Use tolerance-based comparison to avoid floating point issues
+        if abs(hours - round(hours)) > 0.001:
             # Already decimal (e.g., 13.5), return as-is
             return hours
 
