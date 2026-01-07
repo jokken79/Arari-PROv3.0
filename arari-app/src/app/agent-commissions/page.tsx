@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Users,
@@ -61,14 +61,14 @@ export default function AgentCommissionsPage() {
   }, [periods])
 
   // Auto-select first agent
-  useMemo(() => {
+  useEffect(() => {
     if (agents.length > 0 && !selectedAgent) {
       setSelectedAgent(agents[0].id)
     }
   }, [agents, selectedAgent])
 
   // Auto-select latest period
-  useMemo(() => {
+  useEffect(() => {
     if (sortedPeriods.length > 0 && !selectedPeriod) {
       setSelectedPeriod(sortedPeriods[0])
     }

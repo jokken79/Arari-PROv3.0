@@ -1013,23 +1013,28 @@ class PayrollService:
 
         result = [dict(row) for row in cursor.fetchall()]
 
-        # Add additional costs and adjusted profit for each company
+        # Fetch all additional costs for the period in ONE query (fix N+1 pattern)
+        cursor.execute(
+            _q("""
+            SELECT dispatch_company, COALESCE(SUM(amount), 0) as additional_costs
+            FROM company_additional_costs
+            WHERE period = ?
+            GROUP BY dispatch_company
+        """),
+            (period,),
+        )
+        additional_costs_map = {
+            row["dispatch_company"]: float(row["additional_costs"])
+            for row in cursor.fetchall()
+        }
+
+        # Add additional costs and adjusted profit for each company (no more N+1)
         for c in result:
             company_name = c["company_name"]
-            # Query additional costs for this company and period
-            cursor.execute(
-                _q("""
-                SELECT COALESCE(SUM(amount), 0) as additional_costs
-                FROM company_additional_costs
-                WHERE dispatch_company = ? AND period = ?
-            """),
-                (company_name, period),
-            )
-            add_cost_row = cursor.fetchone()
-            additional_costs = _get_first_col(add_cost_row) or 0
+            additional_costs = additional_costs_map.get(company_name, 0.0)
 
-            c["additional_costs"] = float(additional_costs)
-            c["adjusted_profit"] = float(c["total_monthly_profit"]) - float(additional_costs)
+            c["additional_costs"] = additional_costs
+            c["adjusted_profit"] = float(c["total_monthly_profit"]) - additional_costs
 
             # Calculate adjusted margin
             revenue = float(c["total_monthly_revenue"] or 0)

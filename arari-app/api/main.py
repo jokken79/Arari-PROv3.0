@@ -613,7 +613,7 @@ async def upload_payroll_file(
 
                 # Batch save or single transaction? Using single transaction for speed/consistency
                 cursor = db.cursor()
-                cursor.execute("BEGIN TRANSACTION")
+                cursor.execute("BEGIN")  # Standard SQL (works in SQLite and PostgreSQL)
                 try:
                     total = len(records)
                     for i, record_data in enumerate(records):
@@ -1027,7 +1027,7 @@ async def sync_from_folder(
 
                 # Insert records
                 cursor = db.cursor()
-                cursor.execute("BEGIN TRANSACTION")
+                cursor.execute("BEGIN")  # Standard SQL (works in SQLite and PostgreSQL)
                 file_saved_count = 0
 
                 try:
