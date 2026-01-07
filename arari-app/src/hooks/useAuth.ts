@@ -261,22 +261,9 @@ export function useAuth() {
     return { success: false, error: lastError || 'ログインに失敗しました' }
   }
 
-  // Logout function
+  // Logout function - waits for server confirmation before clearing local state
   const logout = async () => {
-    try {
-      // Call backend logout endpoint
-      if (authState.token) {
-        await fetch(`${API_URL}/api/auth/logout`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${authState.token}`,
-          },
-        })
-      }
-    } catch (error) {
-      console.error('Logout error:', error)
-    } finally {
-      // Clear local storage and state
+    const clearLocalState = () => {
       localStorage.removeItem('auth_token')
       localStorage.removeItem('user')
       setAuthState({
@@ -285,9 +272,45 @@ export function useAuth() {
         isLoading: false,
         token: null,
       })
-
-      // Redirect to login
       window.location.href = '/login'
+    }
+
+    // If no token, just clear local state
+    if (!authState.token) {
+      clearLocalState()
+      return
+    }
+
+    try {
+      // Call backend logout endpoint with timeout
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 5000)
+
+      const response = await fetch(`${API_URL}/api/auth/logout`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${authState.token}`,
+        },
+        signal: controller.signal,
+      })
+
+      clearTimeout(timeoutId)
+
+      if (response.ok) {
+        // Server confirmed logout, safe to clear local state
+        clearLocalState()
+      } else {
+        // Server returned error, but still clear local state
+        // (token may already be invalid)
+        console.warn('Server logout returned error, clearing local state anyway')
+        clearLocalState()
+      }
+    } catch (error) {
+      console.error('Logout error:', error)
+      // On network error or timeout, still clear local state
+      // This prevents user from being stuck in authenticated state
+      // Note: token may still be valid on server until expiration
+      clearLocalState()
     }
   }
 

@@ -1329,13 +1329,8 @@ async def register_commission_to_costs(
     if not all([agent_id, period, company, amount]):
         raise HTTPException(status_code=400, detail="Missing required fields")
 
-    # Check if already registered
-    if service.is_already_registered(agent_id, period, company):
-        raise HTTPException(
-            status_code=400,
-            detail=f"Commission already registered for {agent_id} / {period} / {company}"
-        )
-
+    # Registration now handles duplicate check atomically within a transaction
+    # to prevent TOCTOU race conditions
     result = service.register_to_additional_costs(
         agent_id=agent_id,
         period=period,

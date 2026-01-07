@@ -289,32 +289,52 @@ class AgentCommissionService:
         """
         Register calculated commission to additional_costs table.
         Creates a cost entry and records it in commission history.
+        Uses transaction to prevent TOCTOU race condition.
         """
         from additional_costs import AdditionalCostsService
 
         cursor = self.db.cursor()
         cost_service = AdditionalCostsService(self.db)
 
-        # Create the additional cost entry
-        config = AGENT_CONFIGS.get(agent_id, {})
-        agent_name = config.get("name", agent_id)
-
-        result = cost_service.create_cost(
-            dispatch_company=company,
-            period=period,
-            cost_type="other",  # Agent commission is "other" type
-            amount=amount,
-            notes=notes or f"{agent_name} 仲介手数料",
-            created_by="system",
-        )
-
-        if "error" in result:
-            return result
-
-        cost_id = result.get("id")
-
-        # Record in commission history
         try:
+            # Start transaction for atomic check-and-insert
+            cursor.execute("BEGIN")
+
+            # Check if already registered (within transaction to prevent race condition)
+            cursor.execute(
+                _q("""
+                SELECT registered_to_costs FROM agent_commission_records
+                WHERE agent_id = ? AND period = ? AND dispatch_company = ?
+            """),
+                (agent_id, period, company),
+            )
+            existing = cursor.fetchone()
+            if existing:
+                val = existing.get("registered_to_costs") if isinstance(existing, dict) else existing[0]
+                if val == 1:
+                    cursor.execute("ROLLBACK")
+                    return {"error": f"Commission already registered for {agent_id} / {period} / {company}"}
+
+            # Create the additional cost entry
+            config = AGENT_CONFIGS.get(agent_id, {})
+            agent_name = config.get("name", agent_id)
+
+            result = cost_service.create_cost(
+                dispatch_company=company,
+                period=period,
+                cost_type="other",  # Agent commission is "other" type
+                amount=amount,
+                notes=notes or f"{agent_name} 仲介手数料",
+                created_by="system",
+            )
+
+            if "error" in result:
+                cursor.execute("ROLLBACK")
+                return result
+
+            cost_id = result.get("id")
+
+            # Record in commission history
             cursor.execute(
                 _q("""
                 INSERT OR REPLACE INTO agent_commission_records
@@ -323,18 +343,23 @@ class AgentCommissionService:
             """),
                 (agent_id, period, company, amount, cost_id, datetime.now().isoformat()),
             )
-            self.db.commit()
-        except Exception as e:
-            print(f"Warning: Could not record commission history: {e}")
 
-        return {
-            "status": "registered",
-            "cost_id": cost_id,
-            "agent_id": agent_id,
-            "period": period,
-            "company": company,
-            "amount": amount,
-        }
+            cursor.execute("COMMIT")
+
+            return {
+                "status": "registered",
+                "cost_id": cost_id,
+                "agent_id": agent_id,
+                "period": period,
+                "company": company,
+                "amount": amount,
+            }
+        except Exception as e:
+            try:
+                cursor.execute("ROLLBACK")
+            except Exception:
+                pass
+            return {"error": f"Failed to register commission: {str(e)}"}
 
     def get_commission_history(
         self,

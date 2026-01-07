@@ -109,22 +109,32 @@ class AdditionalCostsService:
         now = datetime.now().isoformat()
 
         try:
-            cursor.execute(
-                _q("""
-                INSERT INTO company_additional_costs
-                (dispatch_company, period, cost_type, amount, notes, created_by, created_at, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            """),
-                (dispatch_company, period, cost_type, amount, notes, created_by, now, now),
-            )
-            self.db.commit()
-
-            # Get the inserted ID
             if USE_POSTGRES:
-                cursor.execute("SELECT lastval()")
+                # Use RETURNING clause for atomic ID retrieval in PostgreSQL
+                cursor.execute(
+                    """
+                    INSERT INTO company_additional_costs
+                    (dispatch_company, period, cost_type, amount, notes, created_by, created_at, updated_at)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                    RETURNING id
+                """,
+                    (dispatch_company, period, cost_type, amount, notes, created_by, now, now),
+                )
+                result = cursor.fetchone()
+                cost_id = result["id"] if isinstance(result, dict) else result[0]
             else:
+                cursor.execute(
+                    """
+                    INSERT INTO company_additional_costs
+                    (dispatch_company, period, cost_type, amount, notes, created_by, created_at, updated_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                    (dispatch_company, period, cost_type, amount, notes, created_by, now, now),
+                )
                 cursor.execute("SELECT last_insert_rowid()")
-            cost_id = cursor.fetchone()[0]
+                cost_id = cursor.fetchone()[0]
+
+            self.db.commit()
 
             return {
                 "id": cost_id,
