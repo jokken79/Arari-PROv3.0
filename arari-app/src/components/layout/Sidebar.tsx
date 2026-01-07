@@ -22,6 +22,7 @@ import {
   FileSpreadsheet,
   AlertTriangle,
   Wallet,
+  Bus,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { API_BASE_URL } from '@/lib/api'
@@ -82,6 +83,12 @@ const navigation = [
     href: '/budgets',
     icon: Wallet,
     description: '予算vs実績',
+  },
+  {
+    name: '追加コスト',
+    href: '/additional-costs',
+    icon: Bus,
+    description: '送迎バス等',
   },
 ]
 
