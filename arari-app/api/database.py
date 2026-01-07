@@ -209,6 +209,7 @@ def init_db(conn=None):
         ("birth_date", "TEXT"),  # 生年月日: YYYY-MM-DD
         ("employee_type", "TEXT DEFAULT 'haken'"),  # 従業員タイプ: haken/ukeoi
         ("termination_date", "TEXT"),  # 退社日: YYYY-MM-DD
+        ("nationality", "TEXT"),  # 国籍: Vietnam, Philippines, etc.
     ]
 
     for col_name, col_type in employee_new_columns:
@@ -427,6 +428,13 @@ def init_db(conn=None):
         init_additional_costs_tables(conn)
     except Exception as e:
         print(f"[WARN] Additional costs tables: {e}")
+
+    try:
+        from agent_commissions import init_agent_commissions_tables
+
+        init_agent_commissions_tables(conn)
+    except Exception as e:
+        print(f"[WARN] Agent commissions tables: {e}")
 
     # NO sample data - start with clean database
     # Users will upload their own payroll files

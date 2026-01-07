@@ -23,6 +23,7 @@ import {
   AlertTriangle,
   Wallet,
   Bus,
+  UserCheck,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { API_BASE_URL } from '@/lib/api'
@@ -89,6 +90,12 @@ const navigation = [
     href: '/additional-costs',
     icon: Bus,
     description: '送迎バス等',
+  },
+  {
+    name: '仲介手数料',
+    href: '/agent-commissions',
+    icon: UserCheck,
+    description: 'エージェント報酬',
   },
 ]
 

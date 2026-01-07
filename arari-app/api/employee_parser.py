@@ -29,6 +29,8 @@ class EmployeeRecord:
     gender: Optional[str] = None  # 性別: 男/女 or M/F
     birth_date: Optional[str] = None  # 生年月日: Date of birth
     termination_date: Optional[str] = None  # 退社日: Resignation/termination date
+    # NEW FIELD - 2026-01-07
+    nationality: Optional[str] = None  # 国籍: Vietnam, Philippines, etc.
 
 
 class DBGenzaiXParser:
@@ -101,6 +103,15 @@ class DBGenzaiXParser:
             "end_date",
             "終了日",
             "離職日",
+        ],
+        # NEW FIELD - 2026-01-07
+        "nationality": [
+            "nationality",
+            "国籍",
+            "国",
+            "country",
+            "出身国",
+            "出身地",
         ],
     }
 
@@ -253,6 +264,7 @@ class DBGenzaiXParser:
                         gender=self._map_gender(row_data.get("gender")),
                         birth_date=self._format_date(row_data.get("birth_date")),
                         termination_date=termination_date,
+                        nationality=self._normalize_nationality(row_data.get("nationality")),
                     )
 
                     employees.append(emp)
@@ -438,3 +450,106 @@ class DBGenzaiXParser:
             pass
 
         return None
+
+    def _normalize_nationality(self, value) -> Optional[str]:
+        """
+        Normalize nationality value to standard format.
+        Maps various representations to consistent country names.
+        """
+        if value is None or value == "" or str(value).lower() == "none":
+            return None
+
+        nationality_str = str(value).strip()
+
+        # Mapping of various representations to normalized names
+        NATIONALITY_MAP = {
+            # Vietnamese
+            "ベトナム": "Vietnam",
+            "べとなむ": "Vietnam",
+            "vietnam": "Vietnam",
+            "viet nam": "Vietnam",
+            "vietnamese": "Vietnam",
+            "越南": "Vietnam",
+            "vn": "Vietnam",
+            # Philippines
+            "フィリピン": "Philippines",
+            "ふぃりぴん": "Philippines",
+            "philippines": "Philippines",
+            "philippine": "Philippines",
+            "filipino": "Philippines",
+            "ph": "Philippines",
+            # Indonesia
+            "インドネシア": "Indonesia",
+            "indonesia": "Indonesia",
+            "indonesian": "Indonesia",
+            "id": "Indonesia",
+            # China
+            "中国": "China",
+            "china": "China",
+            "chinese": "China",
+            "cn": "China",
+            # Thailand
+            "タイ": "Thailand",
+            "thailand": "Thailand",
+            "thai": "Thailand",
+            "th": "Thailand",
+            # Myanmar
+            "ミャンマー": "Myanmar",
+            "myanmar": "Myanmar",
+            "burma": "Myanmar",
+            "burmese": "Myanmar",
+            "mm": "Myanmar",
+            # Nepal
+            "ネパール": "Nepal",
+            "nepal": "Nepal",
+            "nepalese": "Nepal",
+            "np": "Nepal",
+            # Brazil
+            "ブラジル": "Brazil",
+            "brazil": "Brazil",
+            "brazilian": "Brazil",
+            "br": "Brazil",
+            # Peru
+            "ペルー": "Peru",
+            "peru": "Peru",
+            "peruvian": "Peru",
+            "pe": "Peru",
+            # Japan
+            "日本": "Japan",
+            "japan": "Japan",
+            "japanese": "Japan",
+            "jp": "Japan",
+            # Korea
+            "韓国": "Korea",
+            "korea": "Korea",
+            "korean": "Korea",
+            "kr": "Korea",
+            # Cambodia
+            "カンボジア": "Cambodia",
+            "cambodia": "Cambodia",
+            "cambodian": "Cambodia",
+            "kh": "Cambodia",
+            # Sri Lanka
+            "スリランカ": "Sri Lanka",
+            "sri lanka": "Sri Lanka",
+            "srilanka": "Sri Lanka",
+            "lk": "Sri Lanka",
+            # Bangladesh
+            "バングラデシュ": "Bangladesh",
+            "bangladesh": "Bangladesh",
+            "bangladeshi": "Bangladesh",
+            "bd": "Bangladesh",
+        }
+
+        # Try to find in map (case-insensitive)
+        nationality_lower = nationality_str.lower()
+        if nationality_lower in NATIONALITY_MAP:
+            return NATIONALITY_MAP[nationality_lower]
+
+        # Check for partial matches (e.g., "ベトナム人" contains "ベトナム")
+        for key, normalized in NATIONALITY_MAP.items():
+            if key in nationality_lower or nationality_lower in key:
+                return normalized
+
+        # If not found in map, return original (cleaned)
+        return nationality_str

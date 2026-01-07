@@ -232,8 +232,8 @@ class PayrollService:
             _q("""
             INSERT INTO employees (employee_id, name, name_kana, dispatch_company, department,
                                    hourly_rate, billing_rate, status, hire_date,
-                                   employee_type, gender, birth_date, termination_date)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                   employee_type, gender, birth_date, termination_date, nationality)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """),
             (
                 employee.employee_id,
@@ -249,6 +249,7 @@ class PayrollService:
                 getattr(employee, "gender", None),
                 getattr(employee, "birth_date", None),
                 getattr(employee, "termination_date", None),
+                getattr(employee, "nationality", None),
             ),
         )
         self.db.commit()
@@ -265,7 +266,7 @@ class PayrollService:
             SET name = ?, name_kana = ?, dispatch_company = ?, department = ?,
                 hourly_rate = ?, billing_rate = ?, status = ?, hire_date = ?,
                 employee_type = ?, gender = ?, birth_date = ?, termination_date = ?,
-                updated_at = CURRENT_TIMESTAMP
+                nationality = ?, updated_at = CURRENT_TIMESTAMP
             WHERE employee_id = ?
         """),
             (
@@ -281,6 +282,7 @@ class PayrollService:
                 getattr(employee, "gender", None),
                 getattr(employee, "birth_date", None),
                 getattr(employee, "termination_date", None),
+                getattr(employee, "nationality", None),
                 employee_id,
             ),
         )
