@@ -199,7 +199,7 @@ export default function LoginPage() {
           >
             {[
               { icon: Shield, title: '銀行レベルセキュリティ', desc: 'SSL 256-bit暗号化でデータ保護' },
-              { icon: BarChart3, title: 'リアルタイム粗利分析', desc: '15%マージン目標をサポート' },
+              { icon: BarChart3, title: 'リアルタイム粗利分析', desc: '12%マージン目標をサポート' },
               { icon: Zap, title: '高速パフォーマンス', desc: '959+従業員を瞬時に処理' },
             ].map((feature, index) => (
               <motion.div

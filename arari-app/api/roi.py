@@ -73,8 +73,8 @@ class ROIService:
                 profit / emp_count if emp_count and emp_count > 0 else 0
             )
 
-            # Calculate efficiency (actual margin vs target 15%)
-            efficiency = (margin / 15 * 100) if margin else 0
+            # Calculate efficiency (actual margin vs target 12%)
+            efficiency = (margin / 12 * 100) if margin else 0
 
             results.append(
                 {
@@ -234,8 +234,8 @@ class ROIService:
         client_roi = self.calculate_client_roi(period=period)
 
         # Calculate distribution
-        profitable_clients = sum(1 for c in client_roi if c["margin"] >= 15)
-        underperforming_clients = sum(1 for c in client_roi if c["margin"] < 15)
+        profitable_clients = sum(1 for c in client_roi if c["margin"] >= 12)
+        underperforming_clients = sum(1 for c in client_roi if c["margin"] < 12)
 
         return {
             "period": period,
@@ -252,7 +252,7 @@ class ROIService:
             "profitable_clients": profitable_clients,
             "underperforming_clients": underperforming_clients,
             "status": self._get_status(margin),
-            "target_margin": 15.0,
+            "target_margin": 12.0,
         }
 
     def get_roi_trend(self, months: int = 6) -> List[Dict[str, Any]]:
@@ -307,7 +307,7 @@ class ROIService:
             if client["margin"] < 10:
                 # Critical - suggest rate increase
                 current_rate = client["avg_billing_rate"]
-                target_rate = self._calculate_target_rate(client["avg_hourly_rate"], 15)
+                target_rate = self._calculate_target_rate(client["avg_hourly_rate"], 12)
                 increase_needed = target_rate - current_rate
 
                 recommendations.append(
@@ -316,7 +316,7 @@ class ROIService:
                         "type": "rate_increase",
                         "client": client["company"],
                         "current_margin": client["margin"],
-                        "target_margin": 15,
+                        "target_margin": 12,
                         "current_rate": current_rate,
                         "suggested_rate": target_rate,
                         "increase_needed": increase_needed,
@@ -324,7 +324,7 @@ class ROIService:
                     }
                 )
 
-            elif client["margin"] < 15:
+            elif client["margin"] < 12:
                 # Warning - suggest review
                 recommendations.append(
                     {
@@ -332,7 +332,7 @@ class ROIService:
                         "type": "review",
                         "client": client["company"],
                         "current_margin": client["margin"],
-                        "target_margin": 15,
+                        "target_margin": 12,
                         "message": f"{client['company']}: マージン {client['margin']:.1f}% - コスト見直しまたは単価交渉を検討",
                     }
                 )
@@ -358,14 +358,14 @@ class ROIService:
         return round(target_rate, 0)
 
     def _get_status(self, margin: float) -> str:
-        """Get status based on margin"""
+        """Get status based on margin - 4-tier system with 12% target"""
         if margin is None:
             return "no_data"
-        elif margin >= 18:
-            return "excellent"
-        elif margin >= 15:
+        elif margin >= 12:
             return "on_target"
         elif margin >= 10:
+            return "close_to_target"
+        elif margin >= 7:
             return "below_target"
         else:
             return "critical"

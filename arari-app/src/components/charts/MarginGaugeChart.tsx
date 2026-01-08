@@ -1,5 +1,6 @@
 'use client'
 
+import React from 'react'
 import { motion } from 'framer-motion'
 import {
   PieChart,
@@ -18,7 +19,7 @@ interface MarginGaugeChartProps {
   previousMargin?: number
 }
 
-export function MarginGaugeChart({
+export const MarginGaugeChart = React.memo(function MarginGaugeChart({
   currentMargin,
   targetMargin = 12,
   previousMargin
@@ -214,4 +215,4 @@ export function MarginGaugeChart({
       </Card>
     </motion.div>
   )
-}
+})

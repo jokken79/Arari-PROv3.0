@@ -79,7 +79,7 @@ export default function BudgetsPage() {
     entity_id: 'ALL',
     revenue_budget: '',
     cost_budget: '',
-    margin_target: '15',
+    margin_target: '12',
     notes: '',
   })
 
@@ -121,7 +121,7 @@ export default function BudgetsPage() {
           entity_id: formData.entity_id,
           revenue_budget: parseFloat(formData.revenue_budget) || 0,
           cost_budget: parseFloat(formData.cost_budget) || 0,
-          margin_target: parseFloat(formData.margin_target) || 15,
+          margin_target: parseFloat(formData.margin_target) || 12,
           notes: formData.notes || null,
         }),
       })
@@ -313,7 +313,7 @@ export default function BudgetsPage() {
                         type="number"
                         value={formData.margin_target}
                         onChange={e => setFormData({ ...formData, margin_target: e.target.value })}
-                        placeholder="15"
+                        placeholder="12"
                       />
                     </div>
                   </div>

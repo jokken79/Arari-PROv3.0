@@ -313,9 +313,8 @@ function PerformanceBadge({
   marginColors: MarginColors
 }) {
   const getPerformanceLabel = () => {
-    if (marginRate >= 15) return '優秀 Excellent'
-    if (marginRate >= 12) return '良好 Good'
-    if (marginRate >= 10) return '普通 Average'
+    if (marginRate >= 12) return '優秀 Excellent'
+    if (marginRate >= 10) return '良好 Good'
     if (marginRate >= 7) return '要改善 Needs Work'
     return '警告 Warning'
   }

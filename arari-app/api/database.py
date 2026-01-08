@@ -275,7 +275,7 @@ def init_db(conn=None):
         ),
         ("workers_comp_rate", "0.003", "労災保険 - 製造業: 0.3%"),
         ("fiscal_year", "2025", "適用年度"),
-        ("target_margin", "15", "目標マージン率 (%) - 製造派遣"),
+        ("target_margin", "12", "目標マージン率 (%) - 製造派遣"),
     ]
 
     if USE_POSTGRES:

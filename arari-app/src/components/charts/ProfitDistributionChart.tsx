@@ -19,8 +19,9 @@ interface ProfitDistributionChartProps {
   }[]
 }
 
-// Colors for margin ranges: <10% (red), 10-12% (green), 12-15% (blue), >15% (gold)
-const COLORS = ['#ef4444', '#22c55e', '#3b82f6', '#f59e0b']
+// Colors for margin ranges (4-tier system): <7% (red), 7-10% (orange), 10-12% (green), ≥12% (emerald)
+// Target margin: 12%
+const COLORS = ['#ef4444', '#f97316', '#22c55e', '#10b981']
 
 const CustomTooltip = ({ active, payload }: any) => {
   if (active && payload && payload.length) {
