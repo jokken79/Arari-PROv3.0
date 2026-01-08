@@ -167,7 +167,7 @@ export const useCopyAdditionalCosts = () => {
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['additionalCosts'] })
-      const count = data?.copied_count || 0
+      const count = data?.copied || 0
       toast.success(`${count}件の追加コストをコピーしました`)
     },
     onError: (error: Error) => {
