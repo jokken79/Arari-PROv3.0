@@ -5,6 +5,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { additionalCostsApi, AdditionalCostCreate, AdditionalCost } from '@/lib/api'
+import toast from 'react-hot-toast'
 
 /**
  * Fetch all additional costs with optional filtering
@@ -17,6 +18,8 @@ export const useAdditionalCosts = (company?: string, period?: string) => {
       if (response.error) throw new Error(response.error)
       return response.data || []
     },
+    staleTime: 1000 * 60 * 5,  // 5 minutes
+    gcTime: 1000 * 60 * 10,    // 10 minutes
   })
 }
 
@@ -32,6 +35,8 @@ export const useAdditionalCost = (id: number) => {
       return response.data
     },
     enabled: !!id,
+    staleTime: 1000 * 60 * 5,  // 5 minutes
+    gcTime: 1000 * 60 * 10,    // 10 minutes
   })
 }
 
@@ -46,6 +51,8 @@ export const useAdditionalCostsSummary = (period?: string) => {
       if (response.error) throw new Error(response.error)
       return response.data || []
     },
+    staleTime: 1000 * 60 * 5,  // 5 minutes
+    gcTime: 1000 * 60 * 10,    // 10 minutes
   })
 }
 
@@ -66,6 +73,10 @@ export const useCreateAdditionalCost = () => {
       queryClient.invalidateQueries({ queryKey: ['additionalCosts'] })
       queryClient.invalidateQueries({ queryKey: ['companyStatistics'] })
       queryClient.invalidateQueries({ queryKey: ['statistics'] })
+      toast.success('追加コストを保存しました')
+    },
+    onError: (error: Error) => {
+      toast.error(`エラー: ${error.message}`)
     },
   })
 }
@@ -86,6 +97,10 @@ export const useUpdateAdditionalCost = () => {
       queryClient.invalidateQueries({ queryKey: ['additionalCosts'] })
       queryClient.invalidateQueries({ queryKey: ['companyStatistics'] })
       queryClient.invalidateQueries({ queryKey: ['statistics'] })
+      toast.success('追加コストを更新しました')
+    },
+    onError: (error: Error) => {
+      toast.error(`エラー: ${error.message}`)
     },
   })
 }
@@ -106,6 +121,10 @@ export const useDeleteAdditionalCost = () => {
       queryClient.invalidateQueries({ queryKey: ['additionalCosts'] })
       queryClient.invalidateQueries({ queryKey: ['companyStatistics'] })
       queryClient.invalidateQueries({ queryKey: ['statistics'] })
+      toast.success('追加コストを削除しました')
+    },
+    onError: (error: Error) => {
+      toast.error(`エラー: ${error.message}`)
     },
   })
 }
@@ -122,6 +141,8 @@ export const useCompanyTotalCosts = (company: string, period?: string) => {
       return response.data
     },
     enabled: !!company,
+    staleTime: 1000 * 60 * 5,  // 5 minutes
+    gcTime: 1000 * 60 * 10,    // 10 minutes
   })
 }
 
@@ -152,8 +173,13 @@ export const useCopyAdditionalCosts = () => {
       if (response.error) throw new Error(response.error)
       return response.data
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['additionalCosts'] })
+      const count = data?.copied || 0
+      toast.success(`${count}件の追加コストをコピーしました`)
+    },
+    onError: (error: Error) => {
+      toast.error(`エラー: ${error.message}`)
     },
   })
 }

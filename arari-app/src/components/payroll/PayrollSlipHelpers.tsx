@@ -1,6 +1,7 @@
 'use client'
 
 import { formatYen } from '@/lib/utils'
+import { getMarginTier, MARGIN_COLORS } from '@/constants/marginColors'
 
 /**
  * Helper Components for PayrollSlipModal
@@ -144,35 +145,34 @@ export interface MarginColors {
 }
 
 export function getMarginColors(margin: number, targetMargin: number = 12): MarginColors {
-  // 4-tier system: >12% (emerald), 10-12% (green), 7-10% (orange), <7% (red)
-  if (margin >= targetMargin) {
-    return {
-      text: 'text-emerald-500',
-      bg: 'bg-emerald-500',
-      border: 'border-emerald-500',
-      light: 'bg-emerald-50 dark:bg-emerald-900/20'
-    }
-  }
-  if (margin >= 10) {
-    return {
-      text: 'text-green-500',
-      bg: 'bg-green-500',
-      border: 'border-green-500',
-      light: 'bg-green-50 dark:bg-green-900/20'
-    }
-  }
-  if (margin >= 7) {
-    return {
+  const tier = getMarginTier(margin)
+
+  const colorMap: Record<string, MarginColors> = {
+    critical: {
+      text: 'text-red-500',
+      bg: 'bg-red-500/20',
+      border: 'border-red-500/50',
+      light: 'text-red-400',
+    },
+    warning: {
       text: 'text-orange-500',
-      bg: 'bg-orange-500',
-      border: 'border-orange-500',
-      light: 'bg-orange-50 dark:bg-orange-900/20'
-    }
+      bg: 'bg-orange-500/20',
+      border: 'border-orange-500/50',
+      light: 'text-orange-400',
+    },
+    good: {
+      text: 'text-green-500',
+      bg: 'bg-green-500/20',
+      border: 'border-green-500/50',
+      light: 'text-green-400',
+    },
+    excellent: {
+      text: 'text-emerald-500',
+      bg: 'bg-emerald-500/20',
+      border: 'border-emerald-500/50',
+      light: 'text-emerald-400',
+    },
   }
-  return {
-    text: 'text-red-500',
-    bg: 'bg-red-500',
-    border: 'border-red-500',
-    light: 'bg-red-50 dark:bg-red-900/20'
-  }
+
+  return colorMap[tier]
 }

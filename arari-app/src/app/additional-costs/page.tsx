@@ -29,6 +29,16 @@ import {
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/confirm-dialog'
+import {
   useAdditionalCosts,
   useCreateAdditionalCost,
   useUpdateAdditionalCost,
@@ -47,6 +57,7 @@ export default function AdditionalCostsPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [isCopyDialogOpen, setIsCopyDialogOpen] = useState(false)
   const [editingCost, setEditingCost] = useState<AdditionalCost | null>(null)
+  const [deleteId, setDeleteId] = useState<number | null>(null)
 
   // Form state
   const [formData, setFormData] = useState<AdditionalCostCreate>({
@@ -139,12 +150,11 @@ export default function AdditionalCostsPage() {
   }
 
   const handleDelete = async (id: number) => {
-    if (confirm('この追加コストを削除しますか？')) {
-      try {
-        await deleteMutation.mutateAsync(id)
-      } catch (error) {
-        console.error('Failed to delete cost:', error)
-      }
+    try {
+      await deleteMutation.mutateAsync(id)
+      setDeleteId(null)
+    } catch (error) {
+      console.error('Failed to delete cost:', error)
     }
   }
 
@@ -219,7 +229,7 @@ export default function AdditionalCostsPage() {
                   <div>
                     <Label className="text-sm font-medium mb-2 block">期間</Label>
                     <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
-                      <SelectTrigger>
+                      <SelectTrigger aria-label="期間を選択">
                         <SelectValue placeholder="すべての期間" />
                       </SelectTrigger>
                       <SelectContent>
@@ -236,7 +246,7 @@ export default function AdditionalCostsPage() {
                   <div>
                     <Label className="text-sm font-medium mb-2 block">企業</Label>
                     <Select value={selectedCompany} onValueChange={setSelectedCompany}>
-                      <SelectTrigger>
+                      <SelectTrigger aria-label="企業を選択">
                         <SelectValue placeholder="すべての企業" />
                       </SelectTrigger>
                       <SelectContent>
@@ -374,7 +384,7 @@ export default function AdditionalCostsPage() {
                                         <Button
                                           variant="ghost"
                                           size="sm"
-                                          onClick={() => handleDelete(cost.id)}
+                                          onClick={() => setDeleteId(cost.id)}
                                           className="text-red-500 hover:text-red-700"
                                         >
                                           <Trash2 className="h-4 w-4" />
@@ -433,7 +443,7 @@ export default function AdditionalCostsPage() {
                           setFormData((prev) => ({ ...prev, dispatch_company: v }))
                         }
                       >
-                        <SelectTrigger>
+                        <SelectTrigger aria-label="企業を選択">
                           <SelectValue placeholder="企業を選択" />
                         </SelectTrigger>
                         <SelectContent>
@@ -454,7 +464,7 @@ export default function AdditionalCostsPage() {
                           setFormData((prev) => ({ ...prev, period: v }))
                         }
                       >
-                        <SelectTrigger>
+                        <SelectTrigger aria-label="期間を選択">
                           <SelectValue placeholder="期間を選択" />
                         </SelectTrigger>
                         <SelectContent>
@@ -477,7 +487,7 @@ export default function AdditionalCostsPage() {
                       setFormData((prev) => ({ ...prev, cost_type: v }))
                     }
                   >
-                    <SelectTrigger>
+                    <SelectTrigger aria-label="コストタイプを選択">
                       <SelectValue placeholder="タイプを選択" />
                     </SelectTrigger>
                     <SelectContent>
@@ -504,6 +514,7 @@ export default function AdditionalCostsPage() {
                     placeholder="150000"
                     min="0"
                     step="1"
+                    aria-label="金額を入力"
                   />
                 </div>
 
@@ -515,6 +526,7 @@ export default function AdditionalCostsPage() {
                       setFormData((prev) => ({ ...prev, notes: e.target.value }))
                     }
                     placeholder="任意のメモ"
+                    aria-label="備考を入力"
                   />
                 </div>
 
@@ -584,7 +596,7 @@ export default function AdditionalCostsPage() {
                 <div>
                   <Label>コピー元の期間</Label>
                   <Select value={copySource} onValueChange={setCopySource}>
-                    <SelectTrigger>
+                    <SelectTrigger aria-label="コピー元の期間を選択">
                       <SelectValue placeholder="コピー元を選択" />
                     </SelectTrigger>
                     <SelectContent>
@@ -600,7 +612,7 @@ export default function AdditionalCostsPage() {
                 <div>
                   <Label>コピー先の期間</Label>
                   <Select value={copyTarget} onValueChange={setCopyTarget}>
-                    <SelectTrigger>
+                    <SelectTrigger aria-label="コピー先の期間を選択">
                       <SelectValue placeholder="コピー先を選択" />
                     </SelectTrigger>
                     <SelectContent>
@@ -641,6 +653,27 @@ export default function AdditionalCostsPage() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteId !== null} onOpenChange={(open) => !open && setDeleteId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>削除の確認</AlertDialogTitle>
+            <AlertDialogDescription>
+              この追加コストを削除しますか？この操作は取り消せません。
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>キャンセル</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => deleteId && handleDelete(deleteId)}
+              className="bg-red-500 hover:bg-red-600"
+            >
+              削除
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

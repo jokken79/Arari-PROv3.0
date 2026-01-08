@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import React, { useState } from 'react'
 import { motion } from 'framer-motion'
 import {
   BarChart,
@@ -67,7 +67,7 @@ const GRADIENT_COLORS = [
   ['#ec4899', '#be185d'],
 ]
 
-export function CompanyProfitChart({ data }: CompanyProfitChartProps) {
+export const CompanyProfitChart = React.memo(function CompanyProfitChart({ data }: CompanyProfitChartProps) {
   const [viewMode, setViewMode] = useState<'total' | 'perEmployee'>('total')
 
   // Add profitPerEmployee to each data point
@@ -119,7 +119,11 @@ export function CompanyProfitChart({ data }: CompanyProfitChartProps) {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="h-[300px]">
+          <div
+            className="h-[300px]"
+            role="img"
+            aria-label="企業別利益チャート: 派遣先別の利益比較"
+          >
             <ResponsiveContainer width="100%" height="100%">
               <BarChart
                 data={sortedData}
@@ -189,4 +193,4 @@ export function CompanyProfitChart({ data }: CompanyProfitChartProps) {
       </Card>
     </motion.div>
   )
-}
+})

@@ -1,5 +1,6 @@
 'use client'
 
+import React from 'react'
 import { motion } from 'framer-motion'
 import {
   BarChart,
@@ -46,7 +47,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   return null
 }
 
-export function CostBreakdownChart({ data }: CostBreakdownChartProps) {
+export const CostBreakdownChart = React.memo(function CostBreakdownChart({ data }: CostBreakdownChartProps) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -64,7 +65,11 @@ export function CostBreakdownChart({ data }: CostBreakdownChartProps) {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="h-[350px]">
+          <div
+            className="h-[350px]"
+            role="img"
+            aria-label="コスト内訳: 給与・保険・福利厚生の構成"
+          >
             <ResponsiveContainer width="100%" height="100%">
               <BarChart
                 data={data}
@@ -127,4 +132,4 @@ export function CostBreakdownChart({ data }: CostBreakdownChartProps) {
       </Card>
     </motion.div>
   )
-}
+})

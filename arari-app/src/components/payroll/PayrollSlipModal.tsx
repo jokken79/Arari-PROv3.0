@@ -65,6 +65,7 @@ export function PayrollSlipModal({ isOpen, onClose, record, employee }: PayrollS
         className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/60 dark:bg-black/80 backdrop-blur-md overflow-y-auto"
         role="dialog"
         aria-modal="true"
+        aria-live="polite"
         aria-labelledby="payroll-modal-title"
         onKeyDown={(e) => e.key === 'Escape' && onClose()}
       >
@@ -92,17 +93,17 @@ export function PayrollSlipModal({ isOpen, onClose, record, employee }: PayrollS
           {/* Mobile Tab Navigation */}
           <MobileTabNav activeTab={activeTab} setActiveTab={setActiveTab} />
 
-          {/* Main Content - 3 Columns on desktop, tabs on mobile */}
+          {/* Main Content - 3 Columns on desktop, 2 columns on tablet, tabs on mobile */}
           <div className="flex-1 overflow-y-auto p-3 sm:p-6 bg-gradient-to-br from-slate-950 to-slate-900 dark:from-[#0a0a0a] dark:to-[#111]">
-            {/* Desktop: Show all 3 columns */}
-            <div className="hidden lg:grid lg:grid-cols-3 gap-6">
+            {/* Desktop: Show all 3 columns, Tablet: Show 2 columns */}
+            <div className="hidden md:grid md:grid-cols-2 lg:grid-cols-3 gap-6">
               <SalaryDetailsColumn record={record} employee={employee} />
               <BillingCalculationColumn record={record} employee={employee} />
               <ProfitAnalysisColumn record={record} employee={employee} settings={settings} />
             </div>
 
             {/* Mobile: Show active tab only */}
-            <div className="lg:hidden">
+            <div className="md:hidden">
               {activeTab === 'salary' && <SalaryDetailsColumn record={record} employee={employee} />}
               {activeTab === 'billing' && <BillingCalculationColumn record={record} employee={employee} />}
               {activeTab === 'profit' && <ProfitAnalysisColumn record={record} employee={employee} settings={settings} />}
@@ -252,7 +253,7 @@ function MobileTabNav({
   }
 
   return (
-    <div className="lg:hidden flex border-b border-border bg-muted/20 shrink-0">
+    <div className="md:hidden flex border-b border-border bg-muted/20 shrink-0">
       <button
         onClick={() => setActiveTab('salary')}
         className={`flex-1 flex items-center justify-center gap-2 px-3 py-3 text-sm font-medium transition-colors ${getTabStyles('salary', activeTab === 'salary')}`}

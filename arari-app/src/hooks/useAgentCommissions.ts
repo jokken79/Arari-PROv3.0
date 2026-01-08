@@ -4,6 +4,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { agentCommissionsApi } from '@/lib/api'
+import toast from 'react-hot-toast'
 
 // Query keys
 const QUERY_KEYS = {
@@ -116,6 +117,10 @@ export function useRegisterCommission() {
       // Invalidate related queries
       queryClient.invalidateQueries({ queryKey: ['agent-commissions'] })
       queryClient.invalidateQueries({ queryKey: ['additional-costs'] })
+      toast.success('仲介手数料を追加コストに登録しました')
+    },
+    onError: (error: Error) => {
+      toast.error(`エラー: ${error.message}`)
     },
   })
 }

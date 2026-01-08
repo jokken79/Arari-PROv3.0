@@ -18,12 +18,12 @@ export function RecentPayrolls({ payrolls, employees }: RecentPayrollsProps) {
     return employees.find(e => e.employeeId === employeeId)
   }
 
-  // 製造派遣 margin targets: >15% gold, 12-15% blue, 10-12% green, 7-10% orange, <7% red
+  // 製造派遣 margin targets (4-tier system): <7% (red), 7-10% (orange), 10-12% (green), ≥12% (emerald)
+  // Target margin: 12%
   const getBadgeVariant = (margin: number) => {
-    if (margin >= 15) return 'success'   // gold - target achieved
-    if (margin >= 12) return 'info'      // blue - close to target
-    if (margin >= 10) return 'success'   // green - improvement needed
-    if (margin >= 7) return 'warning'    // orange - warning
+    if (margin >= 12) return 'success'   // emerald/green - target achieved
+    if (margin >= 10) return 'info'      // green - good
+    if (margin >= 7) return 'warning'    // orange - needs improvement
     return 'danger'                      // red - critical
   }
 

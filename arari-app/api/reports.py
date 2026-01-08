@@ -48,14 +48,14 @@ except ImportError:
     JAPANESE_FONT = 'Helvetica'
 
 # PDF Color scheme
-# Margin thresholds: >15% (excellent), 12-15% (good), 10-12% (average), 7-10% (needs work), <7% (warning)
+# Margin thresholds (4-tier system): ≥12% (excellent), 10-12% (good), 7-10% (needs work), <7% (critical)
 PDF_COLORS = {
     'primary': colors.HexColor('#4472C4'),       # Blue (headers)
     'secondary': colors.HexColor('#6B7280'),     # Gray
-    'success': colors.HexColor('#10B981'),       # Emerald (margin >= 15% excellent)
-    'good': colors.HexColor('#22C55E'),          # Green (margin 12-15%)
-    'average': colors.HexColor('#F97316'),       # Orange (margin 10-12%)
-    'warning': colors.HexColor('#F59E0B'),       # Yellow/Amber (margin 7-10%)
+    'success': colors.HexColor('#10B981'),       # Emerald (margin >= 12% excellent)
+    'good': colors.HexColor('#22C55E'),          # Green (margin 10-12%)
+    'average': colors.HexColor('#F97316'),       # Orange (margin 7-10%)
+    'warning': colors.HexColor('#F59E0B'),       # Yellow/Amber (kept for backward compat)
     'danger': colors.HexColor('#EF4444'),        # Red (margin < 7%)
     'light': colors.HexColor('#F3F4F6'),         # Light gray background
     'white': colors.white,
@@ -1278,16 +1278,14 @@ class ReportService:
 
     def _get_margin_color(self, margin: float) -> colors.Color:
         """Get color based on profit margin
-        Thresholds: >15% (excellent), 12-15% (good), 10-12% (average), 7-10% (needs work), <7% (warning)
+        4-tier system: ≥12% (excellent), 10-12% (good), 7-10% (needs work), <7% (critical)
         """
-        if margin >= 15:
+        if margin >= 12:
             return PDF_COLORS['success']
-        elif margin >= 12:
-            return PDF_COLORS['good']
         elif margin >= 10:
-            return PDF_COLORS['average']
+            return PDF_COLORS['good']
         elif margin >= 7:
-            return PDF_COLORS['warning']
+            return PDF_COLORS['average']
         else:
             return PDF_COLORS['danger']
 

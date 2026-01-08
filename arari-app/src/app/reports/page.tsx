@@ -242,7 +242,7 @@ export default function ReportsPage() {
                   value={selectedPeriod}
                   onValueChange={setSelectedPeriod}
                 >
-                  <SelectTrigger className="w-[180px]">
+                  <SelectTrigger className="w-[180px]" aria-label="期間を選択">
                     <SelectValue placeholder="期間を選択" />
                   </SelectTrigger>
                   <SelectContent>

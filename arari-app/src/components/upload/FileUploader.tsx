@@ -19,6 +19,7 @@ import { cn } from '@/lib/utils'
 // import { uploadApi } from '@/lib/api' // Bypassing for streaming support
 import { API_BASE_URL } from '@/lib/api'
 import { useAppStore } from '@/store/appStore'
+import toast from 'react-hot-toast'
 
 interface UploadedFileInfo {
   id: string
@@ -185,13 +186,14 @@ export function FileUploader() {
         }
 
         // Success - finalize file status
+        const recordCount = finalStats?.saved || finalStats?.imported || 0
         setFiles(prev => prev.map(f =>
           f.id === fileInfo.id
             ? {
               ...f,
               status: 'success',
               progress: 100,
-              records: finalStats?.saved || finalStats?.imported || 0,
+              records: recordCount,
               skipped: finalStats?.skipped || 0,
               errorCount: finalStats?.errors || 0,
             }
@@ -199,6 +201,10 @@ export function FileUploader() {
         ))
 
         await refreshFromBackend()
+
+        // Show success toast
+        toast.success(`${fileInfo.name}を正常にアップロードしました (${recordCount}件)`)
+
         return // Success - exit retry loop
 
       } catch (err) {
@@ -230,6 +236,10 @@ export function FileUploader() {
               }
               : f
           ))
+
+          // Show error toast
+          toast.error(`${fileInfo.name}のアップロードに失敗しました: ${errMsg}`)
+
           return // Exit after final error
         }
 

@@ -199,7 +199,7 @@ export default function LoginPage() {
           >
             {[
               { icon: Shield, title: '銀行レベルセキュリティ', desc: 'SSL 256-bit暗号化でデータ保護' },
-              { icon: BarChart3, title: 'リアルタイム粗利分析', desc: '15%マージン目標をサポート' },
+              { icon: BarChart3, title: 'リアルタイム粗利分析', desc: '12%マージン目標をサポート' },
               { icon: Zap, title: '高速パフォーマンス', desc: '959+従業員を瞬時に処理' },
             ].map((feature, index) => (
               <motion.div
@@ -346,7 +346,8 @@ export default function LoginPage() {
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
                     className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors p-1"
-                    tabIndex={-1}
+                    aria-label="パスワード表示切り替え"
+                    aria-pressed={showPassword}
                   >
                     {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                   </button>

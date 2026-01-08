@@ -14,6 +14,8 @@ export function useDashboardStats(period?: string) {
       }
       return response.data
     },
+    staleTime: 1000 * 60 * 5, // 5 minutes
+    gcTime: 1000 * 60 * 10, // 10 minutes cache
   })
 }
 
@@ -30,6 +32,8 @@ export function useMonthlyStats(params?: { year?: number; month?: number }) {
       }
       return response.data || []
     },
+    staleTime: 1000 * 60 * 5, // 5 minutes
+    gcTime: 1000 * 60 * 10, // 10 minutes cache
   })
 }
 
@@ -46,6 +50,8 @@ export function useCompaniesStats() {
       }
       return response.data || []
     },
+    staleTime: 1000 * 60 * 5, // 5 minutes
+    gcTime: 1000 * 60 * 10, // 10 minutes cache
   })
 }
 
@@ -62,5 +68,7 @@ export function useTrendData(months: number = 6) {
       }
       return response.data || []
     },
+    staleTime: 1000 * 60 * 5, // 5 minutes
+    gcTime: 1000 * 60 * 10, // 10 minutes cache
   })
 }

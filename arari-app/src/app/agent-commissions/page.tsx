@@ -161,7 +161,7 @@ export default function AgentCommissionsPage() {
                   <div>
                     <Label className="text-sm font-medium mb-2 block">エージェント</Label>
                     <Select value={selectedAgent} onValueChange={setSelectedAgent}>
-                      <SelectTrigger>
+                      <SelectTrigger aria-label="エージェントを選択">
                         <SelectValue placeholder="エージェントを選択" />
                       </SelectTrigger>
                       <SelectContent>
@@ -177,7 +177,7 @@ export default function AgentCommissionsPage() {
                   <div>
                     <Label className="text-sm font-medium mb-2 block">期間</Label>
                     <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
-                      <SelectTrigger>
+                      <SelectTrigger aria-label="期間を選択">
                         <SelectValue placeholder="期間を選択" />
                       </SelectTrigger>
                       <SelectContent>

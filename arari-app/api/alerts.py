@@ -63,8 +63,8 @@ class Alert:
 
 # Default thresholds (configurable via settings)
 DEFAULT_THRESHOLDS = {
-    "margin_critical": 10.0,  # < 10% = critical
-    "margin_warning": 15.0,  # < 15% = warning (target for 製造派遣)
+    "margin_critical": 7.0,  # < 7% = critical (4-tier system)
+    "margin_warning": 12.0,  # < 12% = warning (target for 製造派遣)
     "margin_negative": 0.0,  # < 0% = critical (losing money)
     "hours_warning": 200,  # > 200h/month = warning
     "hours_critical": 250,  # > 250h/month = critical
@@ -368,7 +368,7 @@ class AlertService:
                     AlertType.LOW_MARGIN,
                     AlertSeverity.CRITICAL,
                     f"Margen muy bajo: {name}",
-                    f"Empleado {emp_id} ({name}) tiene margen {margin:.1f}% (objetivo: 15%) en {rec_period}",
+                    f"Empleado {emp_id} ({name}) tiene margen {margin:.1f}% (objetivo: 12%) en {rec_period}",
                     "employee",
                     emp_id,
                     rec_period,
@@ -379,13 +379,13 @@ class AlertService:
 
             # Check warning low margin
             elif margin is not None and margin < self.thresholds.get(
-                "margin_warning", 15
+                "margin_warning", 12
             ):
                 self.create_alert(
                     AlertType.LOW_MARGIN,
                     AlertSeverity.WARNING,
                     f"Margen bajo: {name}",
-                    f"Empleado {emp_id} ({name}) tiene margen {margin:.1f}% (objetivo: 15%) en {rec_period}",
+                    f"Empleado {emp_id} ({name}) tiene margen {margin:.1f}% (objetivo: 12%) en {rec_period}",
                     "employee",
                     emp_id,
                     rec_period,
@@ -441,7 +441,7 @@ class AlertService:
                 AlertType.CLIENT_UNDERPERFORMING,
                 AlertSeverity.WARNING,
                 f"Cliente poco rentable: {company}",
-                f"El cliente {company} tiene margen promedio de {avg_margin:.1f}% (objetivo: 15%)",
+                f"El cliente {company} tiene margen promedio de {avg_margin:.1f}% (objetivo: 12%)",
                 "company",
                 company,
                 period,

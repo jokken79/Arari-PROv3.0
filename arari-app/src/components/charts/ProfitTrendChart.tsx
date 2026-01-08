@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import React, { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   ComposedChart,
@@ -50,7 +50,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   return null
 }
 
-export function ProfitTrendChart({ data }: ProfitTrendChartProps) {
+export const ProfitTrendChart = React.memo(function ProfitTrendChart({ data }: ProfitTrendChartProps) {
   const [isExpanded, setIsExpanded] = useState(false)
 
   // Add margin % calculation to data
@@ -60,11 +60,16 @@ export function ProfitTrendChart({ data }: ProfitTrendChartProps) {
   }))
 
   const ChartContent = ({ height = "100%" }: { height?: string | number }) => (
-    <div style={{ height }} className="w-full">
+    <div
+      style={{ height }}
+      className="w-full"
+      role="img"
+      aria-label="利益トレンドチャート: 期間別の収益・コスト・利益推移"
+    >
       <ResponsiveContainer width="100%" height="100%">
         <ComposedChart
           data={dataWithMargin}
-          margin={{ top: 10, right: 60, left: 0, bottom: 0 }}
+          margin={{ top: 10, right: 60, left: 0, bottom: 0 }} // Note: Consider responsive margins for mobile (e.g., right: 30 on small screens)
         >
           <defs>
             <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
@@ -231,4 +236,4 @@ export function ProfitTrendChart({ data }: ProfitTrendChartProps) {
       </AnimatePresence>
     </>
   )
-}
+})

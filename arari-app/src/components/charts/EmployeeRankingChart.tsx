@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo } from 'react'
+import React, { useMemo } from 'react'
 import { motion } from 'framer-motion'
 import {
   BarChart,
@@ -56,9 +56,9 @@ const CustomTooltip = ({ active, payload }: any) => {
             <span className="text-muted-foreground">マージン率:</span>
             <span className={cn(
               "font-medium",
-              data.margin >= 15 ? "text-amber-500" :
-                data.margin >= 12 ? "text-blue-500" :
-                  data.margin >= 10 ? "text-green-500" : "text-red-500"
+              data.margin >= 12 ? "text-emerald-500" :
+                data.margin >= 10 ? "text-green-500" :
+                  data.margin >= 7 ? "text-orange-500" : "text-red-500"
             )}>
               {data.margin.toFixed(1)}%
             </span>
@@ -82,7 +82,7 @@ import { useRouter } from 'next/navigation'
 
 
 
-export function EmployeeRankingChart({
+export const EmployeeRankingChart = React.memo(function EmployeeRankingChart({
   topPerformers,
   bottomPerformers,
   averageProfit
@@ -123,7 +123,11 @@ export function EmployeeRankingChart({
             </p>
           </CardHeader>
           <CardContent>
-            <div className="h-[280px]">
+            <div
+              className="h-[280px]"
+              role="img"
+              aria-label="従業員ランキング: 粗利上位従業員"
+            >
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart
                   data={topData}
@@ -205,7 +209,11 @@ export function EmployeeRankingChart({
             </p>
           </CardHeader>
           <CardContent>
-            <div className="h-[280px]">
+            <div
+              className="h-[280px]"
+              role="img"
+              aria-label="従業員ランキング: 粗利下位従業員"
+            >
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart
                   data={bottomData}
@@ -270,4 +278,4 @@ export function EmployeeRankingChart({
       </motion.div>
     </div>
   )
-}
+})

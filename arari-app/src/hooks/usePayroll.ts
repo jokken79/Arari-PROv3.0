@@ -18,6 +18,8 @@ export function usePayrollRecords(params?: {
       }
       return response.data || []
     },
+    staleTime: 1000 * 60 * 5, // 5 minutes for payroll data
+    gcTime: 1000 * 60 * 10, // 10 minutes cache
   })
 }
 
@@ -34,6 +36,8 @@ export function usePayrollPeriods() {
       }
       return response.data || []
     },
+    staleTime: 1000 * 60 * 5, // 5 minutes for payroll data
+    gcTime: 1000 * 60 * 10, // 10 minutes cache
   })
 }
 
@@ -52,6 +56,8 @@ export function useEmployeePayroll(employeeId: string | null) {
       return response.data || []
     },
     enabled: !!employeeId,
+    staleTime: 1000 * 60 * 5, // 5 minutes for payroll data
+    gcTime: 1000 * 60 * 10, // 10 minutes cache
   })
 }
 
@@ -70,6 +76,8 @@ export function usePeriodPayroll(period: string | null) {
       return response.data || []
     },
     enabled: !!period,
+    staleTime: 1000 * 60 * 5, // 5 minutes for payroll data
+    gcTime: 1000 * 60 * 10, // 10 minutes cache
   })
 }
 

@@ -79,7 +79,7 @@ export default function BudgetsPage() {
     entity_id: 'ALL',
     revenue_budget: '',
     cost_budget: '',
-    margin_target: '15',
+    margin_target: '12',
     notes: '',
   })
 
@@ -121,7 +121,7 @@ export default function BudgetsPage() {
           entity_id: formData.entity_id,
           revenue_budget: parseFloat(formData.revenue_budget) || 0,
           cost_budget: parseFloat(formData.cost_budget) || 0,
-          margin_target: parseFloat(formData.margin_target) || 15,
+          margin_target: parseFloat(formData.margin_target) || 12,
           notes: formData.notes || null,
         }),
       })
@@ -296,6 +296,7 @@ export default function BudgetsPage() {
                         value={formData.revenue_budget}
                         onChange={e => setFormData({ ...formData, revenue_budget: e.target.value })}
                         placeholder="0"
+                        aria-label="売上予算を入力"
                       />
                     </div>
                     <div>
@@ -305,6 +306,7 @@ export default function BudgetsPage() {
                         value={formData.cost_budget}
                         onChange={e => setFormData({ ...formData, cost_budget: e.target.value })}
                         placeholder="0"
+                        aria-label="コスト予算を入力"
                       />
                     </div>
                     <div>
@@ -313,7 +315,8 @@ export default function BudgetsPage() {
                         type="number"
                         value={formData.margin_target}
                         onChange={e => setFormData({ ...formData, margin_target: e.target.value })}
-                        placeholder="15"
+                        placeholder="12"
+                        aria-label="目標マージンを入力"
                       />
                     </div>
                   </div>
@@ -323,6 +326,7 @@ export default function BudgetsPage() {
                       value={formData.notes}
                       onChange={e => setFormData({ ...formData, notes: e.target.value })}
                       placeholder="予算に関するメモ..."
+                      aria-label="メモを入力"
                     />
                   </div>
                   <div className="flex gap-2 mt-6">

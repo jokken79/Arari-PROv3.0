@@ -1,5 +1,6 @@
 'use client'
 
+import React from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Calendar } from 'lucide-react'
 import {
@@ -26,7 +27,7 @@ interface PaidLeaveChartProps {
   data: PaidLeaveData[]
 }
 
-export function PaidLeaveChart({ data }: PaidLeaveChartProps) {
+export const PaidLeaveChart = React.memo(function PaidLeaveChart({ data }: PaidLeaveChartProps) {
   // Sort data by period
   const sortedData = [...data].sort((a, b) => {
     const [aYear, aMonth] = a.period.replace('年', '-').replace('月', '').split('-').map(Number)
@@ -106,7 +107,11 @@ export function PaidLeaveChart({ data }: PaidLeaveChartProps) {
             有給休暇データがありません
           </div>
         ) : (
-          <div className="h-[300px]">
+          <div
+            className="h-[300px]"
+            role="img"
+            aria-label="有給休暇チャート: 期間別の有給取得状況"
+          >
             <ResponsiveContainer width="100%" height="100%">
               <ComposedChart data={chartData}>
                 <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
@@ -179,4 +184,4 @@ export function PaidLeaveChart({ data }: PaidLeaveChartProps) {
       </CardContent>
     </Card>
   )
-}
+})

@@ -209,34 +209,40 @@ export function EmployeeTable({
               />
             </div>
 
-            <select
-              value={employeeTypeFilter}
-              onChange={(e) => {
-                setEmployeeTypeFilter(e.target.value as 'haken' | 'ukeoi' | 'all')
-                setSelectedCompany('all')
-              }}
-              className="px-3 py-2 rounded-md border border-input bg-background text-sm"
-              aria-label="従業員タイプでフィルター"
-            >
-              <option value="haken">派遣社員のみ</option>
-              <option value="ukeoi">請負社員のみ</option>
-              <option value="all">全て表示</option>
-            </select>
+            <label className="flex items-center gap-2">
+              <span className="sr-only">従業員タイプでフィルター</span>
+              <select
+                value={employeeTypeFilter}
+                onChange={(e) => {
+                  setEmployeeTypeFilter(e.target.value as 'haken' | 'ukeoi' | 'all')
+                  setSelectedCompany('all')
+                }}
+                className="px-3 py-2 rounded-md border border-input bg-background text-sm"
+                aria-label="従業員タイプでフィルター"
+              >
+                <option value="haken">派遣社員のみ</option>
+                <option value="ukeoi">請負社員のみ</option>
+                <option value="all">全て表示</option>
+              </select>
+            </label>
 
             {employeeTypeFilter === 'haken' && (
-              <select
-                value={selectedCompany}
-                onChange={(e) => setSelectedCompany(e.target.value)}
-                className="px-3 py-2 rounded-md border border-input bg-background text-sm"
-                aria-label="派遣先企業でフィルター"
-              >
-                <option value="all">全企業</option>
-                {availableCompanies.map((company) => (
-                  <option key={company} value={company}>
-                    {company}
-                  </option>
-                ))}
-              </select>
+              <label className="flex items-center gap-2">
+                <span className="sr-only">派遣先企業でフィルター</span>
+                <select
+                  value={selectedCompany}
+                  onChange={(e) => setSelectedCompany(e.target.value)}
+                  className="px-3 py-2 rounded-md border border-input bg-background text-sm"
+                  aria-label="派遣先企業でフィルター"
+                >
+                  <option value="all">全企業</option>
+                  {availableCompanies.map((company) => (
+                    <option key={company} value={company}>
+                      {company}
+                    </option>
+                  ))}
+                </select>
+              </label>
             )}
 
             <label className="flex items-center gap-2 px-3 py-2 rounded-md border border-input bg-background text-sm cursor-pointer hover:bg-muted transition-colors">
@@ -264,7 +270,15 @@ export function EmployeeTable({
                       key={col.key}
                       scope="col"
                       className={`${col.width} px-4 py-3 text-left text-sm font-medium text-muted-foreground cursor-pointer hover:bg-muted transition-colors group`}
+                      role="button"
+                      tabIndex={0}
                       onClick={() => handleSort(col.key)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault()
+                          handleSort(col.key)
+                        }
+                      }}
                       aria-label={`${col.label}でソート`}
                     >
                       <div className="flex items-center gap-1">

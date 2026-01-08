@@ -23,6 +23,8 @@ export function useEmployees(params?: {
       }
       return response.data || []
     },
+    staleTime: 1000 * 60 * 10, // 10 minutes for employee data
+    gcTime: 1000 * 60 * 15, // 15 minutes cache
   })
 }
 
@@ -41,6 +43,8 @@ export function useEmployee(employeeId: string | null) {
       return response.data
     },
     enabled: !!employeeId,
+    staleTime: 1000 * 60 * 10, // 10 minutes for employee data
+    gcTime: 1000 * 60 * 15, // 15 minutes cache
   })
 }
 

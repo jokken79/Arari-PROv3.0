@@ -59,6 +59,7 @@ export function EmployeeDetailModal({ employee, isOpen, onClose }: EmployeeDetai
           className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md overflow-hidden"
           role="dialog"
           aria-modal="true"
+          aria-live="polite"
           aria-labelledby="employee-modal-title"
           onKeyDown={(e) => e.key === 'Escape' && onClose()}
         >
@@ -147,7 +148,11 @@ export function EmployeeDetailModal({ employee, isOpen, onClose }: EmployeeDetai
 
                 <div className="flex-1 overflow-auto">
                   {loading ? (
-                    <div className="flex items-center justify-center h-40 text-slate-500">
+                    <div
+                      className="flex items-center justify-center h-40 text-slate-500"
+                      aria-busy="true"
+                      aria-live="polite"
+                    >
                       データを読み込み中...
                     </div>
                   ) : employeeRecords.length === 0 ? (

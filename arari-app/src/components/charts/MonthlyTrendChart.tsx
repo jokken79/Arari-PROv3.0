@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo } from 'react'
+import React, { useMemo } from 'react'
 import { motion } from 'framer-motion'
 import {
   ComposedChart,
@@ -110,7 +110,7 @@ const CustomLegend = () => {
   )
 }
 
-export function MonthlyTrendChart({ data }: MonthlyTrendChartProps) {
+export const MonthlyTrendChart = React.memo(function MonthlyTrendChart({ data }: MonthlyTrendChartProps) {
   // Memoize all calculations to prevent recalculation on every render
   const { chartData, totalRevenue, totalCost, totalProfit, avgMargin } = useMemo(() => {
     // Sort data chronologically (Oldest -> Newest) for the chart
@@ -170,7 +170,11 @@ export function MonthlyTrendChart({ data }: MonthlyTrendChartProps) {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="h-[400px]">
+          <div
+            className="h-[400px]"
+            role="img"
+            aria-label="月次トレンド: 月別の収益・コスト・利益・マージン推移"
+          >
             <ResponsiveContainer width="100%" height="100%">
               <ComposedChart
                 data={chartData}
@@ -266,4 +270,4 @@ export function MonthlyTrendChart({ data }: MonthlyTrendChartProps) {
       </Card>
     </motion.div>
   )
-}
+})

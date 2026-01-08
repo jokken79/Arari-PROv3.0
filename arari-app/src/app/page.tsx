@@ -3,34 +3,21 @@
 import { useState, useMemo, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
-  Users,
-  Building2,
-  TrendingUp,
-  DollarSign,
-  Percent,
-  Wallet,
   Receipt,
-  BadgeJapaneseYen,
   RefreshCw,
   AlertTriangle,
   AlertCircle,
   TrendingDown,
+  TrendingUp,
   Target,
   X,
 } from 'lucide-react'
 import { Header } from '@/components/layout/Header'
 import { Sidebar } from '@/components/layout/Sidebar'
-import { StatsCard } from '@/components/dashboard/StatsCard'
-import { ProfitTrendChart } from '@/components/charts/ProfitTrendChart'
-import { ProfitDistributionChart } from '@/components/charts/ProfitDistributionChart'
-import { CompanyProfitChart } from '@/components/charts/CompanyProfitChart'
-import { CostBreakdownChart } from '@/components/charts/CostBreakdownChart'
-import { EmployeeRankingChart } from '@/components/charts/EmployeeRankingChart'
-import { FactoryComparisonChart } from '@/components/charts/FactoryComparisonChart'
-import { MarginGaugeChart } from '@/components/charts/MarginGaugeChart'
-import { HoursBreakdownChart } from '@/components/charts/HoursBreakdownChart'
-import { OvertimeByFactoryChart } from '@/components/charts/OvertimeByFactoryChart'
-import { PaidLeaveChart } from '@/components/charts/PaidLeaveChart'
+import { DashboardStats } from '@/components/dashboard/DashboardStats'
+import { DashboardAlerts } from '@/components/dashboard/DashboardAlerts'
+import { DashboardCharts } from '@/components/dashboard/DashboardCharts'
+import { EmployeeRankingTable } from '@/components/dashboard/EmployeeRankingTable'
 import { RecentPayrolls } from '@/components/dashboard/RecentPayrolls'
 import { PeriodSelector } from '@/components/dashboard/PeriodSelector'
 import { PayrollSlipModal } from '@/components/payroll/PayrollSlipModal'
@@ -50,10 +37,8 @@ export default function DashboardPage() {
   const [alertModal, setAlertModal] = useState<AlertType>(null)
   const [factoryChartPeriod, setFactoryChartPeriod] = useState<string | null>(null)
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | null>(null)
-  const {
-    selectedPeriod,
-    setSelectedPeriod,
-  } = useAppStore()
+  const selectedPeriod = useAppStore(state => state.selectedPeriod)
+  const setSelectedPeriod = useAppStore(state => state.setSelectedPeriod)
 
   // Fetch data using TanStack Query hooks
   const { data: rawEmployees = [] } = useEmployees()
@@ -85,6 +70,7 @@ export default function DashboardPage() {
 
   // Map to internal types (snake_case -> camelCase)
   const employees = useMemo(() => {
+    if (!rawEmployees) return []
     return rawEmployees.map(e => ({
       id: e.id?.toString() || '',
       employeeId: e.employee_id,
@@ -102,6 +88,7 @@ export default function DashboardPage() {
   }, [rawEmployees])
 
   const payrollRecords = useMemo(() => {
+    if (!rawPayrollRecords) return []
     return rawPayrollRecords.map(r => ({
       id: r.id?.toString() || '',
       employeeId: r.employee_id,
@@ -460,12 +447,12 @@ export default function DashboardPage() {
         <main className="md:pl-[280px] pt-16 transition-all duration-300 relative z-10">
           <div className="container py-6 px-4 md:px-6 max-w-7xl mx-auto">
             <div className="mb-8">
-              <h1 className="text-3xl font-bold bg-gradient-to-r from-cyan-400 via-blue-500 to-indigo-600 bg-clip-text text-transparent">
+              <h1 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-cyan-400 via-blue-500 to-indigo-600 bg-clip-text text-transparent">
                 粗利ダッシュボード
               </h1>
               <p className="text-slate-400 mt-1">データを読み込み中...</p>
             </div>
-            <div className="space-y-6">
+            <div className="space-y-6" aria-busy="true" aria-live="polite">
               <DashboardStatsSkeleton />
               <div className="grid gap-4 md:grid-cols-4">
                 {[1, 2, 3, 4].map((i) => (
@@ -535,7 +522,7 @@ export default function DashboardPage() {
       <Header onMenuClick={() => setSidebarOpen(!sidebarOpen)} />
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
-      <main className="md:pl-[280px] pt-16 transition-all duration-300 relative z-10">
+      <main id="main-content" className="md:pl-[280px] pt-16 transition-all duration-300 relative z-10">
         <div className="container py-6 px-4 md:px-6 max-w-7xl mx-auto">
           {/* Page Title */}
           <motion.div
@@ -546,7 +533,7 @@ export default function DashboardPage() {
             {/* Header Row */}
             <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
               <div>
-                <h1 className="text-3xl font-bold bg-gradient-to-r from-cyan-400 via-blue-500 to-indigo-600 bg-clip-text text-transparent">
+                <h1 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-cyan-400 via-blue-500 to-indigo-600 bg-clip-text text-transparent">
                   粗利ダッシュボード
                 </h1>
                 <p className="text-slate-400 mt-1 text-sm">
@@ -618,129 +605,22 @@ export default function DashboardPage() {
           ) : (
             <>
               {/* Main Stats Grid */}
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-8">
-                <StatsCard
-                  title="月間粗利"
-                  value={formatYen(dashboardStats.total_monthly_profit)}
-                  icon={TrendingUp}
-                  trend={{
-                    value: chartData?.previousMargin
-                      ? dashboardStats.average_margin - chartData.previousMargin
-                      : 0,
-                    label: '前月比'
-                  }}
-                  variant="gradient"
-                  delay={0}
-                />
-                <StatsCard
-                  title="月間売上"
-                  value={formatYen(dashboardStats.total_monthly_revenue)}
-                  icon={DollarSign}
-                  subtitle={`${payrollRecords.filter(r => r.period === selectedPeriod).length}名分`}
-                  variant="success"
-                  delay={1}
-                />
-                <StatsCard
-                  title="平均マージン率"
-                  value={formatPercent(dashboardStats.average_margin)}
-                  icon={Percent}
-                  subtitle={dashboardStats.average_margin >= targetMargin ? '目標達成' : `目標: ${targetMargin}%`}
-                  variant={dashboardStats.average_margin >= targetMargin ? 'success' : 'warning'}
-                  delay={2}
-                />
-                <StatsCard
-                  title="会社負担コスト"
-                  value={formatYen(dashboardStats.total_monthly_cost)}
-                  icon={Wallet}
-                  subtitle="社保・雇用保険・労災含む"
-                  variant="default"
-                  delay={3}
-                />
-              </div>
-
-              {/* Secondary Stats */}
-              <div className="grid gap-4 md:grid-cols-4 mb-8">
-                <StatsCard
-                  title="在職中"
-                  value={`${employees.filter(e => e.status === 'active').length}名`}
-                  icon={Users}
-                  delay={4}
-                />
-                <StatsCard
-                  title="派遣先企業数"
-                  value={`${dashboardStats.total_companies}社`}
-                  icon={Building2}
-                  delay={5}
-                />
-                <StatsCard
-                  title="平均粗利/人"
-                  value={formatYen(dashboardStats.average_profit)}
-                  icon={BadgeJapaneseYen}
-                  delay={6}
-                />
-                <StatsCard
-                  title="処理済明細"
-                  value={`${payrollRecords.length}件`}
-                  icon={Receipt}
-                  delay={7}
-                />
-              </div>
+              <DashboardStats
+                stats={dashboardStats}
+                previousMargin={chartData?.previousMargin}
+                targetMargin={targetMargin}
+                activeEmployeeCount={employees.filter(e => e.status === 'active').length}
+                totalPayrollCount={payrollRecords.length}
+                currentPeriodCount={payrollRecords.filter(r => r.period === selectedPeriod).length}
+                isLoading={isLoading}
+              />
 
               {/* Alerts Panel */}
-              {chartData && chartData.alertsSummary && (
-                (chartData.alertsSummary.criticalCount > 0 ||
-                 chartData.alertsSummary.negativeProfit > 0 ||
-                 chartData.alertsSummary.underTargetCount > 0) && (
-                  <motion.div
-                    initial={{ opacity: 0, y: -10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="mb-6 p-3 rounded-lg border border-amber-500/30 bg-amber-50 dark:bg-slate-800/30 backdrop-blur-sm"
-                  >
-                    <div className="flex items-center gap-2 mb-2">
-                      <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-500/80" aria-hidden="true" />
-                      <span className="font-medium text-sm text-slate-700 dark:text-slate-300">アラート通知</span>
-                      <span className="text-xs text-muted-foreground">（クリックで詳細表示）</span>
-                    </div>
-                    <div className="grid gap-3 md:grid-cols-4">
-                      {chartData.alertsSummary.negativeProfit > 0 && (
-                        <button
-                          onClick={() => setAlertModal('negative')}
-                          className="flex items-center gap-2 text-sm hover:bg-red-500/20 p-2 rounded-lg transition-colors cursor-pointer text-left"
-                        >
-                          <AlertCircle className="h-4 w-4 text-red-600 dark:text-red-500" />
-                          <span className="text-red-600 dark:text-red-400">赤字: {chartData.alertsSummary.negativeProfit}名</span>
-                        </button>
-                      )}
-                      {chartData.alertsSummary.criticalCount > 0 && (
-                        <button
-                          onClick={() => setAlertModal('critical')}
-                          className="flex items-center gap-2 text-sm hover:bg-orange-500/20 p-2 rounded-lg transition-colors cursor-pointer text-left"
-                        >
-                          <TrendingDown className="h-4 w-4 text-orange-600 dark:text-orange-500" />
-                          <span className="text-orange-600 dark:text-orange-400">マージン&lt;7%: {chartData.alertsSummary.criticalCount}名</span>
-                        </button>
-                      )}
-                      {chartData.alertsSummary.underTargetCount > 0 && (
-                        <button
-                          onClick={() => setAlertModal('underTarget')}
-                          className="flex items-center gap-2 text-sm hover:bg-amber-500/20 p-2 rounded-lg transition-colors cursor-pointer text-left"
-                        >
-                          <Target className="h-4 w-4 text-amber-600 dark:text-amber-500" />
-                          <span className="text-amber-600 dark:text-amber-400">目標未達(7-12%): {chartData.alertsSummary.underTargetCount}名</span>
-                        </button>
-                      )}
-                      {chartData.alertsSummary.lowRateRatio > 0 && (
-                        <button
-                          onClick={() => setAlertModal('lowRate')}
-                          className="flex items-center gap-2 text-sm hover:bg-orange-500/20 p-2 rounded-lg transition-colors cursor-pointer text-left"
-                        >
-                          <AlertTriangle className="h-4 w-4 text-orange-600 dark:text-orange-500" />
-                          <span className="text-orange-600 dark:text-orange-400">単価率&lt;20%: {chartData.alertsSummary.lowRateRatio}名</span>
-                        </button>
-                      )}
-                    </div>
-                  </motion.div>
-                )
+              {chartData?.alertsSummary && (
+                <DashboardAlerts
+                  alertsSummary={chartData.alertsSummary}
+                  onAlertClick={setAlertModal}
+                />
               )}
 
               {/* Alert Detail Modal */}
@@ -798,14 +678,14 @@ export default function DashboardPage() {
                         <table className="w-full text-sm">
                           <thead className="sticky top-0 bg-slate-800">
                             <tr className="border-b border-white/10">
-                              <th className="text-left p-3 text-muted-foreground">#</th>
-                              <th className="text-left p-3 text-muted-foreground">氏名</th>
-                              <th className="text-left p-3 text-muted-foreground">派遣先</th>
-                              <th className="text-right p-3 text-muted-foreground">時給</th>
-                              <th className="text-right p-3 text-muted-foreground">単価</th>
-                              <th className="text-right p-3 text-muted-foreground">単価率</th>
-                              <th className="text-right p-3 text-muted-foreground">粗利</th>
-                              <th className="text-right p-3 text-muted-foreground">マージン</th>
+                              <th className="text-left p-2 sm:p-3 text-muted-foreground">#</th>
+                              <th className="text-left p-2 sm:p-3 text-muted-foreground">氏名</th>
+                              <th className="text-left p-2 sm:p-3 text-muted-foreground">派遣先</th>
+                              <th className="text-right p-2 sm:p-3 text-muted-foreground">時給</th>
+                              <th className="text-right p-2 sm:p-3 text-muted-foreground">単価</th>
+                              <th className="text-right p-2 sm:p-3 text-muted-foreground">単価率</th>
+                              <th className="text-right p-2 sm:p-3 text-muted-foreground">粗利</th>
+                              <th className="text-right p-2 sm:p-3 text-muted-foreground">マージン</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -833,26 +713,26 @@ export default function DashboardPage() {
                                     setAlertModal(null)
                                   }}
                                 >
-                                  <td className="p-3 text-muted-foreground">{idx + 1}</td>
-                                  <td className="p-3 font-medium text-slate-200">{emp.name}</td>
-                                  <td className="p-3 text-muted-foreground">{emp.company}</td>
-                                  <td className="p-3 text-right font-mono">¥{emp.hourlyRate.toLocaleString()}</td>
-                                  <td className="p-3 text-right font-mono">¥{emp.billingRate.toLocaleString()}</td>
+                                  <td className="p-2 sm:p-3 text-muted-foreground">{idx + 1}</td>
+                                  <td className="p-2 sm:p-3 font-medium text-slate-200">{emp.name}</td>
+                                  <td className="p-2 sm:p-3 text-muted-foreground">{emp.company}</td>
+                                  <td className="p-2 sm:p-3 text-right font-mono">¥{emp.hourlyRate.toLocaleString()}</td>
+                                  <td className="p-2 sm:p-3 text-right font-mono">¥{emp.billingRate.toLocaleString()}</td>
                                   <td className={cn(
-                                    "p-3 text-right font-mono",
+                                    "p-2 sm:p-3 text-right font-mono",
                                     emp.rateRatio >= 30 ? "text-amber-400" :
                                     emp.rateRatio >= 20 ? "text-green-400" : "text-red-400"
                                   )}>
                                     {emp.rateRatio.toFixed(1)}%
                                   </td>
                                   <td className={cn(
-                                    "p-3 text-right font-mono font-semibold",
+                                    "p-2 sm:p-3 text-right font-mono font-semibold",
                                     emp.profit >= 0 ? "text-emerald-400" : "text-red-400"
                                   )}>
                                     {formatYen(emp.profit)}
                                   </td>
                                   <td className={cn(
-                                    "p-3 text-right font-mono",
+                                    "p-2 sm:p-3 text-right font-mono",
                                     emp.margin >= 12 ? "text-emerald-400" :
                                     emp.margin >= 10 ? "text-green-400" :
                                     emp.margin >= 7 ? "text-orange-400" : "text-red-400"
@@ -869,157 +749,33 @@ export default function DashboardPage() {
                 )}
               </AnimatePresence>
 
-              {/* Margin Gauge + Hours Breakdown Row */}
-              <div className="grid gap-6 lg:grid-cols-3 mb-6">
-                <MarginGaugeChart
-                  currentMargin={dashboardStats.average_margin}
-                  targetMargin={targetMargin}
-                  previousMargin={chartData?.previousMargin}
-                />
-                {chartData && (
-                  <HoursBreakdownChart data={chartData.hoursData} />
-                )}
-                <ProfitDistributionChart data={dashboardStats.profit_distribution} />
-              </div>
-
-              {/* Employee Ranking - Full Width */}
+              {/* All Charts */}
               {chartData && (
-                <div className="mb-6">
-                  <EmployeeRankingChart
-                    topPerformers={chartData.topPerformers}
-                    bottomPerformers={chartData.bottomPerformers}
-                    averageProfit={dashboardStats.average_profit}
-                  />
-                </div>
+                <DashboardCharts
+                  chartData={chartData}
+                  factoryChartData={factoryChartData}
+                  settings={{
+                    currentMargin: dashboardStats.average_margin,
+                    targetMargin: targetMargin,
+                    profitDistribution: dashboardStats.profit_distribution,
+                    profitTrend: dashboardStats.profit_trend,
+                    averageProfit: dashboardStats.average_profit,
+                  }}
+                  companySummaries={companySummaries}
+                  availablePeriods={availablePeriods}
+                  factoryChartPeriod={factoryChartPeriod}
+                  selectedPeriod={selectedPeriod}
+                  onFactoryPeriodChange={setFactoryChartPeriod}
+                />
               )}
-
-              {/* Factory Comparison - Full Width */}
-              {factoryChartData.length > 0 && (
-                <div className="mb-6">
-                  <FactoryComparisonChart
-                    data={factoryChartData}
-                    availablePeriods={availablePeriods}
-                    selectedPeriod={factoryChartPeriod || selectedPeriod}
-                    onPeriodChange={setFactoryChartPeriod}
-                  />
-                </div>
-              )}
-
-              {/* Overtime by Factory - Full Width */}
-              {chartData && chartData.overtimeByFactoryData.length > 0 && (
-                <div className="mb-6">
-                  <OvertimeByFactoryChart data={chartData.overtimeByFactoryData} />
-                </div>
-              )}
-
-              {/* Paid Leave Chart - Full Width */}
-              {chartData && chartData.paidLeaveData.length > 0 && (
-                <div className="mb-6">
-                  <PaidLeaveChart data={chartData.paidLeaveData} />
-                </div>
-              )}
-
-              {/* Cost Breakdown Chart */}
-              {chartData && chartData.costBreakdownData.length > 0 && (
-                <div className="mb-6">
-                  <CostBreakdownChart data={chartData.costBreakdownData} />
-                </div>
-              )}
-
-              {/* Profit Trend + Company Profit */}
-              <div className="grid gap-6 lg:grid-cols-2 mb-6">
-                <ProfitTrendChart data={dashboardStats.profit_trend} />
-                <CompanyProfitChart data={companySummaries} />
-              </div>
 
               {/* Full Employee Ranking with Rate Analysis */}
-              {chartData && chartData.allEmployeesRanking.length > 0 && (
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.5 }}
-                  className="mb-6"
-                >
-                  <div className="rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-black/40 backdrop-blur-sm overflow-hidden shadow-sm">
-                    <div className="p-4 border-b border-slate-200 dark:border-white/10">
-                      <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-2">
-                        <Users className="h-5 w-5 text-blue-500" />
-                        従業員別収益分析（全{chartData.allEmployeesRanking.length}名）
-                      </h3>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        単価率 = (請求単価 - 時給) / 時給 × 100 | 目標マージン: {targetMargin}%
-                      </p>
-                    </div>
-                    <div className="overflow-x-auto max-h-[400px] overflow-y-auto">
-                      <table className="w-full text-sm">
-                        <thead className="sticky top-0 bg-slate-100 dark:bg-slate-900/95 backdrop-blur-sm">
-                          <tr className="border-b border-slate-200 dark:border-white/10">
-                            <th className="text-left p-3 text-muted-foreground font-medium">#</th>
-                            <th className="text-left p-3 text-muted-foreground font-medium">氏名</th>
-                            <th className="text-left p-3 text-muted-foreground font-medium">派遣先</th>
-                            <th className="text-right p-3 text-muted-foreground font-medium">時給</th>
-                            <th className="text-right p-3 text-muted-foreground font-medium">単価</th>
-                            <th className="text-right p-3 text-muted-foreground font-medium">単価率</th>
-                            <th className="text-right p-3 text-muted-foreground font-medium">粗利</th>
-                            <th className="text-right p-3 text-muted-foreground font-medium">マージン</th>
-                            <th className="text-center p-3 text-muted-foreground font-medium">状態</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {chartData.allEmployeesRanking.map((emp, idx) => (
-                            <tr
-                              key={emp.employeeId}
-                              className={cn(
-                                "border-b border-white/5 hover:bg-white/5 transition-colors",
-                                emp.profit < 0 && "bg-red-500/10",
-                                emp.isCritical && emp.profit >= 0 && "bg-orange-500/5"
-                              )}
-                            >
-                              <td className="p-3 text-muted-foreground">{idx + 1}</td>
-                              <td className="p-3 font-medium text-slate-200">{emp.name}</td>
-                              <td className="p-3 text-muted-foreground">{emp.company}</td>
-                              <td className="p-3 text-right font-mono">¥{emp.hourlyRate.toLocaleString()}</td>
-                              <td className="p-3 text-right font-mono">¥{emp.billingRate.toLocaleString()}</td>
-                              <td className={cn(
-                                "p-3 text-right font-mono",
-                                emp.rateRatio >= 30 ? "text-amber-400" :
-                                emp.rateRatio >= 20 ? "text-green-400" :
-                                emp.rateRatio >= 10 ? "text-blue-400" : "text-red-400"
-                              )}>
-                                {emp.rateRatio.toFixed(1)}%
-                              </td>
-                              <td className={cn(
-                                "p-3 text-right font-mono font-semibold",
-                                emp.profit >= 0 ? "text-emerald-400" : "text-red-400"
-                              )}>
-                                {formatYen(emp.profit)}
-                              </td>
-                              <td className={cn(
-                                "p-3 text-right font-mono",
-                                emp.margin >= 12 ? "text-emerald-400" :
-                                emp.margin >= 10 ? "text-green-400" :
-                                emp.margin >= 7 ? "text-orange-400" : "text-red-400"
-                              )}>
-                                {emp.margin.toFixed(1)}%
-                              </td>
-                              <td className="p-3 text-center">
-                                {emp.profit < 0 ? (
-                                  <span className="px-2 py-1 rounded-full text-xs bg-red-500/20 text-red-400">赤字</span>
-                                ) : emp.isCritical ? (
-                                  <span className="px-2 py-1 rounded-full text-xs bg-orange-500/20 text-orange-400">要注意</span>
-                                ) : emp.isUnderTarget ? (
-                                  <span className="px-2 py-1 rounded-full text-xs bg-green-500/20 text-green-400">目標近い</span>
-                                ) : (
-                                  <span className="px-2 py-1 rounded-full text-xs bg-emerald-500/20 text-emerald-400">目標達成</span>
-                                )}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                </motion.div>
+              {chartData?.allEmployeesRanking && (
+                <EmployeeRankingTable
+                  employees={chartData.allEmployeesRanking}
+                  targetMargin={targetMargin}
+                  onEmployeeClick={setSelectedEmployeeId}
+                />
               )}
 
               {/* Recent Payrolls */}

@@ -452,7 +452,7 @@ class NotificationService:
         """Create notification for low margin"""
         self.create_notification(
             title=f"マージン警告: {employee_name}",
-            message=f"{employee_name} ({employee_id}) のマージンが {margin:.1f}% です（{period}）。目標: 15%",
+            message=f"{employee_name} ({employee_id}) のマージンが {margin:.1f}% です（{period}）。目標: 12%",
             notification_type="alert",
             priority="high",
             link=f"/employees/{employee_id}",

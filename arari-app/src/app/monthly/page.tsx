@@ -95,7 +95,7 @@ export default function MonthlyPage() {
       <Header onMenuClick={() => setSidebarOpen(!sidebarOpen)} />
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
-      <main className="md:pl-[280px] pt-16 transition-all duration-300">
+      <main id="main-content" className="md:pl-[280px] pt-16 transition-all duration-300">
         <div className="container py-6 px-4 md:px-6 max-w-7xl mx-auto">
           {/* Page Title */}
           <motion.div
@@ -187,8 +187,8 @@ export default function MonthlyPage() {
                   title="平均マージン"
                   value={formatPercent(summaryStats.avgMargin)}
                   icon={Percent}
-                  subtitle={summaryStats.avgMargin >= 15 ? '目標達成' : '目標: 15%'}
-                  variant={summaryStats.avgMargin >= 15 ? 'success' : 'default'}
+                  subtitle={summaryStats.avgMargin >= 12 ? '目標達成' : '目標: 12%'}
+                  variant={summaryStats.avgMargin >= 12 ? 'success' : 'default'}
                   delay={3}
                 />
               </div>

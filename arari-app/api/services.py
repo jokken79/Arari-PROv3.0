@@ -878,11 +878,11 @@ class PayrollService:
     def _calculate_profit_distribution(self, period: str) -> List[Dict]:
         """Calculate profit distribution for a period
 
-        Ranges are based on 製造派遣 target margin of 15%:
-        - <10%: Critical (赤字リスク)
-        - 10-15%: Below target (要改善)
-        - 15-18%: On target (目標達成)
-        - >18%: Excellent (優良)
+        Ranges are based on 製造派遣 target margin of 12%:
+        - <7%: Critical (赤字リスク)
+        - 7-10%: Below target (要改善)
+        - 10-12%: Close to target (良好)
+        - ≥12%: Target achieved (目標達成)
         """
         cursor = self.db.cursor()
 
@@ -891,10 +891,10 @@ class PayrollService:
         company_filter, company_params = _build_company_filter(ignored_companies)
 
         ranges = [
-            ("<10%", -999999999, 10),  # Critical - below break-even risk
-            ("10-15%", 10, 15),  # Below target - needs improvement
-            ("15-18%", 15, 18),  # On target - good
-            (">18%", 18, 999999999),  # Excellent - very profitable
+            ("<7%", -999999999, 7),   # Critical
+            ("7-10%", 7, 10),         # Needs improvement
+            ("10-12%", 10, 12),       # Good - close to target
+            ("≥12%", 12, 999999999),  # Target achieved
         ]
 
         cursor.execute(

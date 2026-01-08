@@ -96,14 +96,13 @@ export function ChartTooltip({
 
 /**
  * Helper function to get margin color based on percentage
- * Uses 製造派遣 (manufacturing dispatch) standards: target 15%
- * Thresholds: >15% (gold), 12-15% (blue), 10-12% (green), 7-10% (orange), <7% (red)
+ * Uses 製造派遣 (manufacturing dispatch) standards: target 12%
+ * 4-tier system: <7% (red), 7-10% (orange), 10-12% (green), ≥12% (emerald)
  */
 export function getMarginColor(margin: number): string {
-  if (margin >= 15) return 'text-amber-500'   // Gold - target achieved
-  if (margin >= 12) return 'text-blue-500'    // Blue - close to target
-  if (margin >= 10) return 'text-green-500'   // Green - improvement needed
-  if (margin >= 7) return 'text-orange-500'   // Orange - warning
+  if (margin >= 12) return 'text-emerald-500' // Emerald - target achieved
+  if (margin >= 10) return 'text-green-500'   // Green - good
+  if (margin >= 7) return 'text-orange-500'   // Orange - needs improvement
   return 'text-red-500'                       // Red - critical
 }
 

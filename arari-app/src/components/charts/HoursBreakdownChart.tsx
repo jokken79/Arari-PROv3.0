@@ -1,5 +1,6 @@
 'use client'
 
+import React from 'react'
 import { motion } from 'framer-motion'
 import {
   PieChart,
@@ -113,7 +114,7 @@ const CustomLegend = ({ payload }: any) => {
   )
 }
 
-export function HoursBreakdownChart({ data }: HoursBreakdownChartProps) {
+export const HoursBreakdownChart = React.memo(function HoursBreakdownChart({ data }: HoursBreakdownChartProps) {
   const totalHours =
     data.workHours +
     data.overtimeHours +
@@ -176,7 +177,11 @@ export function HoursBreakdownChart({ data }: HoursBreakdownChartProps) {
           </p>
         </CardHeader>
         <CardContent>
-          <div className="h-[250px]">
+          <div
+            className="h-[250px]"
+            role="img"
+            aria-label="勤務時間内訳: 通常・残業・深夜・休日時間の分布"
+          >
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <defs>
@@ -225,4 +230,4 @@ export function HoursBreakdownChart({ data }: HoursBreakdownChartProps) {
       </Card>
     </motion.div>
   )
-}
+})
