@@ -18,6 +18,8 @@ export const useAdditionalCosts = (company?: string, period?: string) => {
       if (response.error) throw new Error(response.error)
       return response.data || []
     },
+    staleTime: 1000 * 60 * 5,  // 5 minutes
+    gcTime: 1000 * 60 * 10,    // 10 minutes
   })
 }
 
@@ -33,6 +35,8 @@ export const useAdditionalCost = (id: number) => {
       return response.data
     },
     enabled: !!id,
+    staleTime: 1000 * 60 * 5,  // 5 minutes
+    gcTime: 1000 * 60 * 10,    // 10 minutes
   })
 }
 
@@ -47,6 +51,8 @@ export const useAdditionalCostsSummary = (period?: string) => {
       if (response.error) throw new Error(response.error)
       return response.data || []
     },
+    staleTime: 1000 * 60 * 5,  // 5 minutes
+    gcTime: 1000 * 60 * 10,    // 10 minutes
   })
 }
 
@@ -135,6 +141,8 @@ export const useCompanyTotalCosts = (company: string, period?: string) => {
       return response.data
     },
     enabled: !!company,
+    staleTime: 1000 * 60 * 5,  // 5 minutes
+    gcTime: 1000 * 60 * 10,    // 10 minutes
   })
 }
 

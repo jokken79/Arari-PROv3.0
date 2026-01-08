@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import React, { useState, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   BarChart,
@@ -123,13 +123,13 @@ const CustomLegend = ({ payload }: any) => {
   )
 }
 
-export function FactoryComparisonChart({
+export const FactoryComparisonChart = React.memo(function FactoryComparisonChart({
   data,
   availablePeriods = [],
   selectedPeriod,
   onPeriodChange
 }: FactoryComparisonChartProps) {
-  const { settings } = useAppStore()
+  const settings = useAppStore(state => state.settings)
   const target = settings.target_margin || 12
 
   const [isExpanded, setIsExpanded] = useState(false)
@@ -334,5 +334,5 @@ export function FactoryComparisonChart({
       </AnimatePresence>
     </>
   )
-}
+})
 

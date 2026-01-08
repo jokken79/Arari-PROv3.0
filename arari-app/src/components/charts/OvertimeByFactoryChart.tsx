@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import React, { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   BarChart,
@@ -137,7 +137,7 @@ const CustomLegend = ({ payload }: any) => {
   )
 }
 
-export function OvertimeByFactoryChart({ data }: OvertimeByFactoryChartProps) {
+export const OvertimeByFactoryChart = React.memo(function OvertimeByFactoryChart({ data }: OvertimeByFactoryChartProps) {
   const [isExpanded, setIsExpanded] = useState(false)
 
   // Sort by total overtime for better visualization
@@ -359,4 +359,4 @@ export function OvertimeByFactoryChart({ data }: OvertimeByFactoryChartProps) {
       </AnimatePresence>
     </>
   )
-}
+})

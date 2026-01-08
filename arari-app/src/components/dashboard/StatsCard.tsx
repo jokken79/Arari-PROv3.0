@@ -86,7 +86,7 @@ export function StatsCard({
               {title}
             </p>
             <motion.p
-              className="text-3xl font-bold tracking-tight"
+              className="text-2xl md:text-3xl font-bold tracking-tight"
               initial={{ scale: 0.5 }}
               animate={{ scale: 1 }}
               transition={{ delay: delay * 0.1 + 0.2, type: 'spring' }}

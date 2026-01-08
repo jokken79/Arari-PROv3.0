@@ -1,5 +1,6 @@
 'use client'
 
+import React from 'react'
 import { motion } from 'framer-motion'
 import {
   BarChart,
@@ -46,7 +47,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   return null
 }
 
-export function CostBreakdownChart({ data }: CostBreakdownChartProps) {
+export const CostBreakdownChart = React.memo(function CostBreakdownChart({ data }: CostBreakdownChartProps) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -127,4 +128,4 @@ export function CostBreakdownChart({ data }: CostBreakdownChartProps) {
       </Card>
     </motion.div>
   )
-}
+})

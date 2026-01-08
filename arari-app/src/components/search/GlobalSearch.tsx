@@ -152,7 +152,7 @@ export function GlobalSearch() {
                   onChange={e => setQuery(e.target.value)}
                   onKeyDown={handleKeyNavigation}
                   placeholder="従業員名、社員番号、派遣先で検索..."
-                  className="flex-1 bg-transparent text-base text-foreground placeholder:text-muted-foreground outline-none"
+                  className="flex-1 bg-transparent text-base text-foreground placeholder:text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
                   autoFocus
                 />
                 <button

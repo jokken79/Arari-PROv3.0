@@ -296,6 +296,7 @@ export default function BudgetsPage() {
                         value={formData.revenue_budget}
                         onChange={e => setFormData({ ...formData, revenue_budget: e.target.value })}
                         placeholder="0"
+                        aria-label="売上予算を入力"
                       />
                     </div>
                     <div>
@@ -305,6 +306,7 @@ export default function BudgetsPage() {
                         value={formData.cost_budget}
                         onChange={e => setFormData({ ...formData, cost_budget: e.target.value })}
                         placeholder="0"
+                        aria-label="コスト予算を入力"
                       />
                     </div>
                     <div>
@@ -314,6 +316,7 @@ export default function BudgetsPage() {
                         value={formData.margin_target}
                         onChange={e => setFormData({ ...formData, margin_target: e.target.value })}
                         placeholder="12"
+                        aria-label="目標マージンを入力"
                       />
                     </div>
                   </div>
@@ -323,6 +326,7 @@ export default function BudgetsPage() {
                       value={formData.notes}
                       onChange={e => setFormData({ ...formData, notes: e.target.value })}
                       placeholder="予算に関するメモ..."
+                      aria-label="メモを入力"
                     />
                   </div>
                   <div className="flex gap-2 mt-6">

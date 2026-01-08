@@ -1,5 +1,6 @@
 'use client'
 
+import React from 'react'
 import { motion } from 'framer-motion'
 import {
   PieChart,
@@ -113,7 +114,7 @@ const CustomLegend = ({ payload }: any) => {
   )
 }
 
-export function HoursBreakdownChart({ data }: HoursBreakdownChartProps) {
+export const HoursBreakdownChart = React.memo(function HoursBreakdownChart({ data }: HoursBreakdownChartProps) {
   const totalHours =
     data.workHours +
     data.overtimeHours +
@@ -225,4 +226,4 @@ export function HoursBreakdownChart({ data }: HoursBreakdownChartProps) {
       </Card>
     </motion.div>
   )
-}
+})

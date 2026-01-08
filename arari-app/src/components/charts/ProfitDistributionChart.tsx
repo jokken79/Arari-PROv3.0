@@ -1,5 +1,6 @@
 'use client'
 
+import React from 'react'
 import { motion } from 'framer-motion'
 import {
   PieChart,
@@ -66,7 +67,7 @@ const renderCustomLabel = ({
   )
 }
 
-export function ProfitDistributionChart({ data }: ProfitDistributionChartProps) {
+export const ProfitDistributionChart = React.memo(function ProfitDistributionChart({ data }: ProfitDistributionChartProps) {
   // Handle empty or undefined data
   const chartData = data || []
 
@@ -153,4 +154,4 @@ export function ProfitDistributionChart({ data }: ProfitDistributionChartProps) 
       </Card>
     </motion.div>
   )
-}
+})

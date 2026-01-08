@@ -1,5 +1,6 @@
 'use client'
 
+import React from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Calendar } from 'lucide-react'
 import {
@@ -26,7 +27,7 @@ interface PaidLeaveChartProps {
   data: PaidLeaveData[]
 }
 
-export function PaidLeaveChart({ data }: PaidLeaveChartProps) {
+export const PaidLeaveChart = React.memo(function PaidLeaveChart({ data }: PaidLeaveChartProps) {
   // Sort data by period
   const sortedData = [...data].sort((a, b) => {
     const [aYear, aMonth] = a.period.replace('年', '-').replace('月', '').split('-').map(Number)
@@ -179,4 +180,4 @@ export function PaidLeaveChart({ data }: PaidLeaveChartProps) {
       </CardContent>
     </Card>
   )
-}
+})

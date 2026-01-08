@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import React, { useState } from 'react'
 import { motion } from 'framer-motion'
 import {
   BarChart,
@@ -67,7 +67,7 @@ const GRADIENT_COLORS = [
   ['#ec4899', '#be185d'],
 ]
 
-export function CompanyProfitChart({ data }: CompanyProfitChartProps) {
+export const CompanyProfitChart = React.memo(function CompanyProfitChart({ data }: CompanyProfitChartProps) {
   const [viewMode, setViewMode] = useState<'total' | 'perEmployee'>('total')
 
   // Add profitPerEmployee to each data point
@@ -189,4 +189,4 @@ export function CompanyProfitChart({ data }: CompanyProfitChartProps) {
       </Card>
     </motion.div>
   )
-}
+})
