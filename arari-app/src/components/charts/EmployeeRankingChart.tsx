@@ -123,7 +123,11 @@ export const EmployeeRankingChart = React.memo(function EmployeeRankingChart({
             </p>
           </CardHeader>
           <CardContent>
-            <div className="h-[280px]">
+            <div
+              className="h-[280px]"
+              role="img"
+              aria-label="従業員ランキング: 粗利上位従業員"
+            >
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart
                   data={topData}
@@ -205,7 +209,11 @@ export const EmployeeRankingChart = React.memo(function EmployeeRankingChart({
             </p>
           </CardHeader>
           <CardContent>
-            <div className="h-[280px]">
+            <div
+              className="h-[280px]"
+              role="img"
+              aria-label="従業員ランキング: 粗利下位従業員"
+            >
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart
                   data={bottomData}

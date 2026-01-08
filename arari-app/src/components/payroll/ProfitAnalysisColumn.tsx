@@ -183,8 +183,8 @@ function FormulaSteps({
       <div className="flex justify-center text-2xl text-slate-500" aria-hidden="true">=</div>
 
       {/* Final Result */}
-      <div className={`p-4 rounded-xl border ${marginColors.border}/50 backdrop-blur-md bg-gradient-to-br from-black/40 to-black/20 text-center relative overflow-hidden`}>
-        <div className={`absolute inset-0 opacity-10 ${marginColors.bg}`} aria-hidden="true"></div>
+      <div className={`p-4 rounded-xl border ${marginColors.border} backdrop-blur-md bg-gradient-to-br from-black/40 to-black/20 text-center relative overflow-hidden`}>
+        <div className={`absolute inset-0 ${marginColors.bg}`} aria-hidden="true"></div>
         <div className="relative z-10">
           <p className="text-sm font-medium text-slate-400 mb-1">
             粗利益 (1 - 2 - 3)
@@ -320,7 +320,7 @@ function PerformanceBadge({
   }
 
   return (
-    <div className={`p-3 rounded-lg text-center backdrop-blur-md border ${marginColors.border} ${marginColors.light}`}>
+    <div className={`p-3 rounded-lg text-center backdrop-blur-md border ${marginColors.border} bg-slate-900/50`}>
       <p className="text-xs mb-1 text-slate-300">収益性評価</p>
       <p className={`text-lg font-bold ${marginColors.text}`}>
         {getPerformanceLabel()}

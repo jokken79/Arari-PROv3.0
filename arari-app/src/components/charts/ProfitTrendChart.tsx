@@ -60,7 +60,12 @@ export const ProfitTrendChart = React.memo(function ProfitTrendChart({ data }: P
   }))
 
   const ChartContent = ({ height = "100%" }: { height?: string | number }) => (
-    <div style={{ height }} className="w-full">
+    <div
+      style={{ height }}
+      className="w-full"
+      role="img"
+      aria-label="利益トレンドチャート: 期間別の収益・コスト・利益推移"
+    >
       <ResponsiveContainer width="100%" height="100%">
         <ComposedChart
           data={dataWithMargin}

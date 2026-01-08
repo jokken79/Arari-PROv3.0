@@ -109,7 +109,11 @@ export const ProfitDistributionChart = React.memo(function ProfitDistributionCha
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="h-[300px]">
+          <div
+            className="h-[300px]"
+            role="img"
+            aria-label="利益分布: マージン率別の従業員分布"
+          >
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie

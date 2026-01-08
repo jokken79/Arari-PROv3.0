@@ -148,7 +148,11 @@ export function EmployeeDetailModal({ employee, isOpen, onClose }: EmployeeDetai
 
                 <div className="flex-1 overflow-auto">
                   {loading ? (
-                    <div className="flex items-center justify-center h-40 text-slate-500">
+                    <div
+                      className="flex items-center justify-center h-40 text-slate-500"
+                      aria-busy="true"
+                      aria-live="polite"
+                    >
                       データを読み込み中...
                     </div>
                   ) : employeeRecords.length === 0 ? (

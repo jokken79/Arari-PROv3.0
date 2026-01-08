@@ -65,7 +65,11 @@ export const CostBreakdownChart = React.memo(function CostBreakdownChart({ data 
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="h-[350px]">
+          <div
+            className="h-[350px]"
+            role="img"
+            aria-label="コスト内訳: 給与・保険・福利厚生の構成"
+          >
             <ResponsiveContainer width="100%" height="100%">
               <BarChart
                 data={data}

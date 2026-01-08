@@ -170,7 +170,11 @@ export const MonthlyTrendChart = React.memo(function MonthlyTrendChart({ data }:
           </div>
         </CardHeader>
         <CardContent>
-          <div className="h-[400px]">
+          <div
+            className="h-[400px]"
+            role="img"
+            aria-label="月次トレンド: 月別の収益・コスト・利益・マージン推移"
+          >
             <ResponsiveContainer width="100%" height="100%">
               <ComposedChart
                 data={chartData}

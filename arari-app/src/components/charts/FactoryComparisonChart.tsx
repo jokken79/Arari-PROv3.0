@@ -156,7 +156,12 @@ export const FactoryComparisonChart = React.memo(function FactoryComparisonChart
   }, [data])
 
   const ChartContent = ({ height = "100%" }: { height?: string | number }) => (
-    <div style={{ height }} className="w-full">
+    <div
+      style={{ height }}
+      className="w-full"
+      role="img"
+      aria-label="工場比較チャート: 派遣先別の収益・コスト比較"
+    >
       <ResponsiveContainer width="100%" height="100%">
         <BarChart
           data={sortedData}

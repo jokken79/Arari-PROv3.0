@@ -77,7 +77,11 @@ export const MarginGaugeChart = React.memo(function MarginGaugeChart({
           </p>
         </CardHeader>
         <CardContent>
-          <div className="relative h-[250px]">
+          <div
+            className="relative h-[250px]"
+            role="img"
+            aria-label="マージン率ゲージ: 現在のマージン率を表示"
+          >
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 {/* Background arc segments */}

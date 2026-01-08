@@ -119,7 +119,11 @@ export const CompanyProfitChart = React.memo(function CompanyProfitChart({ data 
           </div>
         </CardHeader>
         <CardContent>
-          <div className="h-[300px]">
+          <div
+            className="h-[300px]"
+            role="img"
+            aria-label="企業別利益チャート: 派遣先別の利益比較"
+          >
             <ResponsiveContainer width="100%" height="100%">
               <BarChart
                 data={sortedData}

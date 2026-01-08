@@ -63,7 +63,7 @@ class Alert:
 
 # Default thresholds (configurable via settings)
 DEFAULT_THRESHOLDS = {
-    "margin_critical": 10.0,  # < 10% = critical
+    "margin_critical": 7.0,  # < 7% = critical (4-tier system)
     "margin_warning": 12.0,  # < 12% = warning (target for 製造派遣)
     "margin_negative": 0.0,  # < 0% = critical (losing money)
     "hours_warning": 200,  # > 200h/month = warning
