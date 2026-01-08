@@ -117,7 +117,7 @@ export default function CompaniesPage() {
       <Header onMenuClick={() => setSidebarOpen(!sidebarOpen)} />
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
-      <main className="md:pl-[280px] pt-16 transition-all duration-300">
+      <main id="main-content" className="md:pl-[280px] pt-16 transition-all duration-300">
         <div className="container py-6 px-4 md:px-6 max-w-7xl mx-auto">
           <motion.div
             initial={{ opacity: 0, y: -20 }}
@@ -125,7 +125,7 @@ export default function CompaniesPage() {
             className="mb-8 flex flex-col md:flex-row md:items-end justify-between gap-4"
           >
             <div>
-              <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 bg-clip-text text-transparent">
+              <h1 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 bg-clip-text text-transparent">
                 派遣先企業
               </h1>
               <p className="text-muted-foreground mt-1">

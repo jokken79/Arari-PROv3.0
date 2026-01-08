@@ -50,10 +50,8 @@ export default function DashboardPage() {
   const [alertModal, setAlertModal] = useState<AlertType>(null)
   const [factoryChartPeriod, setFactoryChartPeriod] = useState<string | null>(null)
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | null>(null)
-  const {
-    selectedPeriod,
-    setSelectedPeriod,
-  } = useAppStore()
+  const selectedPeriod = useAppStore(state => state.selectedPeriod)
+  const setSelectedPeriod = useAppStore(state => state.setSelectedPeriod)
 
   // Fetch data using TanStack Query hooks
   const { data: rawEmployees = [] } = useEmployees()
@@ -85,6 +83,7 @@ export default function DashboardPage() {
 
   // Map to internal types (snake_case -> camelCase)
   const employees = useMemo(() => {
+    if (!rawEmployees) return []
     return rawEmployees.map(e => ({
       id: e.id?.toString() || '',
       employeeId: e.employee_id,
@@ -102,6 +101,7 @@ export default function DashboardPage() {
   }, [rawEmployees])
 
   const payrollRecords = useMemo(() => {
+    if (!rawPayrollRecords) return []
     return rawPayrollRecords.map(r => ({
       id: r.id?.toString() || '',
       employeeId: r.employee_id,
@@ -460,7 +460,7 @@ export default function DashboardPage() {
         <main className="md:pl-[280px] pt-16 transition-all duration-300 relative z-10">
           <div className="container py-6 px-4 md:px-6 max-w-7xl mx-auto">
             <div className="mb-8">
-              <h1 className="text-3xl font-bold bg-gradient-to-r from-cyan-400 via-blue-500 to-indigo-600 bg-clip-text text-transparent">
+              <h1 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-cyan-400 via-blue-500 to-indigo-600 bg-clip-text text-transparent">
                 粗利ダッシュボード
               </h1>
               <p className="text-slate-400 mt-1">データを読み込み中...</p>
@@ -535,7 +535,7 @@ export default function DashboardPage() {
       <Header onMenuClick={() => setSidebarOpen(!sidebarOpen)} />
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
-      <main className="md:pl-[280px] pt-16 transition-all duration-300 relative z-10">
+      <main id="main-content" className="md:pl-[280px] pt-16 transition-all duration-300 relative z-10">
         <div className="container py-6 px-4 md:px-6 max-w-7xl mx-auto">
           {/* Page Title */}
           <motion.div
@@ -546,7 +546,7 @@ export default function DashboardPage() {
             {/* Header Row */}
             <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
               <div>
-                <h1 className="text-3xl font-bold bg-gradient-to-r from-cyan-400 via-blue-500 to-indigo-600 bg-clip-text text-transparent">
+                <h1 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-cyan-400 via-blue-500 to-indigo-600 bg-clip-text text-transparent">
                   粗利ダッシュボード
                 </h1>
                 <p className="text-slate-400 mt-1 text-sm">
@@ -659,7 +659,7 @@ export default function DashboardPage() {
               </div>
 
               {/* Secondary Stats */}
-              <div className="grid gap-4 md:grid-cols-4 mb-8">
+              <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-4 mb-8">
                 <StatsCard
                   title="在職中"
                   value={`${employees.filter(e => e.status === 'active').length}名`}
@@ -798,14 +798,14 @@ export default function DashboardPage() {
                         <table className="w-full text-sm">
                           <thead className="sticky top-0 bg-slate-800">
                             <tr className="border-b border-white/10">
-                              <th className="text-left p-3 text-muted-foreground">#</th>
-                              <th className="text-left p-3 text-muted-foreground">氏名</th>
-                              <th className="text-left p-3 text-muted-foreground">派遣先</th>
-                              <th className="text-right p-3 text-muted-foreground">時給</th>
-                              <th className="text-right p-3 text-muted-foreground">単価</th>
-                              <th className="text-right p-3 text-muted-foreground">単価率</th>
-                              <th className="text-right p-3 text-muted-foreground">粗利</th>
-                              <th className="text-right p-3 text-muted-foreground">マージン</th>
+                              <th className="text-left p-2 sm:p-3 text-muted-foreground">#</th>
+                              <th className="text-left p-2 sm:p-3 text-muted-foreground">氏名</th>
+                              <th className="text-left p-2 sm:p-3 text-muted-foreground">派遣先</th>
+                              <th className="text-right p-2 sm:p-3 text-muted-foreground">時給</th>
+                              <th className="text-right p-2 sm:p-3 text-muted-foreground">単価</th>
+                              <th className="text-right p-2 sm:p-3 text-muted-foreground">単価率</th>
+                              <th className="text-right p-2 sm:p-3 text-muted-foreground">粗利</th>
+                              <th className="text-right p-2 sm:p-3 text-muted-foreground">マージン</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -833,26 +833,26 @@ export default function DashboardPage() {
                                     setAlertModal(null)
                                   }}
                                 >
-                                  <td className="p-3 text-muted-foreground">{idx + 1}</td>
-                                  <td className="p-3 font-medium text-slate-200">{emp.name}</td>
-                                  <td className="p-3 text-muted-foreground">{emp.company}</td>
-                                  <td className="p-3 text-right font-mono">¥{emp.hourlyRate.toLocaleString()}</td>
-                                  <td className="p-3 text-right font-mono">¥{emp.billingRate.toLocaleString()}</td>
+                                  <td className="p-2 sm:p-3 text-muted-foreground">{idx + 1}</td>
+                                  <td className="p-2 sm:p-3 font-medium text-slate-200">{emp.name}</td>
+                                  <td className="p-2 sm:p-3 text-muted-foreground">{emp.company}</td>
+                                  <td className="p-2 sm:p-3 text-right font-mono">¥{emp.hourlyRate.toLocaleString()}</td>
+                                  <td className="p-2 sm:p-3 text-right font-mono">¥{emp.billingRate.toLocaleString()}</td>
                                   <td className={cn(
-                                    "p-3 text-right font-mono",
+                                    "p-2 sm:p-3 text-right font-mono",
                                     emp.rateRatio >= 30 ? "text-amber-400" :
                                     emp.rateRatio >= 20 ? "text-green-400" : "text-red-400"
                                   )}>
                                     {emp.rateRatio.toFixed(1)}%
                                   </td>
                                   <td className={cn(
-                                    "p-3 text-right font-mono font-semibold",
+                                    "p-2 sm:p-3 text-right font-mono font-semibold",
                                     emp.profit >= 0 ? "text-emerald-400" : "text-red-400"
                                   )}>
                                     {formatYen(emp.profit)}
                                   </td>
                                   <td className={cn(
-                                    "p-3 text-right font-mono",
+                                    "p-2 sm:p-3 text-right font-mono",
                                     emp.margin >= 12 ? "text-emerald-400" :
                                     emp.margin >= 10 ? "text-green-400" :
                                     emp.margin >= 7 ? "text-orange-400" : "text-red-400"
@@ -954,15 +954,15 @@ export default function DashboardPage() {
                       <table className="w-full text-sm">
                         <thead className="sticky top-0 bg-slate-100 dark:bg-slate-900/95 backdrop-blur-sm">
                           <tr className="border-b border-slate-200 dark:border-white/10">
-                            <th className="text-left p-3 text-muted-foreground font-medium">#</th>
-                            <th className="text-left p-3 text-muted-foreground font-medium">氏名</th>
-                            <th className="text-left p-3 text-muted-foreground font-medium">派遣先</th>
-                            <th className="text-right p-3 text-muted-foreground font-medium">時給</th>
-                            <th className="text-right p-3 text-muted-foreground font-medium">単価</th>
-                            <th className="text-right p-3 text-muted-foreground font-medium">単価率</th>
-                            <th className="text-right p-3 text-muted-foreground font-medium">粗利</th>
-                            <th className="text-right p-3 text-muted-foreground font-medium">マージン</th>
-                            <th className="text-center p-3 text-muted-foreground font-medium">状態</th>
+                            <th className="text-left p-2 sm:p-3 text-muted-foreground font-medium">#</th>
+                            <th className="text-left p-2 sm:p-3 text-muted-foreground font-medium">氏名</th>
+                            <th className="text-left p-2 sm:p-3 text-muted-foreground font-medium">派遣先</th>
+                            <th className="text-right p-2 sm:p-3 text-muted-foreground font-medium">時給</th>
+                            <th className="text-right p-2 sm:p-3 text-muted-foreground font-medium">単価</th>
+                            <th className="text-right p-2 sm:p-3 text-muted-foreground font-medium">単価率</th>
+                            <th className="text-right p-2 sm:p-3 text-muted-foreground font-medium">粗利</th>
+                            <th className="text-right p-2 sm:p-3 text-muted-foreground font-medium">マージン</th>
+                            <th className="text-center p-2 sm:p-3 text-muted-foreground font-medium">状態</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -975,13 +975,13 @@ export default function DashboardPage() {
                                 emp.isCritical && emp.profit >= 0 && "bg-orange-500/5"
                               )}
                             >
-                              <td className="p-3 text-muted-foreground">{idx + 1}</td>
-                              <td className="p-3 font-medium text-slate-200">{emp.name}</td>
-                              <td className="p-3 text-muted-foreground">{emp.company}</td>
-                              <td className="p-3 text-right font-mono">¥{emp.hourlyRate.toLocaleString()}</td>
-                              <td className="p-3 text-right font-mono">¥{emp.billingRate.toLocaleString()}</td>
+                              <td className="p-2 sm:p-3 text-muted-foreground">{idx + 1}</td>
+                              <td className="p-2 sm:p-3 font-medium text-slate-200">{emp.name}</td>
+                              <td className="p-2 sm:p-3 text-muted-foreground">{emp.company}</td>
+                              <td className="p-2 sm:p-3 text-right font-mono">¥{emp.hourlyRate.toLocaleString()}</td>
+                              <td className="p-2 sm:p-3 text-right font-mono">¥{emp.billingRate.toLocaleString()}</td>
                               <td className={cn(
-                                "p-3 text-right font-mono",
+                                "p-2 sm:p-3 text-right font-mono",
                                 emp.rateRatio >= 30 ? "text-amber-400" :
                                 emp.rateRatio >= 20 ? "text-green-400" :
                                 emp.rateRatio >= 10 ? "text-blue-400" : "text-red-400"
@@ -989,20 +989,20 @@ export default function DashboardPage() {
                                 {emp.rateRatio.toFixed(1)}%
                               </td>
                               <td className={cn(
-                                "p-3 text-right font-mono font-semibold",
+                                "p-2 sm:p-3 text-right font-mono font-semibold",
                                 emp.profit >= 0 ? "text-emerald-400" : "text-red-400"
                               )}>
                                 {formatYen(emp.profit)}
                               </td>
                               <td className={cn(
-                                "p-3 text-right font-mono",
+                                "p-2 sm:p-3 text-right font-mono",
                                 emp.margin >= 12 ? "text-emerald-400" :
                                 emp.margin >= 10 ? "text-green-400" :
                                 emp.margin >= 7 ? "text-orange-400" : "text-red-400"
                               )}>
                                 {emp.margin.toFixed(1)}%
                               </td>
-                              <td className="p-3 text-center">
+                              <td className="p-2 sm:p-3 text-center">
                                 {emp.profit < 0 ? (
                                   <span className="px-2 py-1 rounded-full text-xs bg-red-500/20 text-red-400">赤字</span>
                                 ) : emp.isCritical ? (
