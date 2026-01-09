@@ -1,6 +1,6 @@
 {
-  "name": "arari-pro-v2",
-  "version": "2.0.0",
+  "name": "arari-pro-v3",
+  "version": "3.0.0",
   "private": true,
   "packageManager": "npm@10.9.2",
   "engines": {
