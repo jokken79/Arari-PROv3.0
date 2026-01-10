@@ -5,6 +5,38 @@ Este archivo mantiene un registro cronológico de todos los cambios significativ
 
 ---
 
+## [2026-01-10] Mejoras de Seguridad Completas
+
+### Añadido
+- **Rate Limiting con Redis** (`rate_limiter.py`)
+  - Backend Redis con fallback a memoria
+  - Algoritmo sliding window con scripts Lua
+  - Límites configurables por endpoint
+  - Variable de entorno `REDIS_URL`
+
+- **Autenticación con HttpOnly Cookies**
+  - Tokens en cookies HttpOnly (protección XSS)
+  - Compatible con header Authorization
+  - Configuración: `COOKIE_DOMAIN`, `COOKIE_SECURE`, `COOKIE_SAMESITE`
+
+- **Refresh Tokens**
+  - Nueva tabla `refresh_tokens` en BD
+  - Expiración de 7 días con rotación
+  - Revocación automática al cambiar contraseña
+  - Endpoint `/api/auth/refresh`
+
+- **63 Nuevos Tests de Seguridad**
+  - Rate limiting: 28 tests
+  - Cookie auth: 14 tests
+  - Refresh tokens: 17 tests
+  - Integración: 8 tests
+
+### Estadísticas
+- **Tests Totales**: 111 (48 existentes + 63 nuevos)
+- **Cobertura de Seguridad**: Completa
+
+---
+
 ## [2026-01-10] Refactorización Completa de Routers
 
 ### Añadido
