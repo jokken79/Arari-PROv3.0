@@ -606,19 +606,81 @@ GitHub Actions ejecuta en push/PR a `main` (`.github/workflows/main.yml`):
 - Frontend linter (npm run lint)
 ```
 
+## Memory System (Sistema de Memoria)
+
+**IMPORTANTE**: Al inicio de cada sesión, leer estos archivos para tener contexto completo:
+
+```
+.claude/memory/
+├── CONTEXT.md      # Estado actual del proyecto (LEER PRIMERO)
+├── CHANGELOG.md    # Historial de cambios recientes
+└── SESSION_LOG.md  # Log de sesiones anteriores
+```
+
+### Al Final de Cada Sesión
+
+Ejecutar `/update-memory` o actualizar manualmente:
+1. Añadir entrada en `CHANGELOG.md` con cambios del día
+2. Actualizar estado en `CONTEXT.md`
+3. Completar entrada en `SESSION_LOG.md`
+
 ## Claude Code Skills (Slash Commands)
 
+### Skills de Análisis
+| Comando | Descripción |
+|---------|-------------|
+| `/analyze-margin [período]` | Analiza márgenes de ganancia |
+| `/perf-analyze [area]` | Análisis de rendimiento (api/db/frontend/all) |
+| `/code-review [branch]` | Revisa código de PR/branch |
+
+### Skills de Desarrollo
+| Comando | Descripción |
+|---------|-------------|
+| `/add-feature [descripción]` | Implementa nueva funcionalidad |
+| `/fix-bugs [descripción]` | Encuentra y corrige bugs |
+| `/refactor-api [módulo]` | Refactoriza el backend |
+| `/optimize-frontend [area]` | Optimiza rendimiento frontend |
+
+### Skills de Operaciones
+| Comando | Descripción |
+|---------|-------------|
+| `/test-suite [area]` | Ejecuta y analiza tests |
+| `/deploy-check [env]` | Verifica preparación para deploy |
+| `/schema-migrate [action]` | Gestiona migraciones de BD |
+| `/backup-db` | Crea backup de base de datos |
+| `/update-memory` | Actualiza sistema de memoria |
+
+### Skills de Reportes
 | Comando | Descripción |
 |---------|-------------|
 | `/generate-report [tipo] [período]` | Genera reportes (monthly, employee, company, executive) |
-| `/analyze-margin` | Analiza márgenes de ganancia |
-| `/validate-data` | Valida integridad de datos |
-| `/backup-db` | Crea backup de base de datos |
-| `/audit-log` | Ver logs de auditoría |
+| `/audit-log [filtros]` | Ver logs de auditoría |
 | `/check-alerts` | Revisar alertas activas |
+| `/validate-data` | Valida integridad de datos |
 | `/calculate-roi` | Calcular métricas ROI |
 
+### Skills de Seguridad
+| Comando | Descripción |
+|---------|-------------|
+| `/security-audit [area]` | Auditoría de seguridad |
+
 Ejemplo: `/generate-report monthly 2025年1月`
+
+## Specialized Agents (Subagentes)
+
+Agentes especializados disponibles en `.claude/agents/`:
+
+| Agente | Uso |
+|--------|-----|
+| `frontend-specialist` | Next.js, React, TypeScript, TanStack Query |
+| `backend-specialist` | FastAPI, Python, Pydantic, APIs |
+| `database-specialist` | SQLite, PostgreSQL, migraciones |
+| `security-specialist` | Auth, OWASP, tokens, seguridad |
+| `business-logic-specialist` | Fórmulas de nómina, seguros, comisiones |
+| `test-specialist` | pytest, Jest, coverage, CI/CD |
+| `memory-agent` | Mantiene memoria persistente |
+
+Ver `.claude/AGENTS.md` para documentación completa.
 
 ## Tech Stack
 
@@ -640,6 +702,27 @@ The system uses a hybrid template approach:
 3. Fallback: Hardcoded `FALLBACK_ROW_POSITIONS` if detection fails
 
 Templates are stored in `factory_templates` table with field positions and column offsets.
+
+## Japanese Number Formatting (日本語数字フォーマット)
+
+Para reportes y UI, usar formato japonés para dinero:
+
+```python
+from japanese_format import format_japanese_yen, format_japanese_yen_short
+
+# Ejemplos:
+format_japanese_yen(870000)       # → "87万円"
+format_japanese_yen(123456789)    # → "1億2,345万6,789円"
+format_japanese_yen_short(870000) # → "87万" (para gráficos)
+```
+
+| Valor | Formato Incorrecto | Formato Correcto |
+|-------|-------------------|------------------|
+| 870,000 | ¥870,000 | 87万円 |
+| 10,000,000 | ¥10M | 1,000万円 |
+| 100,000,000 | ¥100M | 1億円 |
+
+Ver `arari-app/api/japanese_format.py` para todas las funciones disponibles.
 
 ## Centralized Configuration
 

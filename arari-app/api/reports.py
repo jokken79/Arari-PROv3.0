@@ -10,6 +10,14 @@ from io import BytesIO
 from typing import Any, Dict, List
 
 from database import USE_POSTGRES
+from japanese_format import (
+    format_japanese_yen,
+    format_japanese_yen_short,
+    format_japanese_hours,
+    format_japanese_percentage,
+    format_japanese_count,
+    get_margin_tier_jp,
+)
 
 # Note: For PDF generation, you'll need to install: pip install reportlab
 # For Excel: openpyxl is already installed
@@ -877,15 +885,15 @@ class ReportService:
         ws["A3"].font = Font(bold=True)
 
         ws["A4"] = "従業員数"
-        ws["B4"] = summary.get("employee_count") or 0
+        ws["B4"] = format_japanese_count(summary.get("employee_count") or 0, "名")
         ws["A5"] = "売上合計"
-        ws["B5"] = f"¥{(summary.get('total_revenue') or 0):,.0f}"
+        ws["B5"] = format_japanese_yen(summary.get('total_revenue') or 0)
         ws["A6"] = "コスト合計"
-        ws["B6"] = f"¥{(summary.get('total_cost') or 0):,.0f}"
+        ws["B6"] = format_japanese_yen(summary.get('total_cost') or 0)
         ws["A7"] = "粗利合計"
-        ws["B7"] = f"¥{(summary.get('total_profit') or 0):,.0f}"
+        ws["B7"] = format_japanese_yen(summary.get('total_profit') or 0)
         ws["A8"] = "平均マージン"
-        ws["B8"] = f"{(summary.get('avg_margin') or 0):.1f}%"
+        ws["B8"] = format_japanese_percentage(summary.get('avg_margin') or 0)
 
         # By company section
         ws["A10"] = "派遣先別"
@@ -1289,15 +1297,17 @@ class ReportService:
         else:
             return PDF_COLORS['danger']
 
-    def _format_yen(self, value: float) -> str:
-        """Format number as Japanese Yen"""
-        if value is None:
-            return "¥0"
-        if abs(value) >= 1000000:
-            return f"¥{value/1000000:.1f}M"
-        elif abs(value) >= 1000:
-            return f"¥{value/1000:.0f}K"
-        return f"¥{value:,.0f}"
+    def _format_yen(self, value: float, short: bool = False) -> str:
+        """Format number as Japanese Yen with 万/億 notation
+
+        Examples:
+            870,000 → 87万円
+            1,234,567 → 123万4,567円
+            100,000,000 → 1億円
+        """
+        if short:
+            return format_japanese_yen_short(value)
+        return format_japanese_yen(value, short=True)  # Short format for reports
 
     def _create_bar_chart(self, data: List[Dict], width: float = 400, height: float = 200) -> Drawing:
         """Create a bar chart for company profits"""
