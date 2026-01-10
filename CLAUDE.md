@@ -608,13 +608,16 @@ GitHub Actions ejecuta en push/PR a `main` (`.github/workflows/main.yml`):
 
 ## Memory System (Sistema de Memoria)
 
-**IMPORTANTE**: Al inicio de cada sesión, leer estos archivos para tener contexto completo:
+**IMPORTANTE**: Al inicio de cada sesión, ejecutar `/session-start` o leer estos archivos para tener contexto completo:
 
 ```
 .claude/memory/
-├── CONTEXT.md      # Estado actual del proyecto (LEER PRIMERO)
-├── CHANGELOG.md    # Historial de cambios recientes
-└── SESSION_LOG.md  # Log de sesiones anteriores
+├── CONTEXT.md           # Estado actual del proyecto (LEER PRIMERO)
+├── CHANGELOG.md         # Historial de cambios recientes
+├── SESSION_LOG.md       # Log de sesiones anteriores
+├── KNOWN_ERRORS.md      # Errores conocidos para no repetir
+├── ERROR_LOG.md         # Template para errores de runtime
+└── BUSINESS_CONTEXT.md  # Contexto de negocio (派遣会社)
 ```
 
 ### Al Final de Cada Sesión
@@ -623,6 +626,7 @@ Ejecutar `/update-memory` o actualizar manualmente:
 1. Añadir entrada en `CHANGELOG.md` con cambios del día
 2. Actualizar estado en `CONTEXT.md`
 3. Completar entrada en `SESSION_LOG.md`
+4. Documentar errores nuevos en `KNOWN_ERRORS.md`
 
 ## Claude Code Skills (Slash Commands)
 
@@ -649,6 +653,7 @@ Ejecutar `/update-memory` o actualizar manualmente:
 | `/schema-migrate [action]` | Gestiona migraciones de BD |
 | `/backup-db` | Crea backup de base de datos |
 | `/update-memory` | Actualiza sistema de memoria |
+| `/session-start` | Inicializa sesión con contexto completo |
 
 ### Skills de Reportes
 | Comando | Descripción |
@@ -670,6 +675,7 @@ Ejemplo: `/generate-report monthly 2025年1月`
 
 Agentes especializados disponibles en `.claude/agents/`:
 
+### Agentes de Dominio
 | Agente | Uso |
 |--------|-----|
 | `frontend-specialist` | Next.js, React, TypeScript, TanStack Query |
@@ -679,6 +685,14 @@ Agentes especializados disponibles en `.claude/agents/`:
 | `business-logic-specialist` | Fórmulas de nómina, seguros, comisiones |
 | `test-specialist` | pytest, Jest, coverage, CI/CD |
 | `memory-agent` | Mantiene memoria persistente |
+
+### Agentes de Combate de Debilidades
+| Agente | Combate |
+|--------|---------|
+| `code-validator` | No poder ejecutar código - checklists de validación |
+| `auto-tester` | No verificar funcionamiento - comandos de testing |
+| `simplicity-agent` | Sobre-ingeniería - principios YAGNI/KISS |
+| `business-context-agent` | Falta de contexto - dominio 派遣会社 |
 
 Ver `.claude/AGENTS.md` para documentación completa.
 

@@ -66,7 +66,7 @@
 - `arari-app/api/reports.py` - Formato japonés
 - `arari-app/api/japanese_format.py` - Nuevo módulo
 - `.claude/agents/*` - 11 agentes especializados
-- `.claude/commands/*` - 14 skills disponibles
+- `.claude/commands/*` - 19 skills disponibles
 - `.claude/memory/*` - 6 archivos de memoria
 
 ---
