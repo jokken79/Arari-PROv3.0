@@ -55,6 +55,15 @@ from services import ExcelParser, PayrollService
 from template_manager import TemplateManager, create_template_from_excel
 from validation import ValidationService
 
+# Import modular routers
+from routers import (
+    employees_router,
+    payroll_router,
+    statistics_router,
+    settings_router,
+    additional_costs_router,
+)
+
 load_dotenv()
 
 frontend_process = None
@@ -282,6 +291,13 @@ app.add_middleware(
     expose_headers=["*"],  # Allow client to read response headers
     max_age=3600,  # Cache preflight requests for 1 hour
 )
+
+# ============== Include Modular Routers ==============
+app.include_router(employees_router)
+app.include_router(payroll_router)
+app.include_router(statistics_router)
+app.include_router(settings_router)
+app.include_router(additional_costs_router)
 
 # ============== Health Check ==============
 
