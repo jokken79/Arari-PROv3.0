@@ -15,6 +15,13 @@ Este archivo mantiene un registro cronológico de todos los cambios significativ
   - `security-specialist.md` - Experto en autenticación y seguridad
   - `business-logic-specialist.md` - Experto en reglas de negocio
   - `test-specialist.md` - Experto en testing
+  - `memory-agent.md` - Agente de memoria persistente
+
+- **Agentes de Combate de Debilidades** (`.claude/agents/`)
+  - `code-validator.md` - Validación de código antes de commit
+  - `simplicity-agent.md` - Prevención de sobre-ingeniería
+  - `business-context-agent.md` - Contexto de negocio de 派遣会社
+  - `auto-tester.md` - Testing automático y verificación
 
 - **Nuevos Skills** (`.claude/commands/`)
   - `/optimize-frontend` - Optimización de rendimiento frontend
@@ -27,6 +34,8 @@ Este archivo mantiene un registro cronológico de todos los cambios significativ
   - `/schema-migrate` - Migraciones de BD
   - `/code-review` - Revisiones de código
   - `/perf-analyze` - Análisis de rendimiento
+  - `/update-memory` - Actualizar sistema de memoria
+  - `/session-start` - Inicializar sesión con contexto
 
 - **Formato Japonés** (`arari-app/api/japanese_format.py`)
   - Conversión de números a formato japonés (万, 億, 兆)
@@ -38,9 +47,13 @@ Este archivo mantiene un registro cronológico de todos los cambios significativ
   - `CHANGELOG.md` - Este archivo
   - `CONTEXT.md` - Estado actual del proyecto
   - `SESSION_LOG.md` - Log de sesiones
+  - `KNOWN_ERRORS.md` - Errores conocidos para no repetir
+  - `ERROR_LOG.md` - Template para errores de runtime
+  - `BUSINESS_CONTEXT.md` - Contexto de negocio
 
 ### Modificado
 - `reports.py` - Integración de formato japonés para PDFs y Excel
+- `AGENTS.md` - Versión 2.0 con agentes de combate de debilidades
 
 ### Áreas de Mejora Identificadas
 1. **Críticas**:
@@ -52,6 +65,15 @@ Este archivo mantiene un registro cronológico de todos los cambios significativ
    - Refactorizar main.py (1800+ líneas)
    - Implementar refresh tokens
    - Mejorar test coverage
+
+### Debilidades de Claude Identificadas y Combatidas
+| Debilidad | Agente/Solución |
+|-----------|-----------------|
+| No ejecutar código | `code-validator.md` + `auto-tester.md` |
+| Sobre-ingeniería | `simplicity-agent.md` |
+| Pérdida de memoria | Sistema `.claude/memory/` |
+| Falta contexto negocio | `business-context-agent.md` |
+| Sesgo hacia patrones | Documentación en KNOWN_ERRORS.md |
 
 ---
 

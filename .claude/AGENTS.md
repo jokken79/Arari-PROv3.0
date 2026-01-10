@@ -40,6 +40,8 @@ Los skills son comandos invocables que ejecutan tareas específicas con conocimi
 | `/deploy-check` | Verifica preparación para deploy | `/deploy-check [env]` |
 | `/schema-migrate` | Gestiona migraciones de BD | `/schema-migrate [action]` |
 | `/backup-db` | Crea backup de base de datos | `/backup-db` |
+| `/update-memory` | Actualiza sistema de memoria | `/update-memory` |
+| `/session-start` | Inicializa sesión con contexto | `/session-start` |
 
 ### Skills de Reportes
 
@@ -169,6 +171,94 @@ Los subagentes son especialistas en dominios específicos que pueden ser invocad
 - Mejorar coverage
 - Depurar tests fallidos
 - Configurar CI
+
+### Memory Agent
+
+**Archivo**: `.claude/agents/memory-agent.md`
+
+**Expertise**:
+- Sistema de memoria persistente
+- CHANGELOG, CONTEXT, SESSION_LOG
+- Continuidad entre sesiones
+
+**Cuándo usar**:
+- Actualizar memoria después de cambios
+- Registrar errores para futuro
+- Mantener contexto actualizado
+
+---
+
+## Agentes de Combate de Debilidades
+
+Agentes diseñados para compensar limitaciones específicas de Claude.
+
+### Code Validator
+
+**Archivo**: `.claude/agents/code-validator.md`
+
+**Combate**: Incapacidad de ejecutar código para verificar
+
+**Expertise**:
+- Checklists de validación
+- Comandos de verificación de sintaxis
+- Patrones de testing manual
+- Build verification
+
+**Cuándo usar**:
+- Después de escribir código nuevo
+- Antes de hacer commit
+- Al modificar lógica crítica
+
+### Simplicity Agent
+
+**Archivo**: `.claude/agents/simplicity-agent.md`
+
+**Combate**: Tendencia a sobre-ingenierizar
+
+**Expertise**:
+- Principios YAGNI, KISS
+- Detección de abstracciones prematuras
+- Métricas de complejidad
+- Anti-patrones
+
+**Cuándo usar**:
+- Al diseñar nuevas features
+- Cuando la solución parece compleja
+- Para revisar arquitectura propuesta
+
+### Business Context Agent
+
+**Archivo**: `.claude/agents/business-context-agent.md`
+
+**Combate**: Falta de comprensión del negocio
+
+**Expertise**:
+- Dominio 派遣会社 (staffing)
+- Terminología japonesa de nómina
+- Reglas de negocio específicas
+- Cálculos de margen
+
+**Cuándo usar**:
+- Al modificar lógica de negocio
+- Para entender requisitos
+- Al validar cálculos
+
+### Auto Tester
+
+**Archivo**: `.claude/agents/auto-tester.md`
+
+**Combate**: Incapacidad de verificar que código funciona
+
+**Expertise**:
+- Comandos de pytest/Jest
+- Patrones de tests
+- Coverage analysis
+- CI/CD verification
+
+**Cuándo usar**:
+- Para ejecutar tests existentes
+- Para crear nuevos tests
+- Para verificar cambios
 
 ---
 
@@ -346,5 +436,5 @@ Cuando se añadan nuevos skills o agentes:
 
 ---
 
-*Última actualización: 2026-01-09*
-*Versión: 1.0*
+*Última actualización: 2026-01-10*
+*Versión: 2.0 - Añadidos agentes de combate de debilidades*

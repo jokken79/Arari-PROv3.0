@@ -48,7 +48,16 @@
 
 ## Últimos Cambios Significativos
 
-### 2026-01-10
+### 2026-01-10 (Sesión 2)
+- Creados agentes de combate de debilidades:
+  - `code-validator.md` - Validación de código
+  - `simplicity-agent.md` - Anti sobre-ingeniería
+  - `business-context-agent.md` - Contexto de negocio
+  - `auto-tester.md` - Testing automático
+- Añadido skill `/session-start` para inicializar sesiones
+- Actualizado AGENTS.md a versión 2.0
+
+### 2026-01-10 (Sesión 1)
 - Creado sistema de agentes y skills
 - Implementado formato japonés para números (万, 億)
 - Creado sistema de memoria persistente
@@ -56,8 +65,9 @@
 ### Archivos Clave Modificados
 - `arari-app/api/reports.py` - Formato japonés
 - `arari-app/api/japanese_format.py` - Nuevo módulo
-- `.claude/agents/*` - Nuevos agentes
-- `.claude/commands/*` - Nuevos skills
+- `.claude/agents/*` - 11 agentes especializados
+- `.claude/commands/*` - 14 skills disponibles
+- `.claude/memory/*` - 6 archivos de memoria
 
 ---
 
