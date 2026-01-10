@@ -8,9 +8,9 @@ from fastapi.testclient import TestClient
 # Add the parent directory to the sys.path to allow imports from the api module
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from auth_dependencies import _rate_limit_store
 from database import get_db, init_db
 from main import app
+from rate_limiter import reset_rate_limiter
 
 
 @pytest.fixture(autouse=True)
@@ -19,9 +19,9 @@ def clear_rate_limits():
     Clear rate limit store before each test to prevent 429 errors.
     This runs automatically for every test.
     """
-    _rate_limit_store.clear()
+    reset_rate_limiter()
     yield
-    _rate_limit_store.clear()
+    reset_rate_limiter()
 
 
 @pytest.fixture(scope="function")

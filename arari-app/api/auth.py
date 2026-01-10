@@ -31,6 +31,7 @@ def _q(query: str) -> str:
 # It can still be used for JWT tokens if implemented.
 # SECRET_KEY = os.environ.get("ARARI_SECRET_KEY", secrets.token_hex(32))
 TOKEN_EXPIRE_HOURS = 24
+REFRESH_TOKEN_EXPIRE_DAYS = 7  # Refresh tokens last 7 days
 
 # Role hierarchy
 ROLES = {
@@ -88,7 +89,7 @@ def init_auth_tables(conn):
     """
     cursor.execute(users_sql)
 
-    # Sessions/Tokens table
+    # Sessions/Tokens table (access tokens)
     tokens_sql = f"""
         CREATE TABLE IF NOT EXISTS auth_tokens (
             id {PK_TYPE},
@@ -100,6 +101,21 @@ def init_auth_tables(conn):
         )
     """
     cursor.execute(tokens_sql)
+
+    # Refresh tokens table (longer-lived tokens for obtaining new access tokens)
+    refresh_tokens_sql = f"""
+        CREATE TABLE IF NOT EXISTS refresh_tokens (
+            id {PK_TYPE},
+            user_id INTEGER NOT NULL,
+            token TEXT UNIQUE NOT NULL,
+            expires_at TEXT NOT NULL,
+            revoked INTEGER DEFAULT 0,
+            revoked_at TEXT,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(id)
+        )
+    """
+    cursor.execute(refresh_tokens_sql)
 
     # Create indexes
     cursor.execute(
@@ -113,6 +129,20 @@ def init_auth_tables(conn):
         """
         CREATE INDEX IF NOT EXISTS idx_tokens_token
         ON auth_tokens(token)
+    """
+    )
+
+    cursor.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_refresh_tokens_token
+        ON refresh_tokens(token)
+    """
+    )
+
+    cursor.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_refresh_tokens_user
+        ON refresh_tokens(user_id)
     """
     )
 
@@ -239,6 +269,176 @@ def revoke_all_user_tokens(conn, user_id: int) -> int:
     return cursor.rowcount
 
 
+# ============== REFRESH TOKEN FUNCTIONS ==============
+
+
+def generate_refresh_token() -> str:
+    """Generate secure random refresh token (longer than access token)"""
+    return secrets.token_urlsafe(48)
+
+
+def create_refresh_token(conn, user_id: int) -> Dict[str, Any]:
+    """Create new refresh token for a user"""
+    token = generate_refresh_token()
+    expires_at = datetime.now() + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
+
+    cursor = conn.cursor()
+    cursor.execute(
+        _q("""
+        INSERT INTO refresh_tokens (user_id, token, expires_at)
+        VALUES (?, ?, ?)
+    """),
+        (user_id, token, expires_at.isoformat()),
+    )
+    conn.commit()
+
+    return {
+        "refresh_token": token,
+        "refresh_expires_at": expires_at.isoformat(),
+    }
+
+
+def validate_refresh_token(conn, token: str) -> Optional[Dict[str, Any]]:
+    """
+    Validate refresh token and return user info if valid.
+    Returns None if token is invalid, expired, or revoked.
+    """
+    cursor = conn.cursor()
+    cursor.execute(
+        _q("""
+        SELECT rt.id, rt.user_id, rt.expires_at, rt.revoked,
+               u.username, u.role, u.full_name, u.email, u.is_active
+        FROM refresh_tokens rt
+        JOIN users u ON rt.user_id = u.id
+        WHERE rt.token = ?
+    """),
+        (token,),
+    )
+
+    row = cursor.fetchone()
+    if not row:
+        return None
+
+    # Handle both dict (PostgreSQL) and tuple (SQLite)
+    if isinstance(row, dict):
+        token_id = row["id"]
+        user_id = row["user_id"]
+        expires_at_val = row["expires_at"]
+        revoked = row["revoked"]
+        username = row["username"]
+        role = row["role"]
+        full_name = row["full_name"]
+        email = row["email"]
+        is_active = row["is_active"]
+    else:
+        token_id, user_id, expires_at_val, revoked, username, role, full_name, email, is_active = row
+
+    # Check if revoked
+    if revoked:
+        return None
+
+    # Check if user is active
+    if not is_active:
+        return None
+
+    # Check expiration
+    expires_at = datetime.fromisoformat(expires_at_val)
+    if datetime.now() > expires_at:
+        # Token expired - optionally clean up
+        cursor.execute(_q("DELETE FROM refresh_tokens WHERE id = ?"), (token_id,))
+        conn.commit()
+        return None
+
+    return {
+        "token_id": token_id,
+        "user_id": user_id,
+        "username": username,
+        "role": role,
+        "full_name": full_name,
+        "email": email,
+        "expires_at": expires_at_val,
+    }
+
+
+def revoke_refresh_token(conn, token: str) -> bool:
+    """Revoke a specific refresh token"""
+    cursor = conn.cursor()
+    cursor.execute(
+        _q("""
+        UPDATE refresh_tokens
+        SET revoked = 1, revoked_at = ?
+        WHERE token = ? AND revoked = 0
+    """),
+        (datetime.now().isoformat(), token),
+    )
+    conn.commit()
+    return cursor.rowcount > 0
+
+
+def revoke_all_user_refresh_tokens(conn, user_id: int) -> int:
+    """Revoke all refresh tokens for a user"""
+    cursor = conn.cursor()
+    cursor.execute(
+        _q("""
+        UPDATE refresh_tokens
+        SET revoked = 1, revoked_at = ?
+        WHERE user_id = ? AND revoked = 0
+    """),
+        (datetime.now().isoformat(), user_id),
+    )
+    conn.commit()
+    return cursor.rowcount
+
+
+def cleanup_expired_refresh_tokens(conn) -> int:
+    """Clean up expired refresh tokens (maintenance function)"""
+    cursor = conn.cursor()
+    cursor.execute(
+        _q("""
+        DELETE FROM refresh_tokens
+        WHERE expires_at < ? OR revoked = 1
+    """),
+        (datetime.now().isoformat(),),
+    )
+    conn.commit()
+    return cursor.rowcount
+
+
+def rotate_refresh_token(conn, old_token: str) -> Optional[Dict[str, Any]]:
+    """
+    Rotate refresh token: validate old token, revoke it, and issue new one.
+    Returns new tokens if successful, None if old token is invalid.
+    This implements refresh token rotation for enhanced security.
+    """
+    # Validate the old token first
+    user_info = validate_refresh_token(conn, old_token)
+    if not user_info:
+        return None
+
+    user_id = user_info["user_id"]
+
+    # Revoke the old refresh token
+    revoke_refresh_token(conn, old_token)
+
+    # Create new access token
+    access_token_data = create_token(conn, user_id)
+
+    # Create new refresh token
+    refresh_token_data = create_refresh_token(conn, user_id)
+
+    return {
+        "user": {
+            "id": user_id,
+            "username": user_info["username"],
+            "role": user_info["role"],
+            "full_name": user_info["full_name"],
+            "email": user_info["email"],
+        },
+        **access_token_data,
+        **refresh_token_data,
+    }
+
+
 def has_permission(role: str, permission: str) -> bool:
     """Check if role has specific permission"""
     if role not in ROLE_PERMISSIONS:
@@ -306,8 +506,11 @@ class AuthService:
         )
         self.conn.commit()
 
-        # Create token
+        # Create access token
         token_data = create_token(self.conn, user_id)
+
+        # Create refresh token
+        refresh_token_data = create_refresh_token(self.conn, user_id)
 
         return {
             "user": {
@@ -318,11 +521,15 @@ class AuthService:
                 "email": email,
             },
             **token_data,
+            **refresh_token_data,
         }
 
-    def logout(self, token: str) -> bool:
-        """Logout user by revoking token"""
-        return revoke_token(self.conn, token)
+    def logout(self, token: str, refresh_token: str = None) -> bool:
+        """Logout user by revoking access token and optionally refresh token"""
+        access_revoked = revoke_token(self.conn, token)
+        if refresh_token:
+            revoke_refresh_token(self.conn, refresh_token)
+        return access_revoked
 
     def create_user(
         self,
@@ -423,6 +630,7 @@ class AuthService:
 
         # Revoke all tokens (force re-login)
         revoke_all_user_tokens(self.conn, user_id)
+        revoke_all_user_refresh_tokens(self.conn, user_id)
 
         return {"status": "password_changed"}
 
@@ -446,6 +654,7 @@ class AuthService:
 
         # Revoke all tokens (force re-login)
         revoke_all_user_tokens(self.conn, user_id)
+        revoke_all_user_refresh_tokens(self.conn, user_id)
 
         # Handle both dict (PostgreSQL) and tuple (SQLite)
         username = row["username"] if isinstance(row, dict) else row[1]
@@ -511,6 +720,7 @@ class AuthService:
 
         if hard_delete:
             revoke_all_user_tokens(self.conn, user_id)
+            revoke_all_user_refresh_tokens(self.conn, user_id)
             self.cursor.execute(_q("DELETE FROM users WHERE id = ?"), (user_id,))
         else:
             self.cursor.execute(
@@ -521,6 +731,7 @@ class AuthService:
                 (user_id,),
             )
             revoke_all_user_tokens(self.conn, user_id)
+            revoke_all_user_refresh_tokens(self.conn, user_id)
 
         self.conn.commit()
         return {"status": "deleted" if hard_delete else "deactivated"}
