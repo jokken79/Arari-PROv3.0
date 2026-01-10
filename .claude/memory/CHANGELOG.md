@@ -5,6 +5,34 @@ Este archivo mantiene un registro cronológico de todos los cambios significativ
 
 ---
 
+## [2026-01-10] Refactorización Completa de Routers
+
+### Añadido
+- **11 Nuevos Routers** (`arari-app/api/routers/`)
+  - `auth.py` - 7 endpoints de autenticación
+  - `alerts.py` - 6 endpoints de alertas
+  - `audit.py` - 3 endpoints de auditoría
+  - `reports.py` - 5 endpoints de reportes
+  - `budget.py` - 5 endpoints de presupuestos
+  - `notifications.py` - 6 endpoints de notificaciones
+  - `search.py` - 6 endpoints de búsqueda
+  - `validation.py` - 4 endpoints de validación
+  - `backup.py` - 5 endpoints de respaldo
+  - `roi.py` - 6 endpoints de ROI
+  - `cache.py` - 2 endpoints de caché
+
+### Modificado
+- `main.py` - Reducido de 2326 a 1308 líneas (44% menos código)
+- `routers/__init__.py` - Exporta los 17 routers modulares
+- Arquitectura completamente modular para FastAPI
+
+### Estadísticas
+- **Total Routers**: 17
+- **Endpoints Movidos**: ~75
+- **Reducción de Código**: 1018 líneas
+
+---
+
 ## [2026-01-10] Sistema de Agentes y Formato Japonés
 
 ### Añadido
