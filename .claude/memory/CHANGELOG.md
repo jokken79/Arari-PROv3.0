@@ -51,6 +51,14 @@ Este archivo mantiene un registro cronológico de todos los cambios significativ
   - `ERROR_LOG.md` - Template para errores de runtime
   - `BUSINESS_CONTEXT.md` - Contexto de negocio
 
+- **FastAPI Routers** (`arari-app/api/routers/`)
+  - `employees.py` - 5 endpoints CRUD
+  - `payroll.py` - 3 endpoints de nómina
+  - `statistics.py` - 4 endpoints de estadísticas
+  - `settings.py` - 5 endpoints de configuración
+  - `additional_costs.py` - 9 endpoints de costos adicionales
+  - `MIGRATION_ROUTERS.md` - Guía de migración
+
 ### Modificado
 - `reports.py` - Integración de formato japonés para PDFs y Excel
 - `AGENTS.md` - Versión 2.0 con agentes de combate de debilidades
