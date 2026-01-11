@@ -5,6 +5,28 @@ Este archivo mantiene un registro cronológico de todos los cambios significativ
 
 ---
 
+## [2026-01-11] Correcciones Críticas de Seguridad
+
+### Arreglado
+- **CORS Restrictivo** - Regex ahora solo permite `arari-*` dominios de Vercel
+- **COOKIE_SECURE Auto-Detectado** - Automáticamente `true` en Railway/Vercel/Render
+- **Frontend Migrado a Cookies** - Tokens ya no se guardan en localStorage (XSS fix)
+- **Detección de Contraseña Débil** - Redirige a cambiar contraseña si es default
+
+### Modificado
+- `api.ts` - Todas las llamadas usan `credentials: 'include'`
+- `useAuth.ts` - Usa cookies HttpOnly, no localStorage para tokens
+- `login/page.tsx` - Redirige a settings si contraseña es débil
+- `settings/page.tsx` - Usa `isAuthenticated` en lugar de `token`
+- `auth.py` - Añadida función `is_weak_password()`
+- `auth_dependencies.py` - Auto-detecta entorno de producción
+
+### Tests
+- 111 tests pasando (backend)
+- Build de frontend exitoso
+
+---
+
 ## [2026-01-10] Mejoras de Seguridad Completas
 
 ### Añadido
