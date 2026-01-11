@@ -41,9 +41,22 @@ REFRESH_COOKIE_NAME = "arari_refresh_token"
 # Leave empty for localhost/development
 COOKIE_DOMAIN = os.environ.get("COOKIE_DOMAIN", "")
 
-# COOKIE_SECURE: Set to "true" in production (requires HTTPS)
-# Default is "false" for local development
-COOKIE_SECURE = os.environ.get("COOKIE_SECURE", "false").lower() == "true"
+# COOKIE_SECURE: Auto-detect production environment
+# - Explicit setting via COOKIE_SECURE env var takes priority
+# - Otherwise, defaults to True if RAILWAY_ENVIRONMENT or VERCEL_ENV is set (production)
+# - Defaults to False only for local development
+_cookie_secure_env = os.environ.get("COOKIE_SECURE", "").lower()
+if _cookie_secure_env in ("true", "false"):
+    COOKIE_SECURE = _cookie_secure_env == "true"
+else:
+    # Auto-detect: secure=True in production environments
+    IS_PRODUCTION = bool(
+        os.environ.get("RAILWAY_ENVIRONMENT") or
+        os.environ.get("VERCEL_ENV") or
+        os.environ.get("PRODUCTION") or
+        os.environ.get("RENDER")
+    )
+    COOKIE_SECURE = IS_PRODUCTION
 
 # Access token cookie expiration in seconds (24 hours, matches TOKEN_EXPIRE_HOURS in auth.py)
 COOKIE_MAX_AGE = 24 * 60 * 60  # 24 hours

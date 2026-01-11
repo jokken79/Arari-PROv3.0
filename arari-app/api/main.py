@@ -292,11 +292,11 @@ if FRONTEND_URL:
     logging.info(f"[CORS] Production frontend URL: {FRONTEND_URL}")
 
 # For development and Vercel preview deployments
-# Regex allows: localhost, LAN IPs, and all *.vercel.app domains
+# Regex allows: localhost, LAN IPs, and only arari-* Vercel deployments (security fix)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=cors_origins if cors_origins else [],
-    allow_origin_regex=r"(http://(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+)(:\d+)?|https://[a-z0-9-]+\.vercel\.app)",
+    allow_origin_regex=r"(http://(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+)(:\d+)?|https://arari[a-z0-9-]*\.vercel\.app)",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

@@ -50,7 +50,7 @@ export default function SettingsPage() {
     stats?: any
   } | null>(null)
   const [deleteTarget, setDeleteTarget] = useState('payroll');
-  const { token } = useAuth();
+  const { isAuthenticated } = useAuth();
 
   // Insurance settings state
   const [insuranceSettings, setInsuranceSettings] = useState<InsuranceSettings>({
@@ -97,7 +97,7 @@ export default function SettingsPage() {
     setIsSavingInsurance(true)
     setInsuranceSaveStatus(null)
 
-    if (!token) {
+    if (!isAuthenticated) {
       setInsuranceSaveStatus({ success: false, message: '認証が必要です。再度ログインしてください。' })
       setIsSavingInsurance(false)
       return
@@ -114,9 +114,9 @@ export default function SettingsPage() {
       for (const update of updates) {
         const res = await fetch(`${API_URL}/api/settings/${update.key}`, {
           method: 'PUT',
+          credentials: 'include',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`,
           },
           body: JSON.stringify({ value: update.value, description: update.description }),
         })
@@ -142,13 +142,13 @@ export default function SettingsPage() {
     setIsSyncing(true)
     setSyncStatus(null)
 
-    if (!token) {
+    if (!isAuthenticated) {
       setSyncStatus({ success: false, message: '認証が必要です。再度ログインしてください。' })
       setIsSyncing(false)
       return
     }
 
-    const { data, error } = await syncApi.syncEmployees(token)
+    const { data, error } = await syncApi.syncEmployees()
 
     if (error) {
       setSyncStatus({
@@ -599,14 +599,14 @@ export default function SettingsPage() {
                             }
 
                             try {
-                              if (!token) {
+                              if (!isAuthenticated) {
                                 alert('認証が必要です。再度ログインしてください。\nAuthentication required. Please login again.');
                                 return;
                               }
                               const res = await fetch(`${API_URL}/api/reset-db?target=${deleteTarget}`, {
                                 method: 'DELETE',
+                                credentials: 'include',
                                 headers: {
-                                  'Authorization': `Bearer ${token}`,
                                   'Content-Type': 'application/json',
                                 },
                               });

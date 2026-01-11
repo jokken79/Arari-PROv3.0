@@ -53,8 +53,14 @@ export default function LoginPage() {
     try {
       const result = await login({ username, password })
       if (result.success) {
-        // Use full page reload to ensure AuthGuard reads fresh token from localStorage
-        window.location.href = '/'
+        // Check if password change is required
+        if (result.mustChangePassword) {
+          // Redirect to settings page with password change notice
+          window.location.href = '/settings?change_password=required'
+        } else {
+          // Use full page reload to ensure AuthGuard reads fresh token from localStorage
+          window.location.href = '/'
+        }
       } else {
         setError(result.error || 'ログインに失敗しました')
       }

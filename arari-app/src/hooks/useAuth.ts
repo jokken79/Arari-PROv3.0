@@ -17,7 +17,6 @@ interface AuthState {
   isAuthenticated: boolean
   user: User | null
   isLoading: boolean
-  token: string | null
 }
 
 interface LoginCredentials {
@@ -30,6 +29,9 @@ interface LoginResponse {
   token_type: string
   user: User
   expires_at?: string
+  refresh_token?: string
+  refresh_expires_at?: string
+  must_change_password?: boolean
 }
 
 export function useAuth() {
@@ -37,26 +39,23 @@ export function useAuth() {
     isAuthenticated: false,
     user: null,
     isLoading: true,
-    token: null,
   })
 
   // Track if component is mounted (for SSR safety)
   const isMounted = useRef(false)
 
-  // Verify token on mount with retry logic
-  const verifyToken = useCallback(async (token: string): Promise<boolean> => {
+  // Verify authentication by calling /api/auth/me
+  // This works because the backend reads the HttpOnly cookie automatically
+  const verifyAuth = useCallback(async (): Promise<boolean> => {
     const maxRetries = 3
 
     for (let attempt = 0; attempt < maxRetries; attempt++) {
       try {
-        // Add timeout to prevent hanging
         const controller = new AbortController()
-        const timeoutId = setTimeout(() => controller.abort(), 10000) // Increased timeout
+        const timeoutId = setTimeout(() => controller.abort(), 10000)
 
         const response = await fetch(`${API_URL}/api/auth/me`, {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-          },
+          credentials: 'include', // Send HttpOnly cookies
           signal: controller.signal,
         })
 
@@ -64,19 +63,21 @@ export function useAuth() {
 
         if (response.ok) {
           const user = await response.json()
+          // Store user info in localStorage for display purposes only
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('user', JSON.stringify(user))
+          }
           if (isMounted.current) {
             setAuthState({
               isAuthenticated: true,
               user,
               isLoading: false,
-              token,
             })
           }
           return true
         } else {
-          // Token invalid, clear storage
+          // Not authenticated - clear cached user info
           if (typeof window !== 'undefined') {
-            localStorage.removeItem('auth_token')
             localStorage.removeItem('user')
           }
           if (isMounted.current) {
@@ -84,15 +85,13 @@ export function useAuth() {
               isAuthenticated: false,
               user: null,
               isLoading: false,
-              token: null,
             })
           }
           return false
         }
       } catch (error) {
-        console.error(`Token verification attempt ${attempt + 1} failed:`, error)
+        console.error(`Auth verification attempt ${attempt + 1} failed:`, error)
 
-        // If it's a network error and we have more retries, wait and try again
         const errorMessage = error instanceof Error ? error.message : ''
         const isNetworkError = errorMessage === 'Load failed' ||
                                errorMessage === 'Failed to fetch' ||
@@ -103,18 +102,16 @@ export function useAuth() {
           continue
         }
 
-        // On final failure, try to use cached user data from localStorage
+        // On final failure, try to use cached user data
         if (typeof window !== 'undefined') {
           const cachedUser = localStorage.getItem('user')
           if (cachedUser && isMounted.current) {
             try {
               const user = JSON.parse(cachedUser)
-              // Use cached data but mark as needing verification
               setAuthState({
                 isAuthenticated: true,
                 user,
                 isLoading: false,
-                token,
               })
               console.log('Using cached user data due to network error')
               return true
@@ -129,7 +126,6 @@ export function useAuth() {
             isAuthenticated: false,
             user: null,
             isLoading: false,
-            token: null,
           })
         }
         return false
@@ -139,62 +135,35 @@ export function useAuth() {
     return false
   }, [])
 
-  // Initialize auth state from localStorage
+  // Initialize auth state
   useEffect(() => {
     isMounted.current = true
 
     const initAuth = async () => {
-      // SSR safety check
       if (typeof window === 'undefined') {
         return
       }
 
-      try {
-        const token = localStorage.getItem('auth_token')
-        const userJson = localStorage.getItem('user')
-
-        if (token && userJson) {
-          try {
-            // Verify token is still valid
-            const isValid = await verifyToken(token)
-            if (!isValid && isMounted.current) {
-              // Token expired or invalid - already handled in verifyToken
-            }
-          } catch (error) {
-            console.error('Failed to parse user data:', error)
-            localStorage.removeItem('auth_token')
-            localStorage.removeItem('user')
-            if (isMounted.current) {
-              setAuthState({
-                isAuthenticated: false,
-                user: null,
-                isLoading: false,
-                token: null,
-              })
-            }
-          }
-        } else {
-          // No token found - set not authenticated immediately
+      // Check if we have cached user data (for faster initial render)
+      const cachedUser = localStorage.getItem('user')
+      if (cachedUser) {
+        try {
+          const user = JSON.parse(cachedUser)
+          // Show cached data while verifying
           if (isMounted.current) {
             setAuthState({
-              isAuthenticated: false,
-              user: null,
-              isLoading: false,
-              token: null,
+              isAuthenticated: true,
+              user,
+              isLoading: true, // Still loading - verifying
             })
           }
-        }
-      } catch (error) {
-        console.error('Auth initialization error:', error)
-        if (isMounted.current) {
-          setAuthState({
-            isAuthenticated: false,
-            user: null,
-            isLoading: false,
-            token: null,
-          })
+        } catch {
+          // Invalid cached data
         }
       }
+
+      // Verify with server (this checks the HttpOnly cookie)
+      await verifyAuth()
     }
 
     initAuth()
@@ -202,10 +171,10 @@ export function useAuth() {
     return () => {
       isMounted.current = false
     }
-  }, [verifyToken])
+  }, [verifyAuth])
 
-  // Login function with retry logic
-  const login = async (credentials: LoginCredentials): Promise<{ success: boolean; error?: string }> => {
+  // Login function
+  const login = async (credentials: LoginCredentials): Promise<{ success: boolean; error?: string; mustChangePassword?: boolean }> => {
     const maxRetries = 3
     let lastError = ''
 
@@ -213,6 +182,7 @@ export function useAuth() {
       try {
         const response = await fetch(`${API_URL}/api/auth/login`, {
           method: 'POST',
+          credentials: 'include', // Allow server to set HttpOnly cookies
           headers: {
             'Content-Type': 'application/json',
           },
@@ -226,8 +196,7 @@ export function useAuth() {
 
         const data: LoginResponse = await response.json()
 
-        // Store token and user in localStorage
-        localStorage.setItem('auth_token', data.token)
+        // Store user info in localStorage for display (NOT the token!)
         localStorage.setItem('user', JSON.stringify(data.user))
 
         // Update state
@@ -235,18 +204,19 @@ export function useAuth() {
           isAuthenticated: true,
           user: data.user,
           isLoading: false,
-          token: data.token,
         })
 
-        return { success: true }
+        // Return success with password change flag
+        return {
+          success: true,
+          mustChangePassword: data.must_change_password
+        }
       } catch (error) {
         console.error(`Login attempt ${attempt + 1} failed:`, error)
         const errorMessage = error instanceof Error ? error.message : 'Unknown error'
 
-        // Check if it's a network error that might be recoverable
         if (errorMessage === 'Load failed' || errorMessage === 'Failed to fetch') {
           lastError = 'サーバーに接続できません。ネットワーク接続を確認してください。'
-          // Wait before retry with exponential backoff
           if (attempt < maxRetries - 1) {
             await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1)))
             continue
@@ -261,56 +231,67 @@ export function useAuth() {
     return { success: false, error: lastError || 'ログインに失敗しました' }
   }
 
-  // Logout function - waits for server confirmation before clearing local state
+  // Logout function
   const logout = async () => {
     const clearLocalState = () => {
-      localStorage.removeItem('auth_token')
       localStorage.removeItem('user')
       setAuthState({
         isAuthenticated: false,
         user: null,
         isLoading: false,
-        token: null,
       })
       window.location.href = '/login'
     }
 
-    // If no token, just clear local state
-    if (!authState.token) {
-      clearLocalState()
-      return
-    }
-
     try {
-      // Call backend logout endpoint with timeout
       const controller = new AbortController()
       const timeoutId = setTimeout(() => controller.abort(), 5000)
 
+      // Call backend logout - this clears the HttpOnly cookies
       const response = await fetch(`${API_URL}/api/auth/logout`, {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${authState.token}`,
-        },
+        credentials: 'include', // Send cookies so server can clear them
         signal: controller.signal,
       })
 
       clearTimeout(timeoutId)
 
       if (response.ok) {
-        // Server confirmed logout, safe to clear local state
         clearLocalState()
       } else {
-        // Server returned error, but still clear local state
-        // (token may already be invalid)
         console.warn('Server logout returned error, clearing local state anyway')
         clearLocalState()
       }
     } catch (error) {
       console.error('Logout error:', error)
-      // On network error or timeout, still clear local state
-      // This prevents user from being stuck in authenticated state
-      // Note: token may still be valid on server until expiration
       clearLocalState()
+    }
+  }
+
+  // Refresh token function (for extending session)
+  const refreshToken = async (): Promise<boolean> => {
+    try {
+      const response = await fetch(`${API_URL}/api/auth/refresh`, {
+        method: 'POST',
+        credentials: 'include', // Send refresh token cookie
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        if (data.user) {
+          localStorage.setItem('user', JSON.stringify(data.user))
+          setAuthState({
+            isAuthenticated: true,
+            user: data.user,
+            isLoading: false,
+          })
+        }
+        return true
+      }
+      return false
+    } catch (error) {
+      console.error('Token refresh failed:', error)
+      return false
     }
   }
 
@@ -318,8 +299,9 @@ export function useAuth() {
     isAuthenticated: authState.isAuthenticated,
     user: authState.user,
     isLoading: authState.isLoading,
-    token: authState.token,
     login,
     logout,
+    refreshToken,
+    verifyAuth,
   }
 }

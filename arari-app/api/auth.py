@@ -33,6 +33,9 @@ def _q(query: str) -> str:
 TOKEN_EXPIRE_HOURS = 24
 REFRESH_TOKEN_EXPIRE_DAYS = 7  # Refresh tokens last 7 days
 
+# Default credentials detection
+DEFAULT_PASSWORDS = ["admin123", "password", "123456", "admin", "password123"]
+
 # Role hierarchy
 ROLES = {
     "admin": 100,  # Full access
@@ -167,6 +170,11 @@ def init_auth_tables(conn):
             f"[AUTH] Created default admin user (username: {admin_username})"
         )
     conn.commit()
+
+
+def is_weak_password(password: str) -> bool:
+    """Check if password is weak/default"""
+    return password.lower() in [p.lower() for p in DEFAULT_PASSWORDS]
 
 
 def hash_password(password: str) -> str:
@@ -506,6 +514,9 @@ class AuthService:
         )
         self.conn.commit()
 
+        # Check if using weak/default password
+        must_change_password = is_weak_password(password)
+
         # Create access token
         token_data = create_token(self.conn, user_id)
 
@@ -520,6 +531,7 @@ class AuthService:
                 "full_name": full_name,
                 "email": email,
             },
+            "must_change_password": must_change_password,
             **token_data,
             **refresh_token_data,
         }
