@@ -10,6 +10,14 @@ from io import BytesIO
 from typing import Any, Dict, List
 
 from database import USE_POSTGRES
+from japanese_format import (
+    format_japanese_yen,
+    format_japanese_yen_short,
+    format_japanese_hours,
+    format_japanese_percentage,
+    format_japanese_count,
+    get_margin_tier_jp,
+)
 
 # Note: For PDF generation, you'll need to install: pip install reportlab
 # For Excel: openpyxl is already installed
@@ -877,15 +885,15 @@ class ReportService:
         ws["A3"].font = Font(bold=True)
 
         ws["A4"] = "従業員数"
-        ws["B4"] = summary.get("employee_count") or 0
+        ws["B4"] = format_japanese_count(summary.get("employee_count") or 0, "名")
         ws["A5"] = "売上合計"
-        ws["B5"] = f"¥{(summary.get('total_revenue') or 0):,.0f}"
+        ws["B5"] = format_japanese_yen(summary.get('total_revenue') or 0)
         ws["A6"] = "コスト合計"
-        ws["B6"] = f"¥{(summary.get('total_cost') or 0):,.0f}"
+        ws["B6"] = format_japanese_yen(summary.get('total_cost') or 0)
         ws["A7"] = "粗利合計"
-        ws["B7"] = f"¥{(summary.get('total_profit') or 0):,.0f}"
+        ws["B7"] = format_japanese_yen(summary.get('total_profit') or 0)
         ws["A8"] = "平均マージン"
-        ws["B8"] = f"{(summary.get('avg_margin') or 0):.1f}%"
+        ws["B8"] = format_japanese_percentage(summary.get('avg_margin') or 0)
 
         # By company section
         ws["A10"] = "派遣先別"
@@ -899,24 +907,12 @@ class ReportService:
             cell.border = border
 
         for row_idx, company in enumerate(data.get("by_company", []), 12):
-            ws.cell(row=row_idx, column=1, value=company.get("company") or "").border = (
-                border
-            )
-            ws.cell(
-                row=row_idx, column=2, value=company.get("employee_count") or 0
-            ).border = border
-            ws.cell(
-                row=row_idx, column=3, value=f"¥{(company.get('revenue') or 0):,.0f}"
-            ).border = border
-            ws.cell(
-                row=row_idx, column=4, value=f"¥{(company.get('cost') or 0):,.0f}"
-            ).border = border
-            ws.cell(
-                row=row_idx, column=5, value=f"¥{(company.get('profit') or 0):,.0f}"
-            ).border = border
-            ws.cell(
-                row=row_idx, column=6, value=f"{(company.get('margin') or 0):.1f}%"
-            ).border = border
+            ws.cell(row=row_idx, column=1, value=company.get("company") or "").border = border
+            ws.cell(row=row_idx, column=2, value=company.get("employee_count") or 0).border = border
+            ws.cell(row=row_idx, column=3, value=format_japanese_yen(company.get('revenue') or 0)).border = border
+            ws.cell(row=row_idx, column=4, value=format_japanese_yen(company.get('cost') or 0)).border = border
+            ws.cell(row=row_idx, column=5, value=format_japanese_yen(company.get('profit') or 0)).border = border
+            ws.cell(row=row_idx, column=6, value=format_japanese_percentage(company.get('margin') or 0)).border = border
 
         # Adjust column widths
         for col in range(1, 7):
@@ -941,9 +937,9 @@ class ReportService:
         ws["A6"] = "派遣先"
         ws["B6"] = emp.get("company") or ""
         ws["A7"] = "時給"
-        ws["B7"] = f"¥{(emp.get('hourly_rate') or 0):,.0f}"
+        ws["B7"] = format_japanese_yen(emp.get('hourly_rate') or 0)
         ws["A8"] = "単価"
-        ws["B8"] = f"¥{(emp.get('billing_rate') or 0):,.0f}"
+        ws["B8"] = format_japanese_yen(emp.get('billing_rate') or 0)
 
         # History section
         ws["A10"] = "履歴"
@@ -967,27 +963,13 @@ class ReportService:
 
         for row_idx, h in enumerate(data.get("history", []), 12):
             ws.cell(row=row_idx, column=1, value=h.get("period") or "").border = border
-            ws.cell(
-                row=row_idx, column=2, value=f"{(h.get('work_hours') or 0):.1f}h"
-            ).border = border
-            ws.cell(
-                row=row_idx, column=3, value=f"{(h.get('overtime_hours') or 0):.1f}h"
-            ).border = border
-            ws.cell(
-                row=row_idx, column=4, value=f"{(h.get('night_hours') or 0):.1f}h"
-            ).border = border
-            ws.cell(
-                row=row_idx, column=5, value=f"¥{(h.get('billing_amount') or 0):,.0f}"
-            ).border = border
-            ws.cell(row=row_idx, column=6, value=f"¥{(h.get('cost') or 0):,.0f}").border = (
-                border
-            )
-            ws.cell(
-                row=row_idx, column=7, value=f"¥{(h.get('profit') or 0):,.0f}"
-            ).border = border
-            ws.cell(
-                row=row_idx, column=8, value=f"{(h.get('margin') or 0):.1f}%"
-            ).border = border
+            ws.cell(row=row_idx, column=2, value=format_japanese_hours(h.get('work_hours') or 0)).border = border
+            ws.cell(row=row_idx, column=3, value=format_japanese_hours(h.get('overtime_hours') or 0)).border = border
+            ws.cell(row=row_idx, column=4, value=format_japanese_hours(h.get('night_hours') or 0)).border = border
+            ws.cell(row=row_idx, column=5, value=format_japanese_yen(h.get('billing_amount') or 0)).border = border
+            ws.cell(row=row_idx, column=6, value=format_japanese_yen(h.get('cost') or 0)).border = border
+            ws.cell(row=row_idx, column=7, value=format_japanese_yen(h.get('profit') or 0)).border = border
+            ws.cell(row=row_idx, column=8, value=format_japanese_percentage(h.get('margin') or 0)).border = border
 
         for col in range(1, 9):
             ws.column_dimensions[get_column_letter(col)].width = 12
@@ -1005,13 +987,13 @@ class ReportService:
         ws["A3"].font = Font(bold=True)
 
         ws["A4"] = "従業員数"
-        ws["B4"] = data.get("employee_count") or 0
+        ws["B4"] = format_japanese_count(data.get("employee_count") or 0, "名")
         ws["A5"] = "売上合計"
-        ws["B5"] = f"¥{(totals.get('revenue') or 0):,.0f}"
+        ws["B5"] = format_japanese_yen(totals.get('revenue') or 0)
         ws["A6"] = "粗利合計"
-        ws["B6"] = f"¥{(totals.get('profit') or 0):,.0f}"
+        ws["B6"] = format_japanese_yen(totals.get('profit') or 0)
         ws["A7"] = "平均マージン"
-        ws["B7"] = f"{(totals.get('avg_margin') or 0):.1f}%"
+        ws["B7"] = format_japanese_percentage(totals.get('avg_margin') or 0)
 
         # Monthly data
         ws["A9"] = "月次推移"
@@ -1026,21 +1008,11 @@ class ReportService:
 
         for row_idx, m in enumerate(data.get("monthly_data", []), 11):
             ws.cell(row=row_idx, column=1, value=m.get("period") or "").border = border
-            ws.cell(row=row_idx, column=2, value=m.get("employee_count") or 0).border = (
-                border
-            )
-            ws.cell(
-                row=row_idx, column=3, value=f"¥{(m.get('revenue') or 0):,.0f}"
-            ).border = border
-            ws.cell(row=row_idx, column=4, value=f"¥{(m.get('cost') or 0):,.0f}").border = (
-                border
-            )
-            ws.cell(
-                row=row_idx, column=5, value=f"¥{(m.get('profit') or 0):,.0f}"
-            ).border = border
-            ws.cell(
-                row=row_idx, column=6, value=f"{(m.get('margin') or 0):.1f}%"
-            ).border = border
+            ws.cell(row=row_idx, column=2, value=m.get("employee_count") or 0).border = border
+            ws.cell(row=row_idx, column=3, value=format_japanese_yen(m.get('revenue') or 0)).border = border
+            ws.cell(row=row_idx, column=4, value=format_japanese_yen(m.get('cost') or 0)).border = border
+            ws.cell(row=row_idx, column=5, value=format_japanese_yen(m.get('profit') or 0)).border = border
+            ws.cell(row=row_idx, column=6, value=format_japanese_percentage(m.get('margin') or 0)).border = border
 
         for col in range(1, 7):
             ws.column_dimensions[get_column_letter(col)].width = 15
@@ -1058,13 +1030,13 @@ class ReportService:
         ws["A3"] = "サマリー"
         ws["A3"].font = Font(bold=True)
         ws["A4"] = "従業員数"
-        ws["B4"] = totals.get("employee_count") or 0
+        ws["B4"] = format_japanese_count(totals.get("employee_count") or 0, "名")
         ws["C4"] = "売上合計"
-        ws["D4"] = f"¥{(totals.get('total_revenue') or 0):,.0f}"
+        ws["D4"] = format_japanese_yen(totals.get('total_revenue') or 0)
         ws["E4"] = "粗利合計"
-        ws["F4"] = f"¥{(totals.get('total_profit') or 0):,.0f}"
+        ws["F4"] = format_japanese_yen(totals.get('total_profit') or 0)
         ws["G4"] = "平均マージン"
-        ws["H4"] = f"{(totals.get('avg_margin') or 0):.1f}%"
+        ws["H4"] = format_japanese_percentage(totals.get('avg_margin') or 0)
 
         # Employee details
         ws["A6"] = "従業員別詳細"
@@ -1082,18 +1054,18 @@ class ReportService:
             ws.cell(row=row_idx, column=1, value=emp.get("employee_id") or "").border = border
             ws.cell(row=row_idx, column=2, value=emp.get("name") or "").border = border
             ws.cell(row=row_idx, column=3, value=emp.get("company") or "").border = border
-            ws.cell(row=row_idx, column=4, value=f"¥{(emp.get('hourly_rate') or 0):,.0f}").border = border
-            ws.cell(row=row_idx, column=5, value=f"¥{(emp.get('billing_rate') or 0):,.0f}").border = border
+            ws.cell(row=row_idx, column=4, value=format_japanese_yen(emp.get('hourly_rate') or 0)).border = border
+            ws.cell(row=row_idx, column=5, value=format_japanese_yen(emp.get('billing_rate') or 0)).border = border
             ws.cell(row=row_idx, column=6, value=f"{(emp.get('work_hours') or 0):.1f}").border = border
             ws.cell(row=row_idx, column=7, value=f"{(emp.get('overtime_hours') or 0):.1f}").border = border
             ws.cell(row=row_idx, column=8, value=f"{(emp.get('overtime_over_60h') or 0):.1f}").border = border
             ws.cell(row=row_idx, column=9, value=f"{(emp.get('night_hours') or 0):.1f}").border = border
             ws.cell(row=row_idx, column=10, value=f"{(emp.get('holiday_hours') or 0):.1f}").border = border
-            ws.cell(row=row_idx, column=11, value=f"¥{(emp.get('gross_salary') or 0):,.0f}").border = border
-            ws.cell(row=row_idx, column=12, value=f"¥{(emp.get('billing_amount') or 0):,.0f}").border = border
-            ws.cell(row=row_idx, column=13, value=f"¥{(emp.get('total_cost') or 0):,.0f}").border = border
-            ws.cell(row=row_idx, column=14, value=f"¥{(emp.get('gross_profit') or 0):,.0f}").border = border
-            ws.cell(row=row_idx, column=15, value=f"{(emp.get('profit_margin') or 0):.1f}%").border = border
+            ws.cell(row=row_idx, column=11, value=format_japanese_yen(emp.get('gross_salary') or 0)).border = border
+            ws.cell(row=row_idx, column=12, value=format_japanese_yen(emp.get('billing_amount') or 0)).border = border
+            ws.cell(row=row_idx, column=13, value=format_japanese_yen(emp.get('total_cost') or 0)).border = border
+            ws.cell(row=row_idx, column=14, value=format_japanese_yen(emp.get('gross_profit') or 0)).border = border
+            ws.cell(row=row_idx, column=15, value=format_japanese_percentage(emp.get('profit_margin') or 0)).border = border
 
         for col in range(1, 16):
             ws.column_dimensions[get_column_letter(col)].width = 12
@@ -1111,18 +1083,18 @@ class ReportService:
         ws["A3"] = "サマリー"
         ws["A3"].font = Font(bold=True)
         ws["A4"] = "派遣先数"
-        ws["B4"] = totals.get("company_count") or 0
+        ws["B4"] = format_japanese_count(totals.get("company_count") or 0, "社")
         ws["C4"] = "従業員数"
-        ws["D4"] = totals.get("employee_count") or 0
+        ws["D4"] = format_japanese_count(totals.get("employee_count") or 0, "名")
         ws["E4"] = "売上合計"
-        ws["F4"] = f"¥{(totals.get('total_revenue') or 0):,.0f}"
+        ws["F4"] = format_japanese_yen(totals.get('total_revenue') or 0)
 
         ws["A5"] = "コスト合計"
-        ws["B5"] = f"¥{(totals.get('total_cost') or 0):,.0f}"
+        ws["B5"] = format_japanese_yen(totals.get('total_cost') or 0)
         ws["C5"] = "粗利合計"
-        ws["D5"] = f"¥{(totals.get('total_profit') or 0):,.0f}"
+        ws["D5"] = format_japanese_yen(totals.get('total_profit') or 0)
         ws["E5"] = "平均マージン"
-        ws["F5"] = f"{(totals.get('avg_margin') or 0):.1f}%"
+        ws["F5"] = format_japanese_percentage(totals.get('avg_margin') or 0)
 
         # Company details
         ws["A7"] = "派遣先別詳細"
@@ -1138,11 +1110,11 @@ class ReportService:
         for row_idx, comp in enumerate(data.get("companies", []), 9):
             ws.cell(row=row_idx, column=1, value=comp.get("company") or "").border = border
             ws.cell(row=row_idx, column=2, value=comp.get("employee_count") or 0).border = border
-            ws.cell(row=row_idx, column=3, value=f"{(comp.get('work_hours') or 0):,.1f}").border = border
-            ws.cell(row=row_idx, column=4, value=f"¥{(comp.get('revenue') or 0):,.0f}").border = border
-            ws.cell(row=row_idx, column=5, value=f"¥{(comp.get('cost') or 0):,.0f}").border = border
-            ws.cell(row=row_idx, column=6, value=f"¥{(comp.get('profit') or 0):,.0f}").border = border
-            ws.cell(row=row_idx, column=7, value=f"{(comp.get('margin') or 0):.1f}%").border = border
+            ws.cell(row=row_idx, column=3, value=format_japanese_hours(comp.get('work_hours') or 0)).border = border
+            ws.cell(row=row_idx, column=4, value=format_japanese_yen(comp.get('revenue') or 0)).border = border
+            ws.cell(row=row_idx, column=5, value=format_japanese_yen(comp.get('cost') or 0)).border = border
+            ws.cell(row=row_idx, column=6, value=format_japanese_yen(comp.get('profit') or 0)).border = border
+            ws.cell(row=row_idx, column=7, value=format_japanese_percentage(comp.get('margin') or 0)).border = border
 
         for col in range(1, 8):
             ws.column_dimensions[get_column_letter(col)].width = 15
@@ -1160,25 +1132,25 @@ class ReportService:
         ws["A3"] = "コスト内訳サマリー"
         ws["A3"].font = Font(bold=True)
         ws["A4"] = "総支給額"
-        ws["B4"] = f"¥{(totals.get('total_salary') or 0):,.0f}"
+        ws["B4"] = format_japanese_yen(totals.get('total_salary') or 0)
         ws["C4"] = "社保(本人)"
-        ws["D4"] = f"¥{(totals.get('total_employee_insurance') or 0):,.0f}"
+        ws["D4"] = format_japanese_yen(totals.get('total_employee_insurance') or 0)
         ws["E4"] = "社保(会社)"
-        ws["F4"] = f"¥{(totals.get('total_company_insurance') or 0):,.0f}"
+        ws["F4"] = format_japanese_yen(totals.get('total_company_insurance') or 0)
 
         ws["A5"] = "雇用保険"
-        ws["B5"] = f"¥{(totals.get('total_employment_ins') or 0):,.0f}"
+        ws["B5"] = format_japanese_yen(totals.get('total_employment_ins') or 0)
         ws["C5"] = "労災保険"
-        ws["D5"] = f"¥{(totals.get('total_workers_comp') or 0):,.0f}"
+        ws["D5"] = format_japanese_yen(totals.get('total_workers_comp') or 0)
         ws["E5"] = "通勤費"
-        ws["F5"] = f"¥{(totals.get('total_commuting') or 0):,.0f}"
+        ws["F5"] = format_japanese_yen(totals.get('total_commuting') or 0)
 
         ws["A6"] = "会社総コスト"
-        ws["B6"] = f"¥{(totals.get('total_cost') or 0):,.0f}"
+        ws["B6"] = format_japanese_yen(totals.get('total_cost') or 0)
         ws["C6"] = "売上合計"
-        ws["D6"] = f"¥{(totals.get('total_revenue') or 0):,.0f}"
+        ws["D6"] = format_japanese_yen(totals.get('total_revenue') or 0)
         ws["E6"] = "粗利合計"
-        ws["F6"] = f"¥{(totals.get('total_profit') or 0):,.0f}"
+        ws["F6"] = format_japanese_yen(totals.get('total_profit') or 0)
 
         # Employee cost details
         ws["A8"] = "従業員別コスト詳細"
@@ -1226,15 +1198,15 @@ class ReportService:
         ws["A3"].font = Font(bold=True)
 
         ws["A4"] = "従業員数"
-        ws["B4"] = summary.get("employee_count") or 0
+        ws["B4"] = format_japanese_count(summary.get("employee_count") or 0, "名")
         ws["A5"] = "売上合計"
-        ws["B5"] = f"¥{(summary.get('total_revenue') or 0):,.0f}"
+        ws["B5"] = format_japanese_yen(summary.get('total_revenue') or 0)
         ws["A6"] = "コスト合計"
-        ws["B6"] = f"¥{(summary.get('total_cost') or 0):,.0f}"
+        ws["B6"] = format_japanese_yen(summary.get('total_cost') or 0)
         ws["A7"] = "粗利合計"
-        ws["B7"] = f"¥{(summary.get('total_profit') or 0):,.0f}"
+        ws["B7"] = format_japanese_yen(summary.get('total_profit') or 0)
         ws["A8"] = "平均マージン"
-        ws["B8"] = f"{(summary.get('avg_margin') or 0):.1f}%"
+        ws["B8"] = format_japanese_percentage(summary.get('avg_margin') or 0)
 
         # Top companies
         ws["A10"] = "利益上位派遣先"
@@ -1250,8 +1222,8 @@ class ReportService:
         for row_idx, comp in enumerate(data.get("top_companies", []), 12):
             ws.cell(row=row_idx, column=1, value=comp.get("company") or "").border = border
             ws.cell(row=row_idx, column=2, value=comp.get("employee_count") or 0).border = border
-            ws.cell(row=row_idx, column=3, value=f"¥{(comp.get('profit') or 0):,.0f}").border = border
-            ws.cell(row=row_idx, column=4, value=f"{(comp.get('margin') or 0):.1f}%").border = border
+            ws.cell(row=row_idx, column=3, value=format_japanese_yen(comp.get('profit') or 0)).border = border
+            ws.cell(row=row_idx, column=4, value=format_japanese_percentage(comp.get('margin') or 0)).border = border
 
         # Top performers
         start_row = 12 + len(data.get("top_companies", [])) + 2
@@ -1267,9 +1239,9 @@ class ReportService:
         for row_idx, emp in enumerate(data.get("top_performers", []), start_row + 2):
             ws.cell(row=row_idx, column=1, value=emp.get("name") or "").border = border
             ws.cell(row=row_idx, column=2, value=emp.get("company") or "").border = border
-            ws.cell(row=row_idx, column=3, value=f"¥{(emp.get('revenue') or 0):,.0f}").border = border
-            ws.cell(row=row_idx, column=4, value=f"¥{(emp.get('profit') or 0):,.0f}").border = border
-            ws.cell(row=row_idx, column=5, value=f"{(emp.get('margin') or 0):.1f}%").border = border
+            ws.cell(row=row_idx, column=3, value=format_japanese_yen(emp.get('revenue') or 0)).border = border
+            ws.cell(row=row_idx, column=4, value=format_japanese_yen(emp.get('profit') or 0)).border = border
+            ws.cell(row=row_idx, column=5, value=format_japanese_percentage(emp.get('margin') or 0)).border = border
 
         for col in range(1, 6):
             ws.column_dimensions[get_column_letter(col)].width = 15
@@ -1289,15 +1261,17 @@ class ReportService:
         else:
             return PDF_COLORS['danger']
 
-    def _format_yen(self, value: float) -> str:
-        """Format number as Japanese Yen"""
-        if value is None:
-            return "¥0"
-        if abs(value) >= 1000000:
-            return f"¥{value/1000000:.1f}M"
-        elif abs(value) >= 1000:
-            return f"¥{value/1000:.0f}K"
-        return f"¥{value:,.0f}"
+    def _format_yen(self, value: float, short: bool = False) -> str:
+        """Format number as Japanese Yen with 万/億 notation
+
+        Examples:
+            870,000 → 87万円
+            1,234,567 → 123万4,567円
+            100,000,000 → 1億円
+        """
+        if short:
+            return format_japanese_yen_short(value)
+        return format_japanese_yen(value, short=True)  # Short format for reports
 
     def _create_bar_chart(self, data: List[Dict], width: float = 400, height: float = 200) -> Drawing:
         """Create a bar chart for company profits"""
@@ -1572,10 +1546,10 @@ class ReportService:
 
         # Hours breakdown
         hours_kpis = [
-            {'label': '労働時間', 'value': f"{summary.get('total_work_hours', 0) or 0:,.0f}h"},
-            {'label': '残業', 'value': f"{summary.get('total_overtime', 0) or 0:,.0f}h"},
-            {'label': '深夜', 'value': f"{summary.get('total_night_hours', 0) or 0:,.0f}h"},
-            {'label': '休日', 'value': f"{summary.get('total_holiday_hours', 0) or 0:,.0f}h"},
+            {'label': '労働時間', 'value': format_japanese_hours(summary.get('total_work_hours', 0) or 0)},
+            {'label': '残業', 'value': format_japanese_hours(summary.get('total_overtime', 0) or 0)},
+            {'label': '深夜', 'value': format_japanese_hours(summary.get('total_night_hours', 0) or 0)},
+            {'label': '休日', 'value': format_japanese_hours(summary.get('total_holiday_hours', 0) or 0)},
         ]
         story.append(self._create_kpi_table(hours_kpis))
         story.append(Spacer(1, 10*mm))

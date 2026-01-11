@@ -20,6 +20,7 @@ async function fetchApi<T>(
   try {
     const response = await fetch(`${API_BASE_URL}${endpoint}`, {
       ...options,
+      credentials: 'include', // Include cookies for authentication
       headers: {
         'Content-Type': 'application/json',
         ...options.headers,
@@ -139,16 +140,11 @@ export const statisticsApi = {
 // ============== Sync API ==============
 
 export const syncApi = {
-  syncEmployees: async (token?: string) => {
+  syncEmployees: async () => {
     try {
-      const headers: Record<string, string> = {}
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`
-      }
-
       const response = await fetch(`${API_BASE_URL}/api/sync-employees`, {
         method: 'POST',
-        headers,
+        credentials: 'include', // Include cookies for authentication
       })
 
       if (!response.ok) {
@@ -397,6 +393,7 @@ export const uploadApi = {
     try {
       const response = await fetch(`${API_BASE_URL}/api/upload`, {
         method: 'POST',
+        credentials: 'include', // Include cookies for authentication
         body: formData,
       })
 
@@ -420,6 +417,7 @@ export const uploadApi = {
     try {
       const response = await fetch(`${API_BASE_URL}/api/import-employees`, {
         method: 'POST',
+        credentials: 'include', // Include cookies for authentication
         body: formData,
       })
 

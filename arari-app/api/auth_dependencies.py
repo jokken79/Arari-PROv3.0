@@ -1,26 +1,73 @@
 """
 Authentication Dependencies for FastAPI
 Provides reusable dependencies for route protection
+Supports both HttpOnly cookie and Authorization header authentication
 """
 
 import logging
+import os
 import sqlite3
-import time
-from collections import defaultdict
 from datetime import datetime
 from typing import Any, Dict, Optional
 
-from fastapi import Depends, Header, HTTPException, Request
+from dotenv import load_dotenv
+from fastapi import Cookie, Depends, Header, HTTPException, Request, Response
 
 from auth import check_role_level, has_permission, validate_token
 from database import get_db
+from rate_limiter import (
+    get_rate_limiter,
+    get_client_ip,
+    rate_limit_login as _rate_limit_login_new,
+    rate_limit_upload,
+    rate_limit_api_write,
+    rate_limit_report,
+    create_rate_limit_dependency,
+)
+
+load_dotenv()
 
 logger = logging.getLogger(__name__)
 
-# Rate limiting storage (in production, use Redis)
-_rate_limit_store: Dict[str, list] = defaultdict(list)
-RATE_LIMIT_WINDOW = 60  # seconds
-RATE_LIMIT_MAX_REQUESTS = 5  # max login attempts per window
+# ============== Cookie Configuration ==============
+# Cookie name for storing the access token
+COOKIE_NAME = "arari_token"
+
+# Cookie name for storing the refresh token
+REFRESH_COOKIE_NAME = "arari_refresh_token"
+
+# Cookie security settings from environment variables
+# COOKIE_DOMAIN: Set to your domain in production (e.g., ".arari-pro.com")
+# Leave empty for localhost/development
+COOKIE_DOMAIN = os.environ.get("COOKIE_DOMAIN", "")
+
+# COOKIE_SECURE: Auto-detect production environment
+# - Explicit setting via COOKIE_SECURE env var takes priority
+# - Otherwise, defaults to True if RAILWAY_ENVIRONMENT or VERCEL_ENV is set (production)
+# - Defaults to False only for local development
+_cookie_secure_env = os.environ.get("COOKIE_SECURE", "").lower()
+if _cookie_secure_env in ("true", "false"):
+    COOKIE_SECURE = _cookie_secure_env == "true"
+else:
+    # Auto-detect: secure=True in production environments
+    IS_PRODUCTION = bool(
+        os.environ.get("RAILWAY_ENVIRONMENT") or
+        os.environ.get("VERCEL_ENV") or
+        os.environ.get("PRODUCTION") or
+        os.environ.get("RENDER")
+    )
+    COOKIE_SECURE = IS_PRODUCTION
+
+# Access token cookie expiration in seconds (24 hours, matches TOKEN_EXPIRE_HOURS in auth.py)
+COOKIE_MAX_AGE = 24 * 60 * 60  # 24 hours
+
+# Refresh token cookie expiration in seconds (7 days, matches REFRESH_TOKEN_EXPIRE_DAYS in auth.py)
+REFRESH_COOKIE_MAX_AGE = 7 * 24 * 60 * 60  # 7 days
+
+# SameSite policy: "lax", "strict", or "none"
+# "lax" is recommended for most cases (allows top-level navigations)
+# "none" requires COOKIE_SECURE=true
+COOKIE_SAMESITE = os.environ.get("COOKIE_SAMESITE", "lax")
 
 
 def get_token_from_header(authorization: Optional[str] = Header(None)) -> Optional[str]:
@@ -32,16 +79,127 @@ def get_token_from_header(authorization: Optional[str] = Header(None)) -> Option
     return authorization
 
 
+def get_token_from_cookie(request: Request) -> Optional[str]:
+    """Extract token from HttpOnly cookie"""
+    return request.cookies.get(COOKIE_NAME)
+
+
+def get_token(
+    request: Request,
+    authorization: Optional[str] = Header(None)
+) -> Optional[str]:
+    """
+    Extract token from either HttpOnly cookie or Authorization header.
+    Priority: Cookie > Header (cookie is more secure)
+    This provides backward compatibility with API clients using headers.
+    """
+    # First try to get from cookie (more secure)
+    token = get_token_from_cookie(request)
+    if token:
+        return token
+
+    # Fall back to Authorization header for API compatibility
+    return get_token_from_header(authorization)
+
+
+def set_auth_cookie(response: Response, token: str) -> None:
+    """
+    Set the authentication token in an HttpOnly cookie.
+    This is called after successful login.
+    """
+    response.set_cookie(
+        key=COOKIE_NAME,
+        value=token,
+        max_age=COOKIE_MAX_AGE,
+        httponly=True,  # Not accessible via JavaScript (XSS protection)
+        secure=COOKIE_SECURE,  # Only send over HTTPS in production
+        samesite=COOKIE_SAMESITE,  # CSRF protection
+        domain=COOKIE_DOMAIN if COOKIE_DOMAIN else None,  # None = current domain
+        path="/",  # Cookie valid for all paths
+    )
+    logger.debug(f"Auth cookie set (secure={COOKIE_SECURE}, samesite={COOKIE_SAMESITE})")
+
+
+def clear_auth_cookie(response: Response) -> None:
+    """
+    Clear the authentication cookie.
+    This is called on logout.
+    """
+    response.delete_cookie(
+        key=COOKIE_NAME,
+        httponly=True,
+        secure=COOKIE_SECURE,
+        samesite=COOKIE_SAMESITE,
+        domain=COOKIE_DOMAIN if COOKIE_DOMAIN else None,
+        path="/",
+    )
+    logger.debug("Auth cookie cleared")
+
+
+# ============== Refresh Token Cookie Functions ==============
+
+
+def get_refresh_token_from_cookie(request: Request) -> Optional[str]:
+    """Extract refresh token from HttpOnly cookie"""
+    return request.cookies.get(REFRESH_COOKIE_NAME)
+
+
+def set_refresh_cookie(response: Response, refresh_token: str) -> None:
+    """
+    Set the refresh token in an HttpOnly cookie.
+    This is called after successful login.
+    Refresh tokens have a longer expiry than access tokens.
+    """
+    response.set_cookie(
+        key=REFRESH_COOKIE_NAME,
+        value=refresh_token,
+        max_age=REFRESH_COOKIE_MAX_AGE,
+        httponly=True,  # Not accessible via JavaScript (XSS protection)
+        secure=COOKIE_SECURE,  # Only send over HTTPS in production
+        samesite=COOKIE_SAMESITE,  # CSRF protection
+        domain=COOKIE_DOMAIN if COOKIE_DOMAIN else None,
+        path="/api/auth/refresh",  # Only send to refresh endpoint (reduces exposure)
+    )
+    logger.debug(f"Refresh cookie set (secure={COOKIE_SECURE}, samesite={COOKIE_SAMESITE})")
+
+
+def clear_refresh_cookie(response: Response) -> None:
+    """
+    Clear the refresh token cookie.
+    This is called on logout.
+    """
+    response.delete_cookie(
+        key=REFRESH_COOKIE_NAME,
+        httponly=True,
+        secure=COOKIE_SECURE,
+        samesite=COOKIE_SAMESITE,
+        domain=COOKIE_DOMAIN if COOKIE_DOMAIN else None,
+        path="/api/auth/refresh",
+    )
+    logger.debug("Refresh cookie cleared")
+
+
+def clear_all_auth_cookies(response: Response) -> None:
+    """
+    Clear both access and refresh token cookies.
+    This is called on full logout.
+    """
+    clear_auth_cookie(response)
+    clear_refresh_cookie(response)
+    logger.debug("All auth cookies cleared")
+
+
 async def get_current_user(
+    request: Request,
     authorization: Optional[str] = Header(None),
     db: sqlite3.Connection = Depends(get_db)
 ) -> Optional[Dict[str, Any]]:
     """
-    Dependency to get current user from token.
+    Dependency to get current user from token (cookie or header).
     Returns None if no token or invalid token.
     Use this for optional authentication.
     """
-    token = get_token_from_header(authorization)
+    token = get_token(request, authorization)
     if not token:
         return None
 
@@ -50,14 +208,16 @@ async def get_current_user(
 
 
 async def require_auth(
+    request: Request,
     authorization: Optional[str] = Header(None),
     db: sqlite3.Connection = Depends(get_db)
 ) -> Dict[str, Any]:
     """
     Dependency that requires a valid authentication token.
+    Supports both HttpOnly cookie and Authorization header.
     Raises 401 if no token or invalid token.
     """
-    token = get_token_from_header(authorization)
+    token = get_token(request, authorization)
 
     if not token:
         logger.warning("Authentication required: No token provided")
@@ -81,6 +241,7 @@ async def require_auth(
 
 
 async def require_admin(
+    request: Request,
     authorization: Optional[str] = Header(None),
     db: sqlite3.Connection = Depends(get_db)
 ) -> Dict[str, Any]:
@@ -88,7 +249,7 @@ async def require_admin(
     Dependency that requires admin role.
     Raises 401 if not authenticated, 403 if not admin.
     """
-    user = await require_auth(authorization, db)
+    user = await require_auth(request, authorization, db)
 
     if user.get("role") != "admin":
         logger.warning(f"Admin access denied for user: {user.get('username')}")
@@ -101,13 +262,14 @@ async def require_admin(
 
 
 async def require_manager_or_admin(
+    request: Request,
     authorization: Optional[str] = Header(None),
     db: sqlite3.Connection = Depends(get_db)
 ) -> Dict[str, Any]:
     """
     Dependency that requires manager or admin role.
     """
-    user = await require_auth(authorization, db)
+    user = await require_auth(request, authorization, db)
 
     if not check_role_level(user.get("role", ""), "manager"):
         logger.warning(f"Manager access denied for user: {user.get('username')}")
@@ -129,10 +291,11 @@ def require_permission(permission: str):
             ...
     """
     async def check_permission(
+        request: Request,
         authorization: Optional[str] = Header(None),
         db: sqlite3.Connection = Depends(get_db)
     ) -> Dict[str, Any]:
-        user = await require_auth(authorization, db)
+        user = await require_auth(request, authorization, db)
 
         if not has_permission(user.get("role", ""), permission):
             logger.warning(f"Permission '{permission}' denied for user: {user.get('username')}")
@@ -150,52 +313,30 @@ def check_rate_limit(client_ip: str, endpoint: str = "login") -> bool:
     """
     Check if client has exceeded rate limit.
     Returns True if request is allowed, raises HTTPException if blocked.
+
+    Uses Redis-based rate limiting when available, falls back to in-memory.
     """
-    key = f"{client_ip}:{endpoint}"
-    current_time = time.time()
-
-    # Clean old entries
-    _rate_limit_store[key] = [
-        t for t in _rate_limit_store[key]
-        if current_time - t < RATE_LIMIT_WINDOW
-    ]
-
-    # Check limit
-    if len(_rate_limit_store[key]) >= RATE_LIMIT_MAX_REQUESTS:
-        retry_after = int(RATE_LIMIT_WINDOW - (current_time - _rate_limit_store[key][0]))
-        logger.warning(f"Rate limit exceeded for {client_ip} on {endpoint}")
-        raise HTTPException(
-            status_code=429,
-            detail=f"Too many requests. Try again in {retry_after} seconds.",
-            headers={"Retry-After": str(retry_after)}
-        )
-
-    # Record request
-    _rate_limit_store[key].append(current_time)
-    return True
+    limiter = get_rate_limiter()
+    is_allowed, retry_after, remaining = limiter.check(client_ip, endpoint)
+    return is_allowed
 
 
 async def rate_limit_login(request: Request):
     """
     Dependency for rate limiting login attempts.
     Uses X-Forwarded-For header when behind a proxy (e.g., Railway, Vercel).
+    Supports Redis-based distributed rate limiting.
     """
-    # Get client IP, checking X-Forwarded-For for proxy environments
-    forwarded_for = request.headers.get("X-Forwarded-For")
-    if forwarded_for:
-        # Take the first IP (original client) - proxies append to this header
-        client_ip = forwarded_for.split(",")[0].strip()
-    else:
-        client_ip = request.client.host if request.client else "unknown"
-
-    check_rate_limit(client_ip, "login")
+    await _rate_limit_login_new(request)
 
 
 def clear_rate_limit(client_ip: str, endpoint: str = "login"):
-    """Clear rate limit for a client (e.g., after successful login)"""
-    key = f"{client_ip}:{endpoint}"
-    if key in _rate_limit_store:
-        del _rate_limit_store[key]
+    """
+    Clear rate limit for a client (e.g., after successful login).
+    Works with both Redis and in-memory backends.
+    """
+    limiter = get_rate_limiter()
+    limiter.clear(client_ip, endpoint)
 
 
 # Audit logging helper
