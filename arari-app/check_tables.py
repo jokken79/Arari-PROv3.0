@@ -1,5 +1,4 @@
 import sqlite3
-import os
 
 DB_PATH = "api/arari_pro.db"
 

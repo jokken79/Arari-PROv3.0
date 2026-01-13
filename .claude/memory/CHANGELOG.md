@@ -5,6 +5,28 @@ Este archivo mantiene un registro cronológico de todos los cambios significativ
 
 ---
 
+## [2026-01-13] Actualización de Documentación
+
+### Modificado
+- **CLAUDE.md** - Actualizado con estado actual del proyecto:
+  - Arquitectura: 17 routers modulares documentados
+  - Tests: Actualizado de 48 a 111 tests
+  - Seguridad: Nueva sección con HttpOnly cookies, rate limiting, refresh tokens
+  - Endpoints: Añadidos 9 nuevos grupos de endpoints
+  - File Locations: Añadidas 5 nuevas ubicaciones de archivos
+  - Key Warnings: Añadidas 3 nuevas advertencias de seguridad
+
+- **CONTEXT.md** - Actualizado con trabajo completado:
+  - Marcados como completados: rate limiting, HttpOnly cookies, routers, refresh tokens
+  - Actualizadas métricas del código
+  - Nuevas notas para próxima sesión
+
+### Estadísticas
+- **Líneas añadidas a CLAUDE.md**: ~100
+- **Secciones actualizadas**: 8
+
+---
+
 ## [2026-01-11] Correcciones Críticas de Seguridad
 
 ### Arreglado

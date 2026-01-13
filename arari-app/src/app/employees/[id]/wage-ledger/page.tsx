@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Download, FileSpreadsheet, Building2, User, Calendar, Filter } from 'lucide-react';
 import { API_BASE_URL } from '@/lib/api';
@@ -36,11 +36,7 @@ export default function WageLedgerPage({ params }: { params: { id: string } }) {
 
     const API_URL = API_BASE_URL;
 
-    useEffect(() => {
-        fetchData();
-    }, [params.id]);
-
-    const fetchData = async () => {
+    const fetchData = useCallback(async () => {
         try {
             setLoading(true);
             // Fetch Employee
@@ -62,7 +58,11 @@ export default function WageLedgerPage({ params }: { params: { id: string } }) {
         } finally {
             setLoading(false);
         }
-    };
+    }, [API_URL, params.id]);
+
+    useEffect(() => {
+        fetchData();
+    }, [fetchData]);
 
     const currentYearPayrolls = payrolls.filter(p => p.period.includes(year.toString()));
 

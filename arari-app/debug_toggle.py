@@ -1,6 +1,5 @@
 from api.database import get_db, init_db
 from api.services import PayrollService
-from api.main import toggle_company_status, get_ignored_companies
 import asyncio
 
 async def test_toggle():

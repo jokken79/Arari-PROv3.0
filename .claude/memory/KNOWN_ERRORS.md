@@ -144,25 +144,63 @@ periods.sort(comparePeriods)  // ✓
 
 ## Errores de Rate Limiting
 
-### ❌ Rate limiting en memoria
+### ✅ Rate limiting en memoria (CORREGIDO 2026-01-10)
 ```python
-# PROBLEMÁTICO - No escala con múltiples workers
+# ANTES - PROBLEMÁTICO
 _rate_limit_store: Dict[str, list] = defaultdict(list)
+
+# AHORA - CORREGIDO
+# rate_limiter.py usa Redis con fallback a memoria
+from rate_limiter import get_rate_limiter
+limiter = get_rate_limiter()  # Usa Redis si REDIS_URL está configurado
 ```
 
-**Estado**: Conocido pero no corregido aún. Requiere Redis.
+**Estado**: ✅ Corregido. Redis-based rate limiting implementado.
 
 ---
 
 ## Errores de Seguridad
 
-### ❌ Tokens en localStorage
+### ✅ Tokens en localStorage (CORREGIDO 2026-01-11)
 ```typescript
-// PROBLEMÁTICO - Vulnerable a XSS
+// ANTES - PROBLEMÁTICO
 localStorage.setItem('auth_token', token)
+
+// AHORA - CORREGIDO
+// Frontend usa cookies HttpOnly, no localStorage
+fetch(url, { credentials: 'include' })  // Envía cookies HttpOnly
 ```
 
-**Estado**: Conocido. Solución: HttpOnly cookies (pendiente).
+**Estado**: ✅ Corregido. Tokens en HttpOnly cookies.
+
+---
+
+## Errores de Linting (Corregidos 2026-01-13)
+
+### ✅ Import duplicado de datetime en main.py
+```python
+# ANTES - Error F811
+from datetime import datetime  # línea 19
+# ...
+from datetime import datetime  # línea 721 - DUPLICADO
+
+# AHORA - CORREGIDO
+# Solo un import en línea 19
+```
+
+### ✅ useEffect missing dependencies
+```typescript
+// ANTES - Warning react-hooks/exhaustive-deps
+useEffect(() => {
+  fetchAlerts()
+}, [filter, severityFilter])  // falta fetchAlerts
+
+// AHORA - CORREGIDO
+const fetchAlerts = useCallback(async () => {...}, [filter, severityFilter])
+useEffect(() => {
+  fetchAlerts()
+}, [fetchAlerts])  // ✓
+```
 
 ---
 
@@ -185,4 +223,4 @@ código_bueno()
 
 ---
 
-*Última actualización: 2026-01-10*
+*Última actualización: 2026-01-13*

@@ -52,12 +52,15 @@ ADMIN_EMAIL=admin@arari-pro.local
 ### Run Tests
 
 ```bash
-# Backend tests (48 tests)
+# Backend tests (111 tests including security tests)
 cd arari-app/api
 python -m pytest tests/ -v
 
 # Run single test file
 python -m pytest tests/test_salary_calculations.py -v
+
+# Run security tests only
+python -m pytest tests/test_security_features.py -v
 
 # Frontend tests
 cd arari-app
@@ -95,20 +98,40 @@ pip install -r requirements.txt
 ```
 arari-app/
 ├── api/                          # FastAPI backend (Python)
-│   ├── main.py                   # Main API routes (~1800 lines - needs refactoring)
+│   ├── main.py                   # Main API routes (~1308 lines, refactored)
+│   ├── routers/                  # Modular FastAPI routers (17 routers)
+│   │   ├── employees.py          # Employee CRUD endpoints
+│   │   ├── payroll.py            # Payroll endpoints
+│   │   ├── statistics.py         # Statistics/dashboard endpoints
+│   │   ├── settings.py           # System settings endpoints
+│   │   ├── additional_costs.py   # Additional costs endpoints
+│   │   ├── companies.py          # Company endpoints
+│   │   ├── auth.py               # Authentication endpoints
+│   │   ├── alerts.py             # Alert endpoints
+│   │   ├── reports.py            # Report endpoints
+│   │   ├── audit.py              # Audit log endpoints
+│   │   ├── budget.py             # Budget endpoints
+│   │   ├── notifications.py      # Notification endpoints
+│   │   ├── search.py             # Search endpoints
+│   │   ├── validation.py         # Data validation endpoints
+│   │   ├── backup.py             # Backup/restore endpoints
+│   │   ├── roi.py                # ROI calculation endpoints
+│   │   └── cache.py              # Cache management endpoints
 │   ├── salary_parser.py          # Excel payroll parser (ChinginGenerator format)
 │   ├── employee_parser.py        # Employee master Excel parser
 │   ├── services.py               # Business logic (margin calculations)
 │   ├── database.py               # SQLite/PostgreSQL operations (dual-mode)
 │   ├── models.py                 # Pydantic models
-│   ├── auth.py, auth_dependencies.py  # Authentication
+│   ├── auth.py, auth_dependencies.py  # Authentication + HttpOnly cookies
+│   ├── rate_limiter.py           # Redis-based rate limiting
 │   ├── template_manager.py       # Factory Excel template detection
 │   ├── additional_costs.py       # Company additional costs (送迎バス等)
 │   ├── agent_commissions.py      # Agent commission calculations (仲介手数料)
 │   ├── reports.py                # Excel report generation
+│   ├── japanese_format.py        # Japanese number formatting (万, 億)
 │   ├── budget.py                 # Budget management
 │   ├── alerts.py                 # Alert/notification system
-│   └── tests/                    # pytest tests (7 test files)
+│   └── tests/                    # pytest tests (8 test files, 111 tests)
 │
 ├── src/
 │   ├── app/                      # Next.js App Router pages (15 pages)
@@ -289,6 +312,36 @@ def _q(query: str) -> str:
     return query
 ```
 
+### 11. Frontend Uses Cookies for Auth (Not localStorage)
+After security improvements, frontend no longer stores tokens in localStorage:
+```typescript
+// CORRECT - API client includes credentials
+const response = await fetch(url, {
+  credentials: 'include',  // ✓ Sends HttpOnly cookies
+  headers: { 'Content-Type': 'application/json' }
+})
+
+// WRONG - localStorage is vulnerable to XSS
+localStorage.setItem('token', token)  // ✗ Never do this
+```
+
+### 12. Rate Limiting - Redis URL Required in Production
+Rate limiting falls back to in-memory if Redis is not configured:
+```python
+# Production should always have REDIS_URL set
+REDIS_URL = os.environ.get("REDIS_URL")
+
+# In-memory fallback is NOT distributed (each instance has separate counters)
+```
+
+### 13. Refresh Token Cookie Must Be Cleared on Logout
+When implementing logout, ensure both access and refresh tokens are cleared:
+```typescript
+// Backend clears both cookies
+response.delete_cookie("access_token")
+response.delete_cookie("refresh_token")
+```
+
 ## Known Issues
 
 ### ESLint Circular Structure Warning
@@ -364,13 +417,73 @@ NEXT_PUBLIC_ENABLE_AUTH=true
 ### Auth API Endpoints
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/api/auth/login` | POST | Login, returns `{token, user}` |
-| `/api/auth/logout` | POST | Logout, revokes token |
+| `/api/auth/login` | POST | Login, returns `{token, user}` + sets HttpOnly cookie |
+| `/api/auth/logout` | POST | Logout, revokes token and clears cookie |
 | `/api/auth/me` | GET | Get current user info |
+| `/api/auth/refresh` | POST | Refresh access token using refresh token |
 | `/api/users` | GET | List users (admin only) |
 | `/api/users` | POST | Create user (admin only) |
 | `/api/users/change-password` | PUT | Change own password |
 | `/api/users/{id}/reset-password` | PUT | Reset user password (admin only) |
+
+## Security Features (2026-01-11)
+
+### HttpOnly Cookies for Tokens
+Tokens are now stored in HttpOnly cookies instead of localStorage to prevent XSS attacks:
+```python
+# Backend sets cookie on login
+response.set_cookie(
+    key="access_token",
+    value=token,
+    httponly=True,
+    secure=True,  # Auto-detected in production
+    samesite="lax"
+)
+
+# Frontend uses credentials: 'include'
+fetch(url, { credentials: 'include' })
+```
+
+### Rate Limiting with Redis
+Redis-based distributed rate limiting with sliding window algorithm:
+```python
+from rate_limiter import get_rate_limiter
+
+limiter = get_rate_limiter()
+limiter.check(client_ip, "login")  # Raises HTTPException if exceeded
+```
+
+| Endpoint | Limit | Window |
+|----------|-------|--------|
+| `login` | 5 requests | 60 seconds |
+| `password_reset` | 3 requests | 300 seconds |
+| `register` | 5 requests | 300 seconds |
+| Default API | 100 requests | 60 seconds |
+
+**Environment Variable**: `REDIS_URL` (falls back to in-memory if not set)
+
+### Refresh Tokens
+Long-lived refresh tokens for seamless session extension:
+- Access token: 24 hours
+- Refresh token: 7 days
+- Automatic rotation on refresh
+- Revoked when password changes
+
+### Weak Password Detection
+System detects default/weak passwords and prompts user to change:
+```python
+# auth.py
+def is_weak_password(password: str) -> bool:
+    return password in ["admin123", "password", "123456", ...]
+```
+Frontend redirects to settings page when weak password detected.
+
+### CORS Configuration
+Restrictive CORS in production (only allows `arari-*` Vercel domains):
+```python
+# Regex pattern for allowed origins
+origins_regex = r"https://arari-.*\.vercel\.app"
+```
 
 ### Password Change Examples
 ```bash
@@ -399,12 +512,21 @@ Production: `https://arari-prov20-production.up.railway.app/api/`
 | Payroll | `/payroll`, `/payroll/periods` - Records and periods |
 | Statistics | `/statistics` - Dashboard stats (cached) |
 | Upload | `/upload` - Excel file upload (admin only) |
-| Auth | `/auth/login`, `/auth/logout`, `/auth/me` |
+| Auth | `/auth/login`, `/auth/logout`, `/auth/me`, `/auth/refresh` |
 | Reports | `/reports/download/{type}` - Excel download |
 | Additional Costs | `/additional-costs` - Cost tracking |
 | Agent Commissions | `/agent-commissions/calculate`, `/agent-commissions/register` |
 | Companies | `/companies`, `/companies/toggle` - Company management |
 | Settings | `/settings` - System configuration |
+| Alerts | `/alerts` - Alert management (6 endpoints) |
+| Budget | `/budgets` - Budget vs actual (5 endpoints) |
+| Audit | `/audit/logs` - Audit trail (3 endpoints) |
+| Search | `/search` - Global search (6 endpoints) |
+| Validation | `/validation` - Data validation (4 endpoints) |
+| Notifications | `/notifications` - User notifications (6 endpoints) |
+| Backup | `/backup` - Database backup/restore (5 endpoints) |
+| ROI | `/roi` - ROI calculations (6 endpoints) |
+| Cache | `/cache` - Cache management (2 endpoints) |
 
 ## Reports System
 
@@ -756,27 +878,33 @@ Las constantes de negocio están centralizadas en `arari-app/api/config.py`:
 
 | Task | Files |
 |------|-------|
-| Add new API endpoint | `arari-app/api/main.py` |
+| Add new API endpoint | `arari-app/api/routers/` (create new router or add to existing) |
 | Modify billing calculation | `arari-app/api/services.py` |
 | Change Excel parsing | `arari-app/api/salary_parser.py` |
 | Update dashboard charts | `arari-app/src/components/charts/` |
 | Add new page | `arari-app/src/app/[pagename]/page.tsx` |
 | Modify employee modal | `arari-app/src/components/employees/EmployeeDetailModal.tsx` |
 | Update payroll detail view | `arari-app/src/components/payroll/` (5 files) |
-| Modify authentication | `arari-app/api/auth.py`, `arari-app/src/hooks/useAuth.ts` |
+| Modify authentication | `arari-app/api/auth.py`, `arari-app/api/routers/auth.py` |
+| Change rate limiting | `arari-app/api/rate_limiter.py` |
 | Change login page | `arari-app/src/app/login/page.tsx` |
 | Update auth guard | `arari-app/src/components/auth/AuthGuard.tsx` |
 | Configure startup | `start-arari.bat`, `restart-arari.bat`, `stop-arari.bat` |
 | Backend env variables | `arari-app/api/.env` |
 | Frontend env variables | `arari-app/.env.local` |
 | Global app state | `arari-app/src/store/appStore.ts` |
-| Add/modify reports | `arari-app/api/reports.py`, `arari-app/src/app/reports/page.tsx` |
+| Add/modify reports | `arari-app/api/reports.py`, `arari-app/api/routers/reports.py` |
 | Report Excel generation | `arari-app/api/reports.py` (ReportService class) |
-| Additional costs logic | `arari-app/api/additional_costs.py` |
+| Japanese number formatting | `arari-app/api/japanese_format.py` |
+| Additional costs logic | `arari-app/api/additional_costs.py`, `arari-app/api/routers/additional_costs.py` |
 | Additional costs UI | `arari-app/src/app/additional-costs/page.tsx` |
 | Agent commissions logic | `arari-app/api/agent_commissions.py` |
 | Agent commissions UI | `arari-app/src/app/agent-commissions/page.tsx` |
-| Budget management | `arari-app/api/budget.py`, `arari-app/src/app/budgets/page.tsx` |
+| Budget management | `arari-app/api/budget.py`, `arari-app/api/routers/budget.py` |
 | Navigation sidebar | `arari-app/src/components/layout/Sidebar.tsx` |
 | TanStack Query hooks | `arari-app/src/hooks/` (use index.ts for exports) |
 | Company analysis | `arari-app/src/app/companies/page.tsx` |
+| Security tests | `arari-app/api/tests/test_security_features.py` |
+| Audit logging | `arari-app/api/audit.py`, `arari-app/api/routers/audit.py` |
+| Cache management | `arari-app/api/cache.py`, `arari-app/api/routers/cache.py` |
+| ROI calculations | `arari-app/api/roi.py`, `arari-app/api/routers/roi.py` |

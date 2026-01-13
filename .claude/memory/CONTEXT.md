@@ -1,6 +1,6 @@
 # Contexto Actual - Arari PRO v3.0
 
-**Última actualización**: 2026-01-10 (Sesión 2)
+**Última actualización**: 2026-01-13 (Sesión 3 - Documentación)
 **Estado**: Desarrollo activo
 
 ---
@@ -15,30 +15,30 @@
 ### Métricas del Código
 | Componente | Estado | Notas |
 |------------|--------|-------|
-| Backend (FastAPI) | ✓ Funcional | main.py necesita refactorizar |
-| Frontend (Next.js) | ✓ Funcional | Optimización pendiente |
+| Backend (FastAPI) | ✓ Funcional | Refactorizado en 17 routers |
+| Frontend (Next.js) | ✓ Funcional | Migrado a HttpOnly cookies |
 | Base de Datos | ✓ Funcional | SQLite (dev), PostgreSQL (prod) |
-| Tests | ⚠️ Parcial | 48+ tests, coverage ~70% |
-| Auth | ✓ Funcional | Mejoras de seguridad pendientes |
+| Tests | ✓ Completo | 111 tests (48 core + 63 security) |
+| Auth | ✓ Seguro | HttpOnly cookies, refresh tokens, rate limiting |
 
 ---
 
 ## Trabajo Pendiente (Priorizado)
 
 ### Crítico
-1. [ ] Migrar rate limiting a Redis
-2. [ ] Migrar tokens a HttpOnly cookies
-3. [ ] Cambiar credenciales por defecto
+1. [x] Migrar rate limiting a Redis ✓ (2026-01-10)
+2. [x] Migrar tokens a HttpOnly cookies ✓ (2026-01-11)
+3. [ ] Cambiar credenciales por defecto en producción
 
 ### Alto
-4. [ ] Refactorizar main.py en routers
-5. [ ] Implementar refresh tokens
+4. [x] Refactorizar main.py en routers ✓ (2026-01-10) - 17 routers creados
+5. [x] Implementar refresh tokens ✓ (2026-01-10)
 6. [ ] Aumentar test coverage a 90%
 
 ### Medio
 7. [ ] Implementar 2FA opcional
 8. [ ] Optimizar bundle size frontend
-9. [ ] Mejorar documentación API
+9. [x] Mejorar documentación API ✓ (CLAUDE.md actualizado)
 
 ### Bajo
 10. [ ] Internacionalización (JP/EN)
@@ -48,26 +48,31 @@
 
 ## Últimos Cambios Significativos
 
-### 2026-01-10 (Sesión 2)
-- Creados agentes de combate de debilidades:
-  - `code-validator.md` - Validación de código
-  - `simplicity-agent.md` - Anti sobre-ingeniería
-  - `business-context-agent.md` - Contexto de negocio
-  - `auto-tester.md` - Testing automático
-- Añadido skill `/session-start` para inicializar sesiones
-- Actualizado AGENTS.md a versión 2.0
+### 2026-01-13 (Sesión 3)
+- Actualizado CLAUDE.md con estado actual del proyecto
+- Documentadas mejoras de seguridad (HttpOnly cookies, rate limiting, refresh tokens)
+- Actualizada arquitectura con 17 routers modulares
+- Actualizado conteo de tests a 111
 
-### 2026-01-10 (Sesión 1)
-- Creado sistema de agentes y skills
-- Implementado formato japonés para números (万, 億)
-- Creado sistema de memoria persistente
+### 2026-01-11 (Correcciones de Seguridad)
+- CORS restrictivo (regex para `arari-*` dominios Vercel)
+- COOKIE_SECURE auto-detectado en producción
+- Frontend migrado a cookies (XSS fix)
+- Detección de contraseña débil
+
+### 2026-01-10 (Sesión 2)
+- Creados agentes de combate de debilidades
+- Añadido skill `/session-start` para inicializar sesiones
+- Rate limiting con Redis implementado
+- Refresh tokens implementados
+- 63 nuevos tests de seguridad
 
 ### Archivos Clave Modificados
-- `arari-app/api/reports.py` - Formato japonés
-- `arari-app/api/japanese_format.py` - Nuevo módulo
-- `.claude/agents/*` - 11 agentes especializados
-- `.claude/commands/*` - 19 skills disponibles
-- `.claude/memory/*` - 6 archivos de memoria
+- `CLAUDE.md` - Documentación principal actualizada
+- `arari-app/api/routers/` - 17 routers modulares
+- `arari-app/api/rate_limiter.py` - Rate limiting con Redis
+- `arari-app/api/auth.py` - HttpOnly cookies + refresh tokens
+- `.claude/memory/CONTEXT.md` - Este archivo
 
 ---
 
@@ -126,9 +131,11 @@ Email: admin@arari-pro.local
 
 ## Notas para Próxima Sesión
 
-1. Completar migración de formato japonés en todos los reportes
-2. Revisar sistema de comisiones de agentes
+1. Cambiar credenciales por defecto en producción (admin123 → contraseña segura)
+2. Aumentar test coverage a 90% (actualmente ~70%)
 3. Considerar tests E2E con Playwright
+4. Implementar 2FA opcional para usuarios admin
+5. Optimizar bundle size del frontend
 
 ---
 
