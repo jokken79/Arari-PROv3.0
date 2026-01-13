@@ -1,8 +1,5 @@
 
 import urllib.request
-import urllib.parse
-import os
-import json
 
 url = "http://localhost:8765/api/upload"
 file_path = "Employee_List.xlsx"

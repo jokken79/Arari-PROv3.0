@@ -1,6 +1,5 @@
 
 import openpyxl
-from openpyxl.styles import Font
 
 wb = openpyxl.Workbook()
 # Create sheet with "wrong" name to test intelligent search

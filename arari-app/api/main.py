@@ -718,7 +718,6 @@ async def export_all_data(
     db: sqlite3.Connection = Depends(get_db)
 ):
     """Export all data (employees + payroll) as Excel"""
-    from datetime import datetime
     service = PayrollService(db)
     employees = service.get_employees()
     payroll = service.get_payroll_records()

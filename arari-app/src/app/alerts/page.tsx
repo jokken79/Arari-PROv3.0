@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { motion } from 'framer-motion'
 import {
   AlertTriangle,
@@ -78,7 +78,7 @@ export default function AlertsPage() {
   const [filter, setFilter] = useState<'all' | 'active' | 'resolved'>('active')
   const [severityFilter, setSeverityFilter] = useState<string | null>(null)
 
-  const fetchAlerts = async () => {
+  const fetchAlerts = useCallback(async () => {
     setLoading(true)
     try {
       const params = new URLSearchParams()
@@ -102,7 +102,7 @@ export default function AlertsPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [filter, severityFilter])
 
   const resolveAlert = async (alertId: number) => {
     try {
@@ -133,7 +133,7 @@ export default function AlertsPage() {
 
   useEffect(() => {
     fetchAlerts()
-  }, [filter, severityFilter])
+  }, [fetchAlerts])
 
   const stats = {
     total: alerts.length,
