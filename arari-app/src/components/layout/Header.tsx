@@ -1,5 +1,6 @@
 'use client'
 
+import Image from 'next/image'
 import { motion } from 'framer-motion'
 import { Moon, Sun, TrendingUp, Bell, Settings, User, Menu, LogOut, UserCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -72,11 +73,14 @@ export function Header({ onMenuClick }: HeaderProps) {
               whileHover={{ scale: 1.02 }}
               transition={{ type: 'spring', stiffness: 400 }}
             >
-              <div className="relative">
-                <img
+              <div className="relative h-10 w-[120px]">
+                <Image
                   src="/logo-uns-corto-negro.png"
                   alt="UNS Logo"
-                  className="h-10 w-auto dark:invert"
+                  fill
+                  sizes="120px"
+                  className="object-contain dark:invert"
+                  priority
                 />
               </div>
 
