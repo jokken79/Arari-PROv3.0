@@ -629,12 +629,13 @@ import {
 
 Calculates commissions for recruitment agents based on employee nationality and attendance. Main use case: Maruyama-san commission for Kato Mokuzai employees.
 
-### Commission Rules (Maruyama)
+### Commission Rules (Maruyama) - Updated 2026-01
 | Condition | Amount |
 |-----------|--------|
-| Vietnamese employee, no absence/yukyu | ¥10,000 |
-| Vietnamese employee, has absence/yukyu | ¥5,000 |
+| Vietnamese employee, (absence + yukyu) ≤ 5 days | ¥10,000 |
+| Vietnamese employee, (absence + yukyu) ≥ 6 days | ¥5,000 |
 | Other nationalities | ¥5,000 (always) |
+| **Monthly Cap** | **¥300,000** (if total exceeds cap, pay only ¥300,000) |
 
 ### API Endpoints
 | Endpoint | Method | Description |
@@ -664,9 +665,14 @@ AGENT_CONFIGS = {
         "name": "丸山さん",
         "target_companies": ["加藤木材"],
         "rules": {
-            "Vietnam": {"normal": 10000, "reduced": 5000},
+            "Vietnam": {
+                "normal": 10000,        # (absence + yukyu) <= 5 days
+                "reduced": 5000,        # (absence + yukyu) >= 6 days
+                "threshold_days": 5,    # Days threshold for normal vs reduced
+            },
             "default": {"normal": 5000, "reduced": 5000},
         },
+        "monthly_cap": 300000,  # Maximum commission per month
     }
 }
 ```
@@ -908,3 +914,227 @@ Las constantes de negocio están centralizadas en `arari-app/api/config.py`:
 | Audit logging | `arari-app/api/audit.py`, `arari-app/api/routers/audit.py` |
 | Cache management | `arari-app/api/cache.py`, `arari-app/api/routers/cache.py` |
 | ROI calculations | `arari-app/api/roi.py`, `arari-app/api/routers/roi.py` |
+
+## Test Coverage Improvements (2026-01-14)
+
+### Current Test Summary
+
+| Category | Files | Tests | Status |
+|----------|-------|-------|--------|
+| Backend Business Logic | `test_salary_calculations.py` | 26 | ✓ Good |
+| Security Features | `test_security_features.py` | 60+ | ✓ Excellent |
+| API Endpoints | `test_api_endpoints.py` | 18 | ⚠️ Basic |
+| Frontend Utils | `utils.test.ts` | 30 | ✓ Good |
+| Frontend Components | `*.test.tsx` | 4 | ❌ Minimal |
+
+### Critical Test Gaps (Priority 1)
+
+**Zero test coverage on these critical modules:**
+
+| Module | File | Lines | Business Impact |
+|--------|------|-------|-----------------|
+| Agent Commissions | `agent_commissions.py` | 415 | Revenue tracking (仲介手数料) |
+| Additional Costs | `additional_costs.py` | 469 | Profit impact (追加コスト) |
+| Reports System | `reports.py` | 1,731 | Primary business output |
+| Excel Parser | `salary_parser.py` | 1,400 | Data ingestion pipeline |
+
+### Recommended Test Files to Create
+
+```bash
+# Tier 1: Critical (Must Add)
+arari-app/api/tests/test_agent_commissions.py    # 15-20 tests
+arari-app/api/tests/test_additional_costs.py     # 20-25 tests
+arari-app/api/tests/test_reports.py              # 30-40 tests
+arari-app/api/tests/test_salary_parser.py        # 35-50 tests
+
+# Tier 2: High Priority
+arari-app/api/tests/test_budget.py               # 20-25 tests
+arari-app/api/tests/test_audit.py                # 15-20 tests
+arari-app/api/tests/test_e2e_scenarios.py        # 10-15 tests
+```
+
+### Agent Commission Test Cases (Missing)
+```python
+# Vietnamese employee rules (Maruyama agent)
+def test_calculate_commission_vietnamese_normal()      # → ¥10,000
+def test_calculate_commission_vietnamese_with_absence() # → ¥5,000
+def test_calculate_commission_vietnamese_with_yukyu()  # → ¥5,000
+def test_calculate_commission_non_vietnamese()         # → ¥5,000
+def test_register_commission_to_additional_costs()
+def test_register_commission_duplicate_prevention()
+```
+
+### Additional Costs Test Cases (Missing)
+```python
+# CRUD + validation for all 8 cost types
+def test_create_cost_all_types()  # transport_bus, parking, facility, etc.
+def test_create_cost_unique_constraint()
+def test_sum_costs_for_period()
+def test_copy_costs_to_new_period()
+```
+
+### Reports Test Cases (Missing)
+```python
+# All 5 report types need tests
+def test_monthly_report_data_generation()
+def test_all_employees_report_margin_calculation()
+def test_company_analysis_report_aggregation()
+def test_cost_breakdown_insurance_details()
+def test_summary_report_rankings()
+def test_reports_excel_generation_validity()
+```
+
+### Frontend Test Expansion Needed
+
+| Area | Current | Target | Missing |
+|------|---------|--------|---------|
+| Dashboard | 0 | 15-20 | Period selection, chart data |
+| Employee pages | 4 | 20-25 | Modal, CRUD flows |
+| Reports download | 0 | 15-20 | Type selection, download |
+| Payroll modal | 0 | 20-25 | Complex 5-file modal |
+| Auth UI | 0 | 10-15 | Login, logout, cookies |
+
+### Test Implementation Roadmap
+
+**Phase 1 (Critical Business Logic)**:
+1. Agent Commissions Tests (15-20 tests, ~4 hours)
+2. Additional Costs Tests (20-25 tests, ~5 hours)
+3. Payroll Service Expansion (20 tests, ~4 hours)
+
+**Phase 2 (Reports & Data)**:
+1. Reports System Tests (40 tests, ~8 hours)
+2. Excel Parser Tests (50 tests, ~10 hours)
+
+**Phase 3 (Supporting Systems)**:
+1. Budget Management (25 tests)
+2. Audit Logging (20 tests)
+3. Integration/E2E Tests (15 tests)
+
+## CI/CD Improvements (2026-01-14)
+
+### Current Pipeline Status
+
+| Step | Status | Notes |
+|------|--------|-------|
+| Checkout | ✓ | actions/checkout@v3 |
+| Python Setup | ✓ | Python 3.11 |
+| Node Setup | ✓ | Node 18 |
+| Backend Tests | ✓ | pytest |
+| Frontend Tests | ✓ | npm test |
+| Python Lint | ✓ | ruff |
+| Frontend Lint | ✓ | next lint |
+
+### Critical Missing Steps
+
+| Category | Status | Severity |
+|----------|--------|----------|
+| Code Coverage Tracking | ❌ Missing | HIGH |
+| Security Scanning | ❌ Missing | CRITICAL |
+| Build Verification | ❌ Missing | HIGH |
+| Deployment Automation | ❌ Missing | CRITICAL |
+| Dependency Caching | ❌ Missing | LOW |
+
+### Recommended CI/CD Enhancements
+
+#### 1. Add Code Coverage (HIGH Priority)
+```yaml
+- name: Generate Backend Coverage Report
+  run: |
+    cd arari-app/api
+    pip install pytest-cov
+    python -m pytest tests/ --cov=. --cov-report=xml
+
+- name: Upload Coverage to Codecov
+  uses: codecov/codecov-action@v3
+  with:
+    files: ./arari-app/api/coverage.xml
+```
+
+#### 2. Add Security Scanning (CRITICAL)
+```yaml
+- name: Scan Python Dependencies
+  run: |
+    pip install safety
+    safety check --json || true
+
+- name: Scan Node Dependencies
+  run: |
+    cd arari-app
+    npm audit --audit-level=moderate || true
+
+- name: SAST with Bandit
+  run: |
+    pip install bandit
+    bandit -r arari-app/api -f json || true
+```
+
+#### 3. Add Build Verification (HIGH Priority)
+```yaml
+- name: Build Frontend
+  run: |
+    cd arari-app
+    npm run build
+    if [ ! -d ".next" ]; then exit 1; fi
+```
+
+#### 4. Add Dependency Caching (Performance)
+```yaml
+- name: Cache Python Dependencies
+  uses: actions/cache@v3
+  with:
+    path: ~/.cache/pip
+    key: ${{ runner.os }}-pip-${{ hashFiles('arari-app/api/requirements.txt') }}
+
+- name: Cache npm Dependencies
+  uses: actions/cache@v3
+  with:
+    path: arari-app/node_modules
+    key: ${{ runner.os }}-npm-${{ hashFiles('arari-app/package-lock.json') }}
+```
+
+#### 5. Add E2E Testing
+```yaml
+- name: Run E2E Tests (Playwright)
+  run: |
+    cd arari-app
+    npx playwright install
+    npx playwright test
+```
+
+### Files to Create for CI/CD
+
+| File | Purpose | Priority |
+|------|---------|----------|
+| `.github/workflows/security.yml` | Security scanning workflow | P0 |
+| `.github/dependabot.yml` | Automated dependency updates | P2 |
+| `lighthouserc.json` | Performance testing config | P1 |
+| `arari-app/playwright.config.ts` | E2E test configuration | P1 |
+
+### Branch Protection Rules (Recommended)
+
+Enable in GitHub Admin > Branches > Add Rule for `main`:
+- ✓ Require pull request reviews (1 reviewer)
+- ✓ Require status checks to pass
+- ✓ Require branches to be up to date
+- ✓ Dismiss stale approvals
+
+### GitHub Secrets to Configure
+
+| Secret | Purpose |
+|--------|---------|
+| `RAILWAY_TOKEN` | Backend deployment |
+| `VERCEL_TOKEN` | Frontend deployment |
+| `CODECOV_TOKEN` | Coverage reporting |
+| `SLACK_WEBHOOK` | Failure notifications (optional) |
+
+## Pending TODOs (2026-01-14)
+
+These items from Memory.md are still pending:
+
+| TODO | File | Status |
+|------|------|--------|
+| Add `.env.instance01-09` for Docker | Memory.md | Low priority |
+| Handle employees with negative net_salary | Memory.md | Needs review |
+| Test drill-down flow in browser | Memory.md | User testing |
+
+**Note**: The "TODO: Dividir en routers" in `.claude/commands/refactor-api.md` is **COMPLETED** - the project now has 17 routers in `arari-app/api/routers/`.
