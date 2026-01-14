@@ -3,9 +3,12 @@ Agent Commissions Service - 仲介手数料管理
 Calculates agent commissions based on employee nationality and attendance.
 
 Main use case: 丸山さん commission for 加藤木材
-- Vietnamese employees without absence/yukyu: ¥10,000
-- Vietnamese employees with absence/yukyu: ¥5,000
+
+Commission Rules:
+- Vietnamese employees with (absence + yukyu) <= 5 days: ¥10,000
+- Vietnamese employees with (absence + yukyu) >= 6 days: ¥5,000
 - Other nationalities: ¥5,000 (always)
+- Monthly cap: Maximum ¥300,000 per month (if total exceeds, pay only ¥300,000)
 """
 
 from datetime import datetime
@@ -42,14 +45,16 @@ AGENT_CONFIGS = {
         "target_companies": ["加藤木材"],  # Matches companies containing this
         "rules": {
             "Vietnam": {
-                "normal": 10000,  # No absence, no yukyu
-                "reduced": 5000,  # Has absence or yukyu
+                "normal": 10000,  # (absence + yukyu) <= 5 days
+                "reduced": 5000,  # (absence + yukyu) >= 6 days
+                "threshold_days": 5,  # Days threshold for normal vs reduced
             },
             "default": {
                 "normal": 5000,  # Other nationalities - always this rate
                 "reduced": 5000,
             },
         },
+        "monthly_cap": 300000,  # Maximum commission per month
     }
 }
 
@@ -204,13 +209,16 @@ class AgentCommissionService:
                 work_days = work_days or 0
 
             # Determine if employee has reduced rate condition
-            has_absence_or_yukyu = (paid_leave > 0) or (absence > 0)
+            # New rule: (absence + yukyu) >= 6 days triggers reduced rate
+            total_absent_days = paid_leave + absence
 
             # Determine rate based on nationality
             is_vietnamese = nationality and nationality.lower() == "vietnam"
 
             if is_vietnamese:
-                if has_absence_or_yukyu:
+                # Get threshold from config (default 5)
+                threshold = config["rules"]["Vietnam"].get("threshold_days", 5)
+                if total_absent_days > threshold:  # >5 means >=6 days
                     rate = config["rules"]["Vietnam"]["reduced"]
                     category = "vietnam_reduced"
                 else:
@@ -258,6 +266,11 @@ class AgentCommissionService:
         grand_total = sum(c["total_amount"] for c in results_by_company.values())
         total_employees = sum(c["total_employees"] for c in results_by_company.values())
 
+        # Apply monthly cap if configured
+        monthly_cap = config.get("monthly_cap", float("inf"))
+        is_capped = grand_total > monthly_cap
+        final_amount = min(grand_total, monthly_cap)
+
         return {
             "agent_id": agent_id,
             "agent_name": config["name"],
@@ -270,11 +283,16 @@ class AgentCommissionService:
                 "vietnam_reduced": sum(c["vietnam_reduced"]["count"] for c in results_by_company.values()),
                 "other": sum(c["other"]["count"] for c in results_by_company.values()),
                 "total_amount": grand_total,
+                "final_amount": final_amount,
+                "is_capped": is_capped,
+                "monthly_cap": monthly_cap if monthly_cap != float("inf") else None,
             },
             "rules": {
                 "vietnam_normal_rate": config["rules"]["Vietnam"]["normal"],
                 "vietnam_reduced_rate": config["rules"]["Vietnam"]["reduced"],
                 "other_rate": config["rules"]["default"]["normal"],
+                "threshold_days": config["rules"]["Vietnam"].get("threshold_days", 5),
+                "monthly_cap": monthly_cap if monthly_cap != float("inf") else None,
             },
         }
 

@@ -2,10 +2,11 @@
 Tests for Agent Commissions System (仲介手数料)
 Tests the commission calculation logic for recruitment agents like Maruyama-san.
 
-Commission Rules:
-- Vietnamese employee, no absence/yukyu: ¥10,000
-- Vietnamese employee, with absence/yukyu: ¥5,000
+Commission Rules (Updated 2026-01):
+- Vietnamese employees with (absence + yukyu) <= 5 days: ¥10,000
+- Vietnamese employees with (absence + yukyu) >= 6 days: ¥5,000
 - Non-Vietnamese employees: ¥5,000 (always)
+- Monthly cap: Maximum ¥300,000 per month (if total exceeds, pay only ¥300,000)
 """
 
 import pytest
@@ -61,21 +62,26 @@ class TestGetAvailableAgents:
 
 
 class TestCalculateCommission:
-    """Tests for commission calculation logic"""
+    """Tests for commission calculation logic with new threshold rules"""
 
     @pytest.fixture
     def setup_employees_and_payroll(self, db_session):
-        """Create test employees and payroll records"""
+        """Create test employees and payroll records for new rules"""
         cursor = db_session.cursor()
 
         # Create test employees
         employees = [
-            ("VN001", "グエン・タン", "Vietnam", "加藤木材", "active"),
-            ("VN002", "ファム・ミン", "Vietnam", "加藤木材", "active"),
-            ("VN003", "レ・ホン", "Vietnam", "加藤木材", "active"),
+            # Vietnamese employees for testing threshold (5 days rule)
+            ("VN001", "グエン・タン", "Vietnam", "加藤木材", "active"),   # 0 days -> normal
+            ("VN002", "ファム・ミン", "Vietnam", "加藤木材", "active"),   # 2 days -> normal
+            ("VN003", "レ・ホン", "Vietnam", "加藤木材", "active"),       # 5 days -> normal (edge case)
+            ("VN004", "トラン・ビン", "Vietnam", "加藤木材", "active"),   # 6 days -> reduced (edge case)
+            ("VN005", "ホアン・ドゥック", "Vietnam", "加藤木材", "active"), # 10 days -> reduced
+            # Non-Vietnamese
             ("JP001", "田中太郎", "Japan", "加藤木材", "active"),
             ("US001", "John Smith", "American", "加藤木材", "active"),
-            ("VN004", "トラン・ビン", "Vietnam", "他社", "active"),  # Different company
+            # Different company
+            ("VN006", "グエン・ヴァン", "Vietnam", "他社", "active"),
         ]
 
         for emp_id, name, nationality, company, status in employees:
@@ -86,19 +92,20 @@ class TestCalculateCommission:
             """, (emp_id, name, nationality, company, status))
 
         # Create payroll records for 2025年1月
+        # Format: (emp_id, period, paid_leave, absence, work_days)
         payroll_records = [
-            # Vietnamese - normal (no absence, no paid leave)
-            ("VN001", "2025年1月", 0, 0, 20),
-            # Vietnamese - reduced (has paid leave)
-            ("VN002", "2025年1月", 2, 0, 18),
-            # Vietnamese - reduced (has absence)
-            ("VN003", "2025年1月", 0, 1, 19),
+            # Vietnamese - testing threshold rule (absence + yukyu)
+            ("VN001", "2025年1月", 0, 0, 20),   # 0 days total -> normal ¥10,000
+            ("VN002", "2025年1月", 2, 0, 18),   # 2 days total -> normal ¥10,000
+            ("VN003", "2025年1月", 3, 2, 15),   # 5 days total -> normal ¥10,000 (edge: <= 5)
+            ("VN004", "2025年1月", 3, 3, 14),   # 6 days total -> reduced ¥5,000 (edge: >= 6)
+            ("VN005", "2025年1月", 5, 5, 10),   # 10 days total -> reduced ¥5,000
             # Japanese - always other rate
             ("JP001", "2025年1月", 0, 0, 20),
             # American - always other rate
             ("US001", "2025年1月", 1, 1, 18),
             # Vietnamese at different company
-            ("VN004", "2025年1月", 0, 0, 20),
+            ("VN006", "2025年1月", 0, 0, 20),
         ]
 
         for emp_id, period, paid_leave, absence, work_days in payroll_records:
@@ -122,8 +129,8 @@ class TestCalculateCommission:
         assert "error" in result
         assert "unknown" in result["error"].lower() or "Unknown" in result["error"]
 
-    def test_vietnamese_normal_rate(self, setup_employees_and_payroll):
-        """Vietnamese employee with no absence/yukyu gets ¥10,000"""
+    def test_vietnamese_normal_rate_zero_days(self, setup_employees_and_payroll):
+        """Vietnamese with 0 absence+yukyu days gets ¥10,000"""
         from agent_commissions import AgentCommissionService
 
         db_session = setup_employees_and_payroll
@@ -131,38 +138,66 @@ class TestCalculateCommission:
         result = service.calculate_commission("maruyama", "2025年1月")
 
         assert "error" not in result
-        assert result["agent_id"] == "maruyama"
+        # VN001 has 0 days -> should be in vietnam_normal
+        employees = result.get("employees", [])
+        vn001 = next((e for e in employees if e["employee_id"] == "VN001"), None)
+        assert vn001 is not None
+        assert vn001["category"] == "vietnam_normal"
+        assert vn001["rate"] == 10000
 
-        # Summary contains counts as integers directly
-        summary = result.get("summary", {})
-        vietnam_normal_count = summary.get("vietnam_normal", 0)
-        assert vietnam_normal_count >= 1
-
-    def test_vietnamese_reduced_rate_with_paid_leave(self, setup_employees_and_payroll):
-        """Vietnamese employee with paid leave gets ¥5,000"""
+    def test_vietnamese_normal_rate_under_threshold(self, setup_employees_and_payroll):
+        """Vietnamese with (absence+yukyu) <= 5 days gets ¥10,000"""
         from agent_commissions import AgentCommissionService
 
         db_session = setup_employees_and_payroll
         service = AgentCommissionService(db_session)
         result = service.calculate_commission("maruyama", "2025年1月")
 
-        # VN002 has paid_leave_days=2, should be reduced
-        summary = result.get("summary", {})
-        vietnam_reduced_count = summary.get("vietnam_reduced", 0)
-        assert vietnam_reduced_count >= 1
+        employees = result.get("employees", [])
 
-    def test_vietnamese_reduced_rate_with_absence(self, setup_employees_and_payroll):
-        """Vietnamese employee with absence gets ¥5,000"""
+        # VN002: 2 days total -> normal
+        vn002 = next((e for e in employees if e["employee_id"] == "VN002"), None)
+        assert vn002 is not None
+        assert vn002["category"] == "vietnam_normal"
+        assert vn002["rate"] == 10000
+
+        # VN003: 5 days total (edge case) -> normal
+        vn003 = next((e for e in employees if e["employee_id"] == "VN003"), None)
+        assert vn003 is not None
+        assert vn003["category"] == "vietnam_normal"
+        assert vn003["rate"] == 10000
+
+    def test_vietnamese_reduced_rate_at_threshold(self, setup_employees_and_payroll):
+        """Vietnamese with (absence+yukyu) = 6 days gets ¥5,000"""
         from agent_commissions import AgentCommissionService
 
         db_session = setup_employees_and_payroll
         service = AgentCommissionService(db_session)
         result = service.calculate_commission("maruyama", "2025年1月")
 
-        # VN003 has absence_days=1, should be reduced
-        summary = result.get("summary", {})
-        vietnam_reduced_count = summary.get("vietnam_reduced", 0)
-        assert vietnam_reduced_count >= 1
+        employees = result.get("employees", [])
+
+        # VN004: 6 days total (edge case) -> reduced
+        vn004 = next((e for e in employees if e["employee_id"] == "VN004"), None)
+        assert vn004 is not None
+        assert vn004["category"] == "vietnam_reduced"
+        assert vn004["rate"] == 5000
+
+    def test_vietnamese_reduced_rate_over_threshold(self, setup_employees_and_payroll):
+        """Vietnamese with (absence+yukyu) > 6 days gets ¥5,000"""
+        from agent_commissions import AgentCommissionService
+
+        db_session = setup_employees_and_payroll
+        service = AgentCommissionService(db_session)
+        result = service.calculate_commission("maruyama", "2025年1月")
+
+        employees = result.get("employees", [])
+
+        # VN005: 10 days total -> reduced
+        vn005 = next((e for e in employees if e["employee_id"] == "VN005"), None)
+        assert vn005 is not None
+        assert vn005["category"] == "vietnam_reduced"
+        assert vn005["rate"] == 5000
 
     def test_non_vietnamese_always_other_rate(self, setup_employees_and_payroll):
         """Non-Vietnamese employees get ¥5,000 regardless of attendance"""
@@ -172,10 +207,19 @@ class TestCalculateCommission:
         service = AgentCommissionService(db_session)
         result = service.calculate_commission("maruyama", "2025年1月")
 
-        # JP001 and US001 should be in 'other' category
-        summary = result.get("summary", {})
-        other_count = summary.get("other", 0)
-        assert other_count >= 2
+        employees = result.get("employees", [])
+
+        # JP001 should be 'other'
+        jp001 = next((e for e in employees if e["employee_id"] == "JP001"), None)
+        assert jp001 is not None
+        assert jp001["category"] == "other"
+        assert jp001["rate"] == 5000
+
+        # US001 should be 'other'
+        us001 = next((e for e in employees if e["employee_id"] == "US001"), None)
+        assert us001 is not None
+        assert us001["category"] == "other"
+        assert us001["rate"] == 5000
 
     def test_company_filter_override(self, setup_employees_and_payroll):
         """Company filter should override default target companies"""
@@ -188,7 +232,10 @@ class TestCalculateCommission:
         result = service.calculate_commission("maruyama", "2025年1月", company_filter="他社")
 
         assert "error" not in result
-        # Should only include VN004 from 他社
+        # Should only include VN006 from 他社
+        employees = result.get("employees", [])
+        assert len(employees) == 1
+        assert employees[0]["employee_id"] == "VN006"
 
     def test_empty_period_returns_zero(self, db_session):
         """Period with no payroll records should return zero totals"""
@@ -226,10 +273,10 @@ class TestCalculateCommission:
         service = AgentCommissionService(db_session)
         result = service.calculate_commission("maruyama", "2025年1月")
 
-        # Should be treated as Vietnamese
-        summary = result.get("summary", {})
-        vietnam_normal_count = summary.get("vietnam_normal", 0)
-        assert vietnam_normal_count >= 1
+        employees = result.get("employees", [])
+        test001 = next((e for e in employees if e["employee_id"] == "TEST001"), None)
+        assert test001 is not None
+        assert test001["category"] == "vietnam_normal"
 
     def test_total_amount_calculation(self, setup_employees_and_payroll):
         """Total amount should be sum of all employee commissions"""
@@ -259,6 +306,164 @@ class TestCalculateCommission:
 
         # Verify total matches
         assert summary.get("total_amount", 0) == expected_total
+
+    def test_summary_counts_correct(self, setup_employees_and_payroll):
+        """Summary should have correct counts for each category"""
+        from agent_commissions import AgentCommissionService
+
+        db_session = setup_employees_and_payroll
+        service = AgentCommissionService(db_session)
+        result = service.calculate_commission("maruyama", "2025年1月")
+
+        summary = result.get("summary", {})
+
+        # Based on fixture:
+        # VN001, VN002, VN003 -> vietnam_normal (3)
+        # VN004, VN005 -> vietnam_reduced (2)
+        # JP001, US001 -> other (2)
+        assert summary.get("vietnam_normal", 0) == 3
+        assert summary.get("vietnam_reduced", 0) == 2
+        assert summary.get("other", 0) == 2
+        assert summary.get("total_employees", 0) == 7
+
+    def test_rules_include_threshold_days(self, setup_employees_and_payroll):
+        """Rules should include threshold_days configuration"""
+        from agent_commissions import AgentCommissionService
+
+        db_session = setup_employees_and_payroll
+        service = AgentCommissionService(db_session)
+        result = service.calculate_commission("maruyama", "2025年1月")
+
+        rules = result.get("rules", {})
+        assert "threshold_days" in rules
+        assert rules["threshold_days"] == 5
+
+
+class TestMonthlyCap:
+    """Tests for monthly cap of ¥300,000"""
+
+    @pytest.fixture
+    def setup_many_employees(self, db_session):
+        """Create many employees to exceed monthly cap"""
+        cursor = db_session.cursor()
+
+        # Create 35 Vietnamese employees (35 * ¥10,000 = ¥350,000 > cap)
+        for i in range(35):
+            emp_id = f"VN{i:03d}"
+            cursor.execute("""
+                INSERT OR REPLACE INTO employees
+                (employee_id, name, nationality, dispatch_company, status, hourly_rate, billing_rate)
+                VALUES (?, ?, 'Vietnam', '加藤木材', 'active', 1000, 1500)
+            """, (emp_id, f"Employee {i}"))
+
+            cursor.execute("""
+                INSERT OR REPLACE INTO payroll_records
+                (employee_id, period, paid_leave_days, absence_days, work_days,
+                 work_hours, gross_salary, billing_amount, total_company_cost, gross_profit, profit_margin)
+                VALUES (?, '2025年1月', 0, 0, 20, 160, 250000, 300000, 280000, 20000, 6.67)
+            """, (emp_id,))
+
+        db_session.commit()
+        return db_session
+
+    def test_monthly_cap_applied_when_exceeded(self, setup_many_employees):
+        """Final amount should be capped at ¥300,000 when exceeded"""
+        from agent_commissions import AgentCommissionService
+
+        db_session = setup_many_employees
+        service = AgentCommissionService(db_session)
+        result = service.calculate_commission("maruyama", "2025年1月")
+
+        summary = result.get("summary", {})
+
+        # total_amount should be 35 * 10000 = 350000
+        assert summary.get("total_amount", 0) == 350000
+        # final_amount should be capped at 300000
+        assert summary.get("final_amount", 0) == 300000
+        # is_capped should be True
+        assert summary.get("is_capped", False) is True
+        # monthly_cap should be shown
+        assert summary.get("monthly_cap") == 300000
+
+    def test_monthly_cap_not_applied_when_under(self, db_session):
+        """Final amount should equal total when under cap"""
+        from agent_commissions import AgentCommissionService
+
+        cursor = db_session.cursor()
+
+        # Create 5 Vietnamese employees (5 * ¥10,000 = ¥50,000 < cap)
+        for i in range(5):
+            emp_id = f"VN{i:03d}"
+            cursor.execute("""
+                INSERT OR REPLACE INTO employees
+                (employee_id, name, nationality, dispatch_company, status, hourly_rate, billing_rate)
+                VALUES (?, ?, 'Vietnam', '加藤木材', 'active', 1000, 1500)
+            """, (emp_id, f"Employee {i}"))
+
+            cursor.execute("""
+                INSERT OR REPLACE INTO payroll_records
+                (employee_id, period, paid_leave_days, absence_days, work_days,
+                 work_hours, gross_salary, billing_amount, total_company_cost, gross_profit, profit_margin)
+                VALUES (?, '2025年1月', 0, 0, 20, 160, 250000, 300000, 280000, 20000, 6.67)
+            """, (emp_id,))
+
+        db_session.commit()
+
+        service = AgentCommissionService(db_session)
+        result = service.calculate_commission("maruyama", "2025年1月")
+
+        summary = result.get("summary", {})
+
+        # total_amount and final_amount should be equal (50000)
+        assert summary.get("total_amount", 0) == 50000
+        assert summary.get("final_amount", 0) == 50000
+        # is_capped should be False
+        assert summary.get("is_capped", True) is False
+
+    def test_monthly_cap_at_exact_boundary(self, db_session):
+        """Test when total equals exactly ¥300,000"""
+        from agent_commissions import AgentCommissionService
+
+        cursor = db_session.cursor()
+
+        # Create 30 Vietnamese employees (30 * ¥10,000 = ¥300,000 = cap)
+        for i in range(30):
+            emp_id = f"VN{i:03d}"
+            cursor.execute("""
+                INSERT OR REPLACE INTO employees
+                (employee_id, name, nationality, dispatch_company, status, hourly_rate, billing_rate)
+                VALUES (?, ?, 'Vietnam', '加藤木材', 'active', 1000, 1500)
+            """, (emp_id, f"Employee {i}"))
+
+            cursor.execute("""
+                INSERT OR REPLACE INTO payroll_records
+                (employee_id, period, paid_leave_days, absence_days, work_days,
+                 work_hours, gross_salary, billing_amount, total_company_cost, gross_profit, profit_margin)
+                VALUES (?, '2025年1月', 0, 0, 20, 160, 250000, 300000, 280000, 20000, 6.67)
+            """, (emp_id,))
+
+        db_session.commit()
+
+        service = AgentCommissionService(db_session)
+        result = service.calculate_commission("maruyama", "2025年1月")
+
+        summary = result.get("summary", {})
+
+        # At exact cap, is_capped should be False (not > cap)
+        assert summary.get("total_amount", 0) == 300000
+        assert summary.get("final_amount", 0) == 300000
+        assert summary.get("is_capped", True) is False
+
+    def test_rules_include_monthly_cap(self, db_session):
+        """Rules should include monthly_cap configuration"""
+        from agent_commissions import AgentCommissionService
+
+        service = AgentCommissionService(db_session)
+        result = service.calculate_commission("maruyama", "2025年1月")
+
+        rules = result.get("rules", {})
+        assert "monthly_cap" in rules
+        assert rules["monthly_cap"] == 300000
 
 
 class TestIsAlreadyRegistered:

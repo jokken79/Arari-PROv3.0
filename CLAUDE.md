@@ -629,12 +629,13 @@ import {
 
 Calculates commissions for recruitment agents based on employee nationality and attendance. Main use case: Maruyama-san commission for Kato Mokuzai employees.
 
-### Commission Rules (Maruyama)
+### Commission Rules (Maruyama) - Updated 2026-01
 | Condition | Amount |
 |-----------|--------|
-| Vietnamese employee, no absence/yukyu | ¥10,000 |
-| Vietnamese employee, has absence/yukyu | ¥5,000 |
+| Vietnamese employee, (absence + yukyu) ≤ 5 days | ¥10,000 |
+| Vietnamese employee, (absence + yukyu) ≥ 6 days | ¥5,000 |
 | Other nationalities | ¥5,000 (always) |
+| **Monthly Cap** | **¥300,000** (if total exceeds cap, pay only ¥300,000) |
 
 ### API Endpoints
 | Endpoint | Method | Description |
@@ -664,9 +665,14 @@ AGENT_CONFIGS = {
         "name": "丸山さん",
         "target_companies": ["加藤木材"],
         "rules": {
-            "Vietnam": {"normal": 10000, "reduced": 5000},
+            "Vietnam": {
+                "normal": 10000,        # (absence + yukyu) <= 5 days
+                "reduced": 5000,        # (absence + yukyu) >= 6 days
+                "threshold_days": 5,    # Days threshold for normal vs reduced
+            },
             "default": {"normal": 5000, "reduced": 5000},
         },
+        "monthly_cap": 300000,  # Maximum commission per month
     }
 }
 ```
