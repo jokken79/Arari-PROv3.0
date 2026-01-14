@@ -48,10 +48,10 @@ Flag `--dry-run`: Mostrar cambios sin aplicar
 ## Estado Actual main.py
 
 ```
-Líneas totales: ~1800
-Endpoints: 100+
-Imports: 50+
-TODO: Dividir en routers
+Líneas totales: ~1308 (refactorizado)
+Endpoints: 100+ (distribuidos en 17 routers)
+Imports: Optimizados
+COMPLETADO: Dividido en 17 routers ✓
 ```
 
 ## Estructura Objetivo
