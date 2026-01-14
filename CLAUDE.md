@@ -52,7 +52,7 @@ ADMIN_EMAIL=admin@arari-pro.local
 ### Run Tests
 
 ```bash
-# Backend tests (111 tests including security tests)
+# Backend tests (311 tests including security tests)
 cd arari-app/api
 python -m pytest tests/ -v
 
@@ -131,7 +131,7 @@ arari-app/
 │   ├── japanese_format.py        # Japanese number formatting (万, 億)
 │   ├── budget.py                 # Budget management
 │   ├── alerts.py                 # Alert/notification system
-│   └── tests/                    # pytest tests (8 test files, 111 tests)
+│   └── tests/                    # pytest tests (13 test files, 311 tests)
 │
 ├── src/
 │   ├── app/                      # Next.js App Router pages (15 pages)
@@ -915,100 +915,56 @@ Las constantes de negocio están centralizadas en `arari-app/api/config.py`:
 | Cache management | `arari-app/api/cache.py`, `arari-app/api/routers/cache.py` |
 | ROI calculations | `arari-app/api/roi.py`, `arari-app/api/routers/roi.py` |
 
-## Test Coverage Improvements (2026-01-14)
+## Test Coverage (Updated 2026-01-14)
 
 ### Current Test Summary
 
-| Category | Files | Tests | Status |
-|----------|-------|-------|--------|
-| Backend Business Logic | `test_salary_calculations.py` | 26 | ✓ Good |
-| Security Features | `test_security_features.py` | 60+ | ✓ Excellent |
-| API Endpoints | `test_api_endpoints.py` | 18 | ⚠️ Basic |
-| Frontend Utils | `utils.test.ts` | 30 | ✓ Good |
-| Frontend Components | `*.test.tsx` | 4 | ❌ Minimal |
+**Total Backend Tests: ~311 tests across 13 test files**
 
-### Critical Test Gaps (Priority 1)
+| Test File | Tests | Status | Description |
+|-----------|-------|--------|-------------|
+| `test_security_features.py` | 65 | ✓ Excellent | Auth, rate limiting, XSS prevention |
+| `test_salary_parser.py` | 49 | ✓ Excellent | Excel parsing, field extraction |
+| `test_budget.py` | 34 | ✓ Good | Budget management CRUD |
+| `test_audit.py` | 34 | ✓ Good | Audit logging system |
+| `test_additional_costs.py` | 28 | ✓ Good | Additional costs CRUD |
+| `test_reports.py` | 27 | ✓ Good | Report generation |
+| `test_agent_commissions.py` | 25 | ✓ Good | Commission calculations |
+| `test_salary_calculations.py` | 17 | ✓ Good | Business logic formulas |
+| `test_api_endpoints.py` | 15 | ✓ Basic | API endpoint tests |
+| `test_business_rules.py` | 7 | ✓ Basic | Core business rules |
+| `test_reset_db.py` | 6 | ✓ Basic | Database reset functions |
+| `test_login.py` | 3 | ✓ Basic | Login functionality |
+| `test_main.py` | 1 | ✓ Basic | Main module |
 
-**Zero test coverage on these critical modules:**
+### Frontend Tests
 
-| Module | File | Lines | Business Impact |
-|--------|------|-------|-----------------|
-| Agent Commissions | `agent_commissions.py` | 415 | Revenue tracking (仲介手数料) |
-| Additional Costs | `additional_costs.py` | 469 | Profit impact (追加コスト) |
-| Reports System | `reports.py` | 1,731 | Primary business output |
-| Excel Parser | `salary_parser.py` | 1,400 | Data ingestion pipeline |
+| Category | Tests | Status |
+|----------|-------|--------|
+| `utils.test.ts` | 30 | ✓ Good |
+| Components | 4 | ⚠️ Minimal |
 
-### Recommended Test Files to Create
+### Test Coverage by Module
 
-```bash
-# Tier 1: Critical (Must Add)
-arari-app/api/tests/test_agent_commissions.py    # 15-20 tests
-arari-app/api/tests/test_additional_costs.py     # 20-25 tests
-arari-app/api/tests/test_reports.py              # 30-40 tests
-arari-app/api/tests/test_salary_parser.py        # 35-50 tests
+All critical business modules now have test coverage:
 
-# Tier 2: High Priority
-arari-app/api/tests/test_budget.py               # 20-25 tests
-arari-app/api/tests/test_audit.py                # 15-20 tests
-arari-app/api/tests/test_e2e_scenarios.py        # 10-15 tests
-```
+| Module | Test File | Coverage |
+|--------|-----------|----------|
+| Agent Commissions | `test_agent_commissions.py` | ✓ 25 tests |
+| Additional Costs | `test_additional_costs.py` | ✓ 28 tests |
+| Reports System | `test_reports.py` | ✓ 27 tests |
+| Excel Parser | `test_salary_parser.py` | ✓ 49 tests |
+| Budget Management | `test_budget.py` | ✓ 34 tests |
+| Audit Logging | `test_audit.py` | ✓ 34 tests |
+| Security Features | `test_security_features.py` | ✓ 65 tests |
 
-### Agent Commission Test Cases (Missing)
-```python
-# Vietnamese employee rules (Maruyama agent)
-def test_calculate_commission_vietnamese_normal()      # → ¥10,000
-def test_calculate_commission_vietnamese_with_absence() # → ¥5,000
-def test_calculate_commission_vietnamese_with_yukyu()  # → ¥5,000
-def test_calculate_commission_non_vietnamese()         # → ¥5,000
-def test_register_commission_to_additional_costs()
-def test_register_commission_duplicate_prevention()
-```
+### Remaining Test Gaps
 
-### Additional Costs Test Cases (Missing)
-```python
-# CRUD + validation for all 8 cost types
-def test_create_cost_all_types()  # transport_bus, parking, facility, etc.
-def test_create_cost_unique_constraint()
-def test_sum_costs_for_period()
-def test_copy_costs_to_new_period()
-```
-
-### Reports Test Cases (Missing)
-```python
-# All 5 report types need tests
-def test_monthly_report_data_generation()
-def test_all_employees_report_margin_calculation()
-def test_company_analysis_report_aggregation()
-def test_cost_breakdown_insurance_details()
-def test_summary_report_rankings()
-def test_reports_excel_generation_validity()
-```
-
-### Frontend Test Expansion Needed
-
-| Area | Current | Target | Missing |
-|------|---------|--------|---------|
-| Dashboard | 0 | 15-20 | Period selection, chart data |
-| Employee pages | 4 | 20-25 | Modal, CRUD flows |
-| Reports download | 0 | 15-20 | Type selection, download |
-| Payroll modal | 0 | 20-25 | Complex 5-file modal |
-| Auth UI | 0 | 10-15 | Login, logout, cookies |
-
-### Test Implementation Roadmap
-
-**Phase 1 (Critical Business Logic)**:
-1. Agent Commissions Tests (15-20 tests, ~4 hours)
-2. Additional Costs Tests (20-25 tests, ~5 hours)
-3. Payroll Service Expansion (20 tests, ~4 hours)
-
-**Phase 2 (Reports & Data)**:
-1. Reports System Tests (40 tests, ~8 hours)
-2. Excel Parser Tests (50 tests, ~10 hours)
-
-**Phase 3 (Supporting Systems)**:
-1. Budget Management (25 tests)
-2. Audit Logging (20 tests)
-3. Integration/E2E Tests (15 tests)
+| Area | Status | Priority |
+|------|--------|----------|
+| E2E Tests (Playwright) | ❌ Not started | Medium |
+| Frontend Components | ⚠️ Minimal (4 tests) | Medium |
+| Integration Tests | ⚠️ Basic | Low |
 
 ## CI/CD Improvements (2026-01-14)
 
@@ -1134,7 +1090,9 @@ These items from Memory.md are still pending:
 | TODO | File | Status |
 |------|------|--------|
 | Add `.env.instance01-09` for Docker | Memory.md | Low priority |
-| Handle employees with negative net_salary | Memory.md | Needs review |
 | Test drill-down flow in browser | Memory.md | User testing |
 
-**Note**: The "TODO: Dividir en routers" in `.claude/commands/refactor-api.md` is **COMPLETED** - the project now has 17 routers in `arari-app/api/routers/`.
+**Completed TODOs**:
+- ✓ "TODO: Dividir en routers" - Project now has 17 routers in `arari-app/api/routers/`
+- ✓ "Handle employees with negative net_salary" - Already handled in models.py (negative values allowed, model description says "負値も許容")
+- ✓ Test coverage for critical modules - All critical modules now have tests (311 tests total)
