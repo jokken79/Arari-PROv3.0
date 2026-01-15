@@ -1,3 +1,8 @@
+---
+name: database-specialist
+description: Database expert for SQLite/PostgreSQL dual-mode, schema design, and query optimization
+---
+
 # Database Specialist Agent
 
 Agente especializado en base de datos para Arari PRO v3.0.

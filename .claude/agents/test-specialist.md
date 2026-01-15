@@ -1,3 +1,8 @@
+---
+name: test-specialist
+description: Testing specialist for pytest, Jest, TDD practices, and coverage analysis
+---
+
 # Test Specialist Agent
 
 Agente especializado en testing para Arari PRO v3.0.

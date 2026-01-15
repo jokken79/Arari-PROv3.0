@@ -1,3 +1,8 @@
+---
+name: frontend-specialist
+description: Frontend specialist for Next.js, React, TypeScript, TanStack Query, and UI components
+---
+
 # Frontend Specialist Agent
 
 Agente especializado en desarrollo frontend para Arari PRO v3.0.

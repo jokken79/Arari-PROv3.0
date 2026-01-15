@@ -1,3 +1,8 @@
+---
+name: memory-agent
+description: Maintains persistent project memory across sessions by managing context documentation
+---
+
 # Memory Agent - Agente de Memoria
 
 Agente especializado en mantener la memoria persistente del proyecto.

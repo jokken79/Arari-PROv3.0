@@ -1,3 +1,8 @@
+---
+name: business-context-agent
+description: Maintains and applies business domain knowledge for staffing company operations
+---
+
 # Business Context Agent (ビジネスコンテキストエージェント)
 
 Un agente especializado en entender y aplicar el contexto de negocio de ユニバーサル企画株式会社.

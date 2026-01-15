@@ -1,3 +1,8 @@
+---
+name: backend-specialist
+description: Backend development specialist for FastAPI, Python, Pydantic models, and database operations
+---
+
 # Backend Specialist Agent
 
 Agente especializado en desarrollo backend para Arari PRO v3.0.

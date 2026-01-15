@@ -1,3 +1,8 @@
+---
+name: business-logic-specialist
+description: Expert in payroll calculations, billing formulas, insurance rates, and profit margins
+---
+
 # Business Logic Specialist Agent
 
 Agente especializado en la lógica de negocio específica de Arari PRO v3.0.

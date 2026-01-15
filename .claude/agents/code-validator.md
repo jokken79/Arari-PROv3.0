@@ -1,3 +1,8 @@
+---
+name: code-validator
+description: Validates code functionality through syntax checks, linting, and testing before commits
+---
+
 # Code Validator Agent (コード検証エージェント)
 
 Un agente especializado en validar que el código funciona antes de considerarlo terminado.

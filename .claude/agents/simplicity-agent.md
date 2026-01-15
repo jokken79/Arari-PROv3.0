@@ -1,3 +1,8 @@
+---
+name: simplicity-agent
+description: Prevents over-engineering by enforcing YAGNI and KISS principles for code simplicity
+---
+
 # Simplicity Agent (シンプル化エージェント)
 
 Un agente especializado en prevenir la sobre-ingeniería y mantener el código simple.

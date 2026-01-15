@@ -1,3 +1,8 @@
+---
+name: auto-tester
+description: Specialized agent for executing and creating automated tests using pytest and Jest
+---
+
 # Auto Tester Agent (自動テストエージェント)
 
 Un agente especializado en ejecutar y crear tests automáticos.
