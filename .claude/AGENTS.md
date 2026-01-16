@@ -437,4 +437,4 @@ Cuando se añadan nuevos skills o agentes:
 ---
 
 *Última actualización: 2026-01-10*
-*Versión: 2.0 - Añadidos agentes de combate de debilidades*
+*Versión: 3.0 - Añadidos agentes de combate de debilidades*

@@ -20,11 +20,11 @@ if DATABASE_URL.startswith("postgres://"):
 USE_POSTGRES = DATABASE_URL.startswith("postgresql://")
 
 if USE_POSTGRES:
-    print(f"[DB] 🐘 Using PostgreSQL: {urlparse(DATABASE_URL).hostname}")
+    print(f"[DB] [PostgreSQL] Using PostgreSQL: {urlparse(DATABASE_URL).hostname}")
     import psycopg2
     from psycopg2.extras import RealDictCursor
 else:
-    print("[DB] 📁 Using SQLite (local mode)")
+    print("[DB] [SQLite] Using SQLite (local mode)")
 
 # Database file path (SQLite only)
 DB_PATH = Path(__file__).parent / "arari_pro.db"

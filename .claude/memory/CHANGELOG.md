@@ -165,7 +165,7 @@ Este archivo mantiene un registro cronológico de todos los cambios significativ
 
 ### Modificado
 - `reports.py` - Integración de formato japonés para PDFs y Excel
-- `AGENTS.md` - Versión 2.0 con agentes de combate de debilidades
+- `AGENTS.md` - Versión 3.0 con agentes de combate de debilidades
 
 ### Áreas de Mejora Identificadas
 1. **Críticas**:

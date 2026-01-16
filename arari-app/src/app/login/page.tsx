@@ -188,7 +188,7 @@ export default function LoginPage() {
               className="flex items-center gap-3"
             >
               <span className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-emerald-400 via-cyan-500 to-blue-500 text-white rounded-full text-xs font-bold shadow-xl shadow-cyan-500/40">
-                v2.0 Enterprise
+                v3.0 Enterprise
               </span>
               <span className="text-sm font-medium text-blue-200">
                 製造派遣向け

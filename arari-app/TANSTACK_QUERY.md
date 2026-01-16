@@ -2,7 +2,7 @@
 
 ## 概要
 
-粗利 PRO v2.0 では、データフェッチングに **TanStack Query (React Query)** を導入しました。
+粗利 PRO v3.0 では、データフェッチングに **TanStack Query (React Query)** を導入しました。
 これにより、以下のメリットが得られます：
 
 - 🔄 自動的なキャッシング・リフェッチング

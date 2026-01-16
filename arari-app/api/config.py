@@ -132,6 +132,6 @@ class APIConfig:
 class AppVersion:
     """Application version info"""
 
-    VERSION = "2.0.0"
+    VERSION = "3.0.0"
     BUILD = "production"
     API_VERSION = "v1"

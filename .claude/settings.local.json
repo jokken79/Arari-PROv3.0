@@ -17,7 +17,14 @@
       "Bash(git commit -m \"$(cat <<''EOF''\nfeat: Complete payroll accuracy improvements and company/employee detail pages\n\n## Parser Fixes (粗利計算の精度向上)\n- Add automatic 60H超残業 hours calculation when overtime > 60h\n- Add 厚生年金 (welfare_pension) to FALLBACK_ROW_POSITIONS for accurate parsing\n- Calculate overtime_over_60h = max(0, overtime_hours - 60)\n\n## UI Improvements\n- Add company detail page (/companies/[id]) with employee list and metrics\n- Add employee detail page (/employees/[id]) with full payroll history\n- Update PayrollSlipModal to show 健康保険 and 厚生年金 separately in 法定福利費\n- Display 通勤手当 and 非請求手当 in 会社総コスト内訳 section\n- Add PaidLeaveChart component for 有給 analysis\n\n## Backend Updates  \n- Add welfare_pension field to database schema and INSERT statements\n- Include welfare_pension in company_social_insurance calculation (労使折半)\n- Update API types for non_billable_allowances and welfare_pension\n\n## Type System\n- Add welfarePension and nonBillableAllowances to PayrollRecord interface\n- Update appStore mapping for new fields from backend\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")",
       "Bash(git push:*)",
       "Bash(git remote set-url:*)",
-      "Bash(timeout /t 5)""bash(*)"
+      "Bash(timeout /t 5)",
+      "Bash",
+      "Bash(python:*)",
+      "Skill(ralph-wiggum:cancel-ralph)",
+      "WebSearch",
+      "Bash(cd:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nfix: Add required YAML frontmatter to all agent files\n\nFixed missing YAML frontmatter \\(name and description fields\\) in all 11 agent\nfiles in .claude/agents/ directory. These fields are required by Claude Code\nfor proper agent parsing and registration.\n\nFiles fixed:\n- auto-tester.md\n- backend-specialist.md\n- business-context-agent.md\n- business-logic-specialist.md\n- code-validator.md\n- database-specialist.md\n- frontend-specialist.md\n- memory-agent.md\n- security-specialist.md\n- simplicity-agent.md\n- test-specialist.md\n\nEach agent now has proper YAML frontmatter with descriptive name and\ndescription fields following Claude Code conventions.\n\nCo-Authored-By: Claude Haiku 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(done)"
     ],
     "deny": [],
     "ask": []

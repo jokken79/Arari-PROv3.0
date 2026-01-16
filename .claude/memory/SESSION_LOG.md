@@ -119,7 +119,7 @@ Crear agentes para combatir debilidades identificadas y realizar auditoría del 
 
 ### Archivos Modificados
 - `CLAUDE.md` - Añadido /session-start, 4 agentes, sección memoria completa
-- `.claude/AGENTS.md` - v2.0 con sección de agentes de debilidades
+- `.claude/AGENTS.md` - v3.0 con sección de agentes de debilidades
 - `.claude/memory/CHANGELOG.md` - Registro de cambios
 - `.claude/memory/CONTEXT.md` - Actualizado conteo de skills (19)
 

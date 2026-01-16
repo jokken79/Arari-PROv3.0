@@ -1,4 +1,4 @@
-# Deployment Guide - 粗利 PRO v2.0
+# Deployment Guide - 粗利 PRO v3.0
 
 ## Current Production Deployment (2025-12-26)
 
@@ -47,7 +47,7 @@
 |-------|-------|
 | Project Name | `imaginative-quietude` |
 | Project ID | `d24d035e-263e-4761-b726-c0362dbd1263` |
-| Service Name | `Arari-PROv2.0` |
+| Service Name | `Arari-PROv3.0` |
 | Service ID | `ffbb2bb1-5fcd-4dbb-88ce-b8355c96e8cb` |
 | Environment | `production` |
 | Region | `us-east4-eqdc4a` |

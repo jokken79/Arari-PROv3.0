@@ -1,4 +1,4 @@
-# GEMINI.md - 粗利 PRO v2.0
+# GEMINI.md - 粗利 PRO v3.0
 
 ## Project Overview
 

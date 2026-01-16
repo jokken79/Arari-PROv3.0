@@ -1,4 +1,4 @@
-# Known Issues - 粗利 PRO v2.0
+# Known Issues - 粗利 PRO v3.0
 
 ## Build Warnings (Non-Critical)
 

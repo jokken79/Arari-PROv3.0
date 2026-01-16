@@ -3,7 +3,7 @@ import threading
 import time
 
 """
-粗利 PRO v2.0 - Backend API
+粗利 PRO v3.0 - Backend API
 FastAPI + SQLite backend for profit management system
 """
 
@@ -272,7 +272,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="粗利 PRO API",
     description="利益管理システム - Backend API",
-    version="2.0.0",
+    version="3.0.0",
     lifespan=lifespan
 )
 
@@ -327,7 +327,7 @@ app.include_router(cache_router)
 
 @app.get("/api/health")
 async def health_check():
-    return {"status": "healthy", "version": "2.0.0"}
+    return {"status": "healthy", "version": "3.0.0"}
 
 # ============== Employees, Payroll, Statistics ==============
 # MOVED TO: routers/employees.py, routers/payroll.py, routers/statistics.py

@@ -52,8 +52,8 @@ import { formatYen, comparePeriods } from '@/lib/utils'
 
 export default function AdditionalCostsPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const [selectedCompany, setSelectedCompany] = useState<string>('')
-  const [selectedPeriod, setSelectedPeriod] = useState<string>('')
+  const [selectedCompany, setSelectedCompany] = useState<string>('__all__')
+  const [selectedPeriod, setSelectedPeriod] = useState<string>('__all__')
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [isCopyDialogOpen, setIsCopyDialogOpen] = useState(false)
   const [editingCost, setEditingCost] = useState<AdditionalCost | null>(null)
@@ -76,8 +76,8 @@ export default function AdditionalCostsPage() {
   const { data: companies = [] } = useCompanies()
   const { data: periods = [] } = usePayrollPeriods()
   const { data: costs = [], isLoading } = useAdditionalCosts(
-    selectedCompany || undefined,
-    selectedPeriod || undefined
+    selectedCompany === '__all__' ? undefined : selectedCompany,
+    selectedPeriod === '__all__' ? undefined : selectedPeriod
   )
 
   // Sort periods descending (newest first)
@@ -176,10 +176,10 @@ export default function AdditionalCostsPage() {
   const openNewDialog = () => {
     resetForm()
     // Pre-fill with selected filters
-    if (selectedCompany) {
+    if (selectedCompany !== '__all__') {
       setFormData((prev) => ({ ...prev, dispatch_company: selectedCompany }))
     }
-    if (selectedPeriod) {
+    if (selectedPeriod !== '__all__') {
       setFormData((prev) => ({ ...prev, period: selectedPeriod }))
     }
     setIsDialogOpen(true)
@@ -233,7 +233,7 @@ export default function AdditionalCostsPage() {
                         <SelectValue placeholder="すべての期間" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">すべての期間</SelectItem>
+                        <SelectItem value="__all__">すべての期間</SelectItem>
                         {sortedPeriods.map((period) => (
                           <SelectItem key={period} value={period}>
                             {period}
@@ -250,7 +250,7 @@ export default function AdditionalCostsPage() {
                         <SelectValue placeholder="すべての企業" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">すべての企業</SelectItem>
+                        <SelectItem value="__all__">すべての企業</SelectItem>
                         {companies.map((company) => (
                           <SelectItem key={company} value={company}>
                             {company}

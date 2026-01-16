@@ -645,7 +645,7 @@ export default function SettingsPage() {
                       粗利 PRO
                     </h3>
                     <p className="text-muted-foreground mt-1">
-                      利益管理システム v2.0.0
+                      利益管理システム v3.0.0
                     </p>
                     <p className="text-sm text-muted-foreground mt-4">
                       派遣社員の粗利分析・管理システム<br />

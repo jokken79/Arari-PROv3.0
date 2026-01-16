@@ -89,7 +89,7 @@ export function Header({ onMenuClick }: HeaderProps) {
                   粗利 PRO
                 </h1>
                 <p className="text-xs text-muted-foreground">
-                  利益管理システム v2.0
+                  利益管理システム v3.0
                 </p>
               </div>
             </motion.div>
