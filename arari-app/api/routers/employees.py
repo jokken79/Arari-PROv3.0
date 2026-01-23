@@ -44,9 +44,16 @@ async def create_employee(
 ):
     """Create a new employee (requires authentication)"""
     service = PayrollService(db)
-    result = service.create_employee(employee)
-    log_action(db, current_user, "create", "employee", employee.employee_id, f"Created employee: {employee.name}")
-    return result
+    try:
+        result = service.create_employee(employee)
+        log_action(db, current_user, "create", "employee", employee.employee_id, f"Created employee: {employee.name}")
+        return result
+    except sqlite3.IntegrityError as e:
+        if "UNIQUE constraint failed: employees.employee_id" in str(e):
+            raise HTTPException(status_code=400, detail=f"Employee with ID {employee.employee_id} already exists")
+        raise HTTPException(status_code=400, detail="Database constraint violation")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.put("/{employee_id}", response_model=Employee)

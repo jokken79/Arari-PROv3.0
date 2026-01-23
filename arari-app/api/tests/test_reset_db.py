@@ -41,7 +41,7 @@ def seed_data(db_session):
     db_session.commit()
 
 
-def test_reset_db_target_payroll(authenticated_client, seed_data, db_session):
+def test_reset_db_target_payroll(admin_client, seed_data, db_session):
     """Test that `target=payroll` deletes only payroll records (requires admin)."""
     # Verify data exists before deletion
     employees_before = db_session.execute("SELECT * FROM employees").fetchall()
@@ -50,7 +50,7 @@ def test_reset_db_target_payroll(authenticated_client, seed_data, db_session):
     assert len(payrolls_before) == 2
 
     # Call the endpoint (requires admin auth)
-    response = authenticated_client.delete("/api/reset-db?target=payroll")
+    response = admin_client.delete("/api/reset-db?target=payroll")
     assert response.status_code == 200
     assert response.json()["status"] == "success"
 
@@ -61,7 +61,7 @@ def test_reset_db_target_payroll(authenticated_client, seed_data, db_session):
     assert len(payrolls_after) == 0
 
 
-def test_reset_db_target_employees(authenticated_client, seed_data, db_session):
+def test_reset_db_target_employees(admin_client, seed_data, db_session):
     """Test that `target=employees` deletes both employees and payroll records (requires admin)."""
     # Verify data exists before deletion
     employees_before = db_session.execute("SELECT * FROM employees").fetchall()
@@ -70,7 +70,7 @@ def test_reset_db_target_employees(authenticated_client, seed_data, db_session):
     assert len(payrolls_before) == 2
 
     # Call the endpoint (requires admin auth)
-    response = authenticated_client.delete("/api/reset-db?target=employees")
+    response = admin_client.delete("/api/reset-db?target=employees")
     assert response.status_code == 200
     assert response.json()["status"] == "success"
 
@@ -81,7 +81,7 @@ def test_reset_db_target_employees(authenticated_client, seed_data, db_session):
     assert len(payrolls_after) == 0
 
 
-def test_reset_db_target_all(authenticated_client, seed_data, db_session):
+def test_reset_db_target_all(admin_client, seed_data, db_session):
     """Test that `target=all` deletes all data (requires admin)."""
     # Verify data exists before deletion
     employees_before = db_session.execute("SELECT * FROM employees").fetchall()
@@ -90,7 +90,7 @@ def test_reset_db_target_all(authenticated_client, seed_data, db_session):
     assert len(payrolls_before) == 2
 
     # Call the endpoint (requires admin auth)
-    response = authenticated_client.delete("/api/reset-db?target=all")
+    response = admin_client.delete("/api/reset-db?target=all")
     assert response.status_code == 200
     assert response.json()["status"] == "success"
 
@@ -101,7 +101,7 @@ def test_reset_db_target_all(authenticated_client, seed_data, db_session):
     assert len(payrolls_after) == 0
 
 
-def test_reset_db_no_target(authenticated_client, seed_data, db_session):
+def test_reset_db_no_target(admin_client, seed_data, db_session):
     """Test that no target defaults to deleting all data (requires admin)."""
     # Verify data exists before deletion
     employees_before = db_session.execute("SELECT * FROM employees").fetchall()
@@ -110,7 +110,7 @@ def test_reset_db_no_target(authenticated_client, seed_data, db_session):
     assert len(payrolls_before) == 2
 
     # Call the endpoint (requires admin auth)
-    response = authenticated_client.delete("/api/reset-db")
+    response = admin_client.delete("/api/reset-db")
     assert response.status_code == 200
     assert response.json()["status"] == "success"
 
@@ -121,9 +121,9 @@ def test_reset_db_no_target(authenticated_client, seed_data, db_session):
     assert len(payrolls_after) == 0
 
 
-def test_reset_db_invalid_target(authenticated_client, seed_data):
+def test_reset_db_invalid_target(admin_client, seed_data):
     """Test that an invalid target returns a 400 error (requires admin)."""
-    response = authenticated_client.delete("/api/reset-db?target=invalid")
+    response = admin_client.delete("/api/reset-db?target=invalid")
     assert response.status_code == 400
 
 

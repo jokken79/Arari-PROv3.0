@@ -98,7 +98,7 @@ def test_update_employee(authenticated_client, db_session):
     assert result["hourly_rate"] == 1500
 
 
-def test_delete_employee(authenticated_client, db_session):
+def test_delete_employee(admin_client, db_session):
     """Test DELETE /api/employees/{id} removes employee (requires admin)"""
     # Create employee
     employee_data = {
@@ -109,14 +109,14 @@ def test_delete_employee(authenticated_client, db_session):
         "billing_rate": 1600,
         "status": "active",
     }
-    authenticated_client.post("/api/employees", json=employee_data)
+    admin_client.post("/api/employees", json=employee_data)
 
     # Delete employee (requires admin)
-    response = authenticated_client.delete("/api/employees/DEL001")
+    response = admin_client.delete("/api/employees/DEL001")
     assert response.status_code == 200
 
     # Verify deleted
-    response = authenticated_client.get("/api/employees/DEL001")
+    response = admin_client.get("/api/employees/DEL001")
     assert response.status_code == 404
 
 
@@ -252,9 +252,9 @@ def test_get_settings(test_client, db_session):
         assert "employment_insurance_rate" in result
 
 
-def test_update_setting(authenticated_client, db_session):
+def test_update_setting(admin_client, db_session):
     """Test PUT /api/settings/{key} updates a setting (requires admin)"""
-    response = authenticated_client.put(
+    response = admin_client.put(
         "/api/settings/target_margin",
         json={"value": "15"}
     )

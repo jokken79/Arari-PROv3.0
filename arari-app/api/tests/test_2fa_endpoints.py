@@ -252,11 +252,11 @@ class TestTwoFADisableEndpoint:
         )
         assert verify_response.status_code == 200
 
-        # Disable 2FA
+        # Disable 2FA with correct password (admin123)
         response = test_client.post(
             "/api/2fa/disable",
             json={
-                "password": "password123"
+                "password": "admin123"
             },
             headers={"Authorization": f"Bearer {auth_token}"}
         )

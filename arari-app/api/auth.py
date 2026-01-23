@@ -103,6 +103,7 @@ def init_auth_tables(conn):
         ("totp_secret", "ALTER TABLE users ADD COLUMN totp_secret TEXT"),
         ("totp_enabled", "ALTER TABLE users ADD COLUMN totp_enabled INTEGER DEFAULT 0"),
         ("backup_codes", "ALTER TABLE users ADD COLUMN backup_codes TEXT"),
+        ("totp_temp_secret", "ALTER TABLE users ADD COLUMN totp_temp_secret TEXT"),
     ]
 
     for col_name, migration_sql in migrations:

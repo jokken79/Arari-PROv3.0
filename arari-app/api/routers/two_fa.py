@@ -75,6 +75,7 @@ async def setup_2fa(
     """
     Generate TOTP secret and backup codes for 2FA setup
     Returns: secret, QR URI, and backup codes
+    Stores temporary secret in database for verification step
     """
     user_id = current_user["user_id"]
 
@@ -82,6 +83,14 @@ async def setup_2fa(
     secret = generate_totp_secret()
     backup_codes = generate_backup_codes()
     qr_uri = get_totp_uri(secret, f"User {user_id}", "ArariPRO")
+
+    # Store temporary secret for verification (will be moved to totp_secret after verification)
+    cursor = db.cursor()
+    cursor.execute(
+        "UPDATE users SET totp_temp_secret = ? WHERE id = ?",
+        (secret, user_id)
+    )
+    db.commit()
 
     return TwoFASetupResponse(
         totp_secret=secret,
@@ -98,7 +107,8 @@ async def verify_2fa(
 ):
     """
     Verify TOTP code and enable 2FA for user
-    Stores secret and backup codes in database
+    Validates code against temporary secret from setup step
+    Stores secret and backup codes in database upon success
     """
     user_id = current_user["user_id"]
 
@@ -109,26 +119,42 @@ async def verify_2fa(
     if len(request.totp_code) != 6 or not request.totp_code.isdigit():
         raise HTTPException(status_code=400, detail="Invalid TOTP code")
 
-    # In production: verify totp_code against a temporary secret stored in Redis/session
-    # For MVP: we'll trust the /setup endpoint created valid codes
-
     cursor = db.cursor()
 
     try:
+        # Get temporary secret from database (stored during /setup)
+        cursor.execute(
+            "SELECT totp_temp_secret FROM users WHERE id = ?",
+            (user_id,)
+        )
+        result = cursor.fetchone()
+
+        if not result or not result[0]:
+            raise HTTPException(status_code=400, detail="No 2FA setup in progress. Call /setup first.")
+
+        temp_secret = result[0]
+
+        # Verify the provided code against the temporary secret
+        if not verify_totp_code(temp_secret, request.totp_code):
+            raise HTTPException(status_code=400, detail="Invalid TOTP code")
+
+        # Code verified successfully - store permanent secret and backup codes
         backup_codes_json = json.dumps(request.backup_codes)
 
         cursor.execute(
             """
             UPDATE users
-            SET totp_enabled = 1, backup_codes = ?
+            SET totp_secret = ?, totp_enabled = 1, backup_codes = ?, totp_temp_secret = NULL
             WHERE id = ?
         """,
-            (backup_codes_json, user_id),
+            (temp_secret, backup_codes_json, user_id),
         )
         db.commit()
 
         return {"status": "2fa_enabled"}
 
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

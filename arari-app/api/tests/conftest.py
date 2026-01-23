@@ -71,12 +71,68 @@ def auth_headers(test_client):
 @pytest.fixture(scope="function")
 def authenticated_client(test_client, auth_headers):
     """
-    Create an authenticated TestClient that includes auth headers by default.
+    Create an authenticated TestClient with non-admin (viewer) user.
+    """
+    # First create a non-admin user
+    viewer_response = test_client.post(
+        "/api/users",
+        json={
+            "username": "viewer",
+            "password": "viewer123",
+            "email": "viewer@arari-pro.local",
+            "role": "viewer"
+        },
+        headers=auth_headers  # Use admin token to create user
+    )
+
+    # Login as viewer
+    viewer_login = test_client.post(
+        "/api/auth/login",
+        json={"username": "viewer", "password": "viewer123"}
+    )
+    assert viewer_login.status_code == 200
+    viewer_token = viewer_login.json().get("token")
+    viewer_headers = {"Authorization": f"Bearer {viewer_token}"}
+
+    # Store original methods
+    original_post = test_client.post
+    original_put = test_client.put
+    original_delete = test_client.delete
+
+    def post_with_auth(*args, headers=None, **kwargs):
+        merged_headers = {**viewer_headers, **(headers or {})}
+        return original_post(*args, headers=merged_headers, **kwargs)
+
+    def put_with_auth(*args, headers=None, **kwargs):
+        merged_headers = {**viewer_headers, **(headers or {})}
+        return original_put(*args, headers=merged_headers, **kwargs)
+
+    def delete_with_auth(*args, headers=None, **kwargs):
+        merged_headers = {**viewer_headers, **(headers or {})}
+        return original_delete(*args, headers=merged_headers, **kwargs)
+
+    test_client.post = post_with_auth
+    test_client.put = put_with_auth
+    test_client.delete = delete_with_auth
+
+    yield test_client
+
+    # Restore original methods
+    test_client.post = original_post
+    test_client.put = original_put
+    test_client.delete = original_delete
+
+
+@pytest.fixture(scope="function")
+def admin_client(test_client, auth_headers):
+    """
+    Create an authenticated TestClient with admin user.
     """
     # Store original methods
     original_post = test_client.post
     original_put = test_client.put
     original_delete = test_client.delete
+    original_get = test_client.get
 
     def post_with_auth(*args, headers=None, **kwargs):
         merged_headers = {**auth_headers, **(headers or {})}
@@ -90,9 +146,14 @@ def authenticated_client(test_client, auth_headers):
         merged_headers = {**auth_headers, **(headers or {})}
         return original_delete(*args, headers=merged_headers, **kwargs)
 
+    def get_with_auth(*args, headers=None, **kwargs):
+        merged_headers = {**auth_headers, **(headers or {})}
+        return original_get(*args, headers=merged_headers, **kwargs)
+
     test_client.post = post_with_auth
     test_client.put = put_with_auth
     test_client.delete = delete_with_auth
+    test_client.get = get_with_auth
 
     yield test_client
 
@@ -100,3 +161,4 @@ def authenticated_client(test_client, auth_headers):
     test_client.post = original_post
     test_client.put = original_put
     test_client.delete = original_delete
+    test_client.get = original_get
