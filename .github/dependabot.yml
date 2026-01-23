@@ -1,79 +1,51 @@
 version: 2
 updates:
-  # Python dependencies (pip)
+  # Python dependencies
   - package-ecosystem: "pip"
     directory: "/arari-app/api"
     schedule:
       interval: "weekly"
       day: "monday"
-      time: "09:00"
-      timezone: "Asia/Tokyo"
+      time: "03:00"
+    open-pull-requests-limit: 5
     reviewers:
       - "jokken79"
-    assignees:
-      - "jokken79"
-    commit-message:
-      prefix: "deps(python)"
     labels:
       - "dependencies"
       - "python"
-    open-pull-requests-limit: 5
-    # Group minor/patch updates to reduce PR noise
-    groups:
-      python-minor-updates:
-        patterns:
-          - "*"
-        update-types:
-          - "minor"
-          - "patch"
+    commit-message:
+      prefix: "deps(python):"
+      include: "scope"
 
-  # Node.js dependencies (npm)
+  # npm dependencies
   - package-ecosystem: "npm"
     directory: "/arari-app"
     schedule:
       interval: "weekly"
       day: "monday"
-      time: "09:00"
-      timezone: "Asia/Tokyo"
+      time: "03:00"
+    open-pull-requests-limit: 5
     reviewers:
       - "jokken79"
-    assignees:
-      - "jokken79"
-    commit-message:
-      prefix: "deps(npm)"
     labels:
       - "dependencies"
       - "javascript"
-    open-pull-requests-limit: 5
-    # Ignore major version updates for core frameworks (review manually)
-    ignore:
-      - dependency-name: "next"
-        update-types: ["version-update:semver-major"]
-      - dependency-name: "react"
-        update-types: ["version-update:semver-major"]
-      - dependency-name: "react-dom"
-        update-types: ["version-update:semver-major"]
-    groups:
-      npm-minor-updates:
-        patterns:
-          - "*"
-        update-types:
-          - "minor"
-          - "patch"
+    commit-message:
+      prefix: "deps(npm):"
+      include: "scope"
 
   # GitHub Actions
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "weekly"
-      day: "monday"
-      time: "09:00"
-      timezone: "Asia/Tokyo"
+      day: "tuesday"
+      time: "03:00"
+    open-pull-requests-limit: 5
     reviewers:
       - "jokken79"
-    commit-message:
-      prefix: "deps(actions)"
     labels:
       - "dependencies"
       - "github-actions"
-    open-pull-requests-limit: 3
+    commit-message:
+      prefix: "deps(actions):"

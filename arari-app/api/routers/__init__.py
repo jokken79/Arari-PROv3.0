@@ -20,6 +20,7 @@ from .validation import router as validation_router
 from .backup import router as backup_router
 from .roi import router as roi_router
 from .cache import router as cache_router
+from .two_fa import router as two_fa_router
 
 __all__ = [
     "employees_router",
@@ -39,4 +40,5 @@ __all__ = [
     "backup_router",
     "roi_router",
     "cache_router",
+    "two_fa_router",
 ]

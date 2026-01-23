@@ -17,6 +17,9 @@ import {
   Percent,
   Save,
   Calendar,
+  Lock,
+  LockOpen,
+  Key,
 } from 'lucide-react'
 import { Header } from '@/components/layout/Header'
 import { Sidebar } from '@/components/layout/Sidebar'
@@ -28,6 +31,8 @@ import { useTheme } from '@/components/ui/theme-provider'
 import { cn } from '@/lib/utils'
 import { syncApi, API_BASE_URL } from '@/lib/api'
 import { useAuth } from '@/hooks/useAuth'
+import { TwoFASetup } from '@/components/2fa/TwoFASetup'
+import { use2FAStatus, useDisable2FA } from '@/hooks/use2FA'
 
 // API base URL - FastAPI backend (port 8000)
 import { useAppStore } from '@/store/appStore'
@@ -51,6 +56,14 @@ export default function SettingsPage() {
   } | null>(null)
   const [deleteTarget, setDeleteTarget] = useState('payroll');
   const { isAuthenticated } = useAuth();
+
+  // 2FA State
+  const { data: twoFAStatus, isLoading: isLoadingStatus, refetch: refetchStatus } = use2FAStatus()
+  const { mutate: disable2FA, isPending: isDisabling2FA } = useDisable2FA()
+  const [show2FASetup, setShow2FASetup] = useState(false)
+  const [disable2FAPassword, setDisable2FAPassword] = useState('')
+  const [disable2FAError, setDisable2FAError] = useState<string | null>(null)
+  const [disable2FASuccess, setDisable2FASuccess] = useState(false)
 
   // Insurance settings state
   const [insuranceSettings, setInsuranceSettings] = useState<InsuranceSettings>({
@@ -168,6 +181,33 @@ export default function SettingsPage() {
     }
 
     setIsSyncing(false)
+  }
+
+  const handleDisable2FA = () => {
+    setDisable2FAError(null)
+    setDisable2FASuccess(false)
+
+    if (!disable2FAPassword.trim()) {
+      setDisable2FAError('パスワードを入力してください')
+      return
+    }
+
+    disable2FA(
+      { password: disable2FAPassword },
+      {
+        onSuccess: () => {
+          setDisable2FASuccess(true)
+          setDisable2FAPassword('')
+          setTimeout(() => {
+            setDisable2FASuccess(false)
+            refetchStatus()
+          }, 2000)
+        },
+        onError: (error) => {
+          setDisable2FAError(error instanceof Error ? error.message : '2FAの無効化に失敗しました')
+        },
+      }
+    )
   }
 
   const themeOptions = [
@@ -460,6 +500,142 @@ export default function SettingsPage() {
               </Card>
             </motion.div>
 
+            {/* 2FA Security Settings */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.27 }}
+            >
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center gap-2">
+                    <Key className="h-5 w-5 text-primary" />
+                    <CardTitle>二段階認証 (2FA)</CardTitle>
+                  </div>
+                  <CardDescription>
+                    アカウントセキュリティを強化するため二段階認証を設定します
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  {/* 2FA Status */}
+                  <div className="p-4 rounded-lg bg-muted">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-medium flex items-center gap-2">
+                          {twoFAStatus?.totp_enabled ? (
+                            <>
+                              <Lock className="h-4 w-4 text-emerald-600" />
+                              二段階認証: 有効
+                            </>
+                          ) : (
+                            <>
+                              <LockOpen className="h-4 w-4 text-amber-600" />
+                              二段階認証: 無効
+                            </>
+                          )}
+                        </p>
+                        {twoFAStatus?.totp_enabled && (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            バックアップコード残数: {twoFAStatus.backup_codes_remaining} / 10
+                          </p>
+                        )}
+                      </div>
+                      <Badge variant={twoFAStatus?.totp_enabled ? 'default' : 'secondary'}>
+                        {twoFAStatus?.totp_enabled ? '有効' : '無効'}
+                      </Badge>
+                    </div>
+                  </div>
+
+                  {/* Enable 2FA Section */}
+                  {!twoFAStatus?.totp_enabled && !show2FASetup && (
+                    <div className="p-4 rounded-lg bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-900">
+                      <p className="text-sm text-blue-900 dark:text-blue-100 mb-4">
+                        Google Authenticator、Authy、Microsoft Authenticatorなどのアプリを使用して二段階認証を有効にできます。
+                      </p>
+                      <Button
+                        onClick={() => setShow2FASetup(true)}
+                        className="gap-2"
+                      >
+                        <Lock className="h-4 w-4" />
+                        二段階認証を有効にする
+                      </Button>
+                    </div>
+                  )}
+
+                  {/* 2FA Setup Component */}
+                  {show2FASetup && !twoFAStatus?.totp_enabled && (
+                    <div className="border rounded-lg p-6 bg-blue-50 dark:bg-blue-950/10">
+                      <div className="mb-4">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setShow2FASetup(false)}
+                          className="mb-4"
+                        >
+                          ← キャンセル
+                        </Button>
+                      </div>
+                      <TwoFASetup
+                        onComplete={() => {
+                          setShow2FASetup(false)
+                          refetchStatus()
+                        }}
+                      />
+                    </div>
+                  )}
+
+                  {/* Disable 2FA Section */}
+                  {twoFAStatus?.totp_enabled && (
+                    <div className="p-4 rounded-lg bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900">
+                      <p className="text-sm font-medium text-red-900 dark:text-red-100 mb-4">
+                        二段階認証を無効にするにはパスワードを入力してください
+                      </p>
+                      <div className="space-y-3">
+                        <Input
+                          type="password"
+                          placeholder="パスワード"
+                          value={disable2FAPassword}
+                          onChange={(e) => setDisable2FAPassword(e.target.value)}
+                          disabled={isDisabling2FA}
+                          aria-label="パスワード（2FA無効化用）"
+                        />
+                        <Button
+                          onClick={handleDisable2FA}
+                          disabled={isDisabling2FA || !disable2FAPassword.trim()}
+                          variant="destructive"
+                          className="w-full"
+                        >
+                          {isDisabling2FA ? '無効化中...' : '二段階認証を無効にする'}
+                        </Button>
+
+                        {disable2FAError && (
+                          <motion.div
+                            initial={{ opacity: 0, y: -10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className="p-3 rounded-md text-sm bg-red-100 text-red-800 dark:bg-red-950/30 dark:text-red-300 flex items-center gap-2"
+                          >
+                            <AlertCircle className="h-4 w-4 flex-shrink-0" />
+                            {disable2FAError}
+                          </motion.div>
+                        )}
+
+                        {disable2FASuccess && (
+                          <motion.div
+                            initial={{ opacity: 0, y: -10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className="p-3 rounded-md text-sm bg-emerald-100 text-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-300 flex items-center gap-2"
+                          >
+                            <Check className="h-4 w-4 flex-shrink-0" />
+                            二段階認証を無効化しました
+                          </motion.div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </motion.div>
+
             {/* Data Management */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
@@ -636,7 +812,7 @@ export default function SettingsPage() {
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.4 }}
+              transition={{ delay: 0.5 }}
             >
               <Card className="bg-gradient-to-r from-blue-500/5 via-indigo-500/5 to-purple-500/5">
                 <CardContent className="pt-6">

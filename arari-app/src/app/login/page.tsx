@@ -20,10 +20,13 @@ import {
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useAuth } from '@/hooks'
+import { use2FAStatus } from '@/hooks/use2FA'
+import { TwoFAVerifyModal } from '@/components/2fa/TwoFAVerifyModal'
 
 export default function LoginPage() {
   const router = useRouter()
   const { login } = useAuth()
+  const { data: twoFAStatus } = use2FAStatus()
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -31,6 +34,10 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null)
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 })
   const [mounted, setMounted] = useState(false)
+
+  // 2FA State
+  const [show2FAVerification, setShow2FAVerification] = useState(false)
+  const [loginAttempted, setLoginAttempted] = useState(false)
 
   useEffect(() => {
     setMounted(true)
@@ -53,22 +60,51 @@ export default function LoginPage() {
     try {
       const result = await login({ username, password })
       if (result.success) {
-        // Check if password change is required
-        if (result.mustChangePassword) {
-          // Redirect to settings page with password change notice
-          window.location.href = '/settings?change_password=required'
+        setLoginAttempted(true)
+
+        // Check if 2FA is enabled for this account
+        if (twoFAStatus?.totp_enabled) {
+          // Show 2FA verification modal
+          setShow2FAVerification(true)
+          setLoading(false)
         } else {
-          // Use full page reload to ensure AuthGuard reads fresh token from localStorage
-          window.location.href = '/'
+          // No 2FA - proceed directly
+          handleLoginSuccess(result.mustChangePassword)
         }
       } else {
         setError(result.error || 'ログインに失敗しました')
+        setLoading(false)
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'ログインに失敗しました')
-    } finally {
       setLoading(false)
     }
+  }
+
+  const handleLoginSuccess = (mustChangePassword?: boolean) => {
+    // Check if password change is required
+    if (mustChangePassword) {
+      // Redirect to settings page with password change notice
+      window.location.href = '/settings?change_password=required'
+    } else {
+      // Use full page reload to ensure AuthGuard reads fresh token
+      window.location.href = '/'
+    }
+  }
+
+  const handle2FASuccess = () => {
+    // 2FA verification successful - proceed with login
+    setShow2FAVerification(false)
+    handleLoginSuccess()
+  }
+
+  const handle2FACancel = () => {
+    // User wants to re-enter credentials
+    setShow2FAVerification(false)
+    setLoginAttempted(false)
+    setUsername('')
+    setPassword('')
+    setError(null)
   }
 
   const parallaxX = mounted && typeof window !== 'undefined' ? (mousePosition.x - window.innerWidth / 2) / 50 : 0
@@ -283,18 +319,24 @@ export default function LoginPage() {
           </div>
 
           {/* Login Card */}
-          <div className="bg-white dark:bg-slate-800/90 rounded-3xl shadow-2xl shadow-slate-200/50 dark:shadow-black/30 p-8 backdrop-blur-xl border border-slate-100 dark:border-slate-700/50">
-            {/* Header */}
-            <div className="mb-8">
-              <h2 className="text-3xl font-black text-slate-900 dark:text-white mb-2 tracking-tight">
-                ログイン
-              </h2>
-              <p className="text-slate-500 dark:text-slate-400">
-                アカウント情報を入力してください
-              </p>
-            </div>
+          {show2FAVerification && loginAttempted ? (
+            <TwoFAVerifyModal
+              onSuccess={handle2FASuccess}
+              onCancel={handle2FACancel}
+            />
+          ) : (
+            <div className="bg-white dark:bg-slate-800/90 rounded-3xl shadow-2xl shadow-slate-200/50 dark:shadow-black/30 p-8 backdrop-blur-xl border border-slate-100 dark:border-slate-700/50">
+              {/* Header */}
+              <div className="mb-8">
+                <h2 className="text-3xl font-black text-slate-900 dark:text-white mb-2 tracking-tight">
+                  ログイン
+                </h2>
+                <p className="text-slate-500 dark:text-slate-400">
+                  アカウント情報を入力してください
+                </p>
+              </div>
 
-            <form onSubmit={handleLogin} className="space-y-6">
+              <form onSubmit={handleLogin} className="space-y-6">
               {/* Error Message */}
               {error && (
                 <motion.div
@@ -384,20 +426,21 @@ export default function LoginPage() {
               </Button>
             </form>
 
-            {/* Trust Indicators */}
-            <div className="mt-8 pt-6 border-t border-slate-100 dark:border-slate-700/50">
-              <div className="flex flex-wrap items-center justify-center gap-4 text-xs text-slate-500 dark:text-slate-400">
-                <div className="flex items-center gap-1.5">
-                  <Shield className="h-4 w-4 text-emerald-500" />
-                  <span>SSL暗号化</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                  <span>セキュア接続</span>
+              {/* Trust Indicators */}
+              <div className="mt-8 pt-6 border-t border-slate-100 dark:border-slate-700/50">
+                <div className="flex flex-wrap items-center justify-center gap-4 text-xs text-slate-500 dark:text-slate-400">
+                  <div className="flex items-center gap-1.5">
+                    <Shield className="h-4 w-4 text-emerald-500" />
+                    <span>SSL暗号化</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                    <span>セキュア接続</span>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
+          )}
 
           {/* Footer */}
           <p className="text-center text-sm text-slate-400 mt-8">

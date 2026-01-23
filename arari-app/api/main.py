@@ -74,6 +74,7 @@ from routers import (
     backup_router,
     roi_router,
     cache_router,
+    two_fa_router,
 )
 
 load_dotenv()
@@ -322,12 +323,51 @@ app.include_router(validation_router)
 app.include_router(backup_router)
 app.include_router(roi_router)
 app.include_router(cache_router)
+app.include_router(two_fa_router)
 
 # ============== Health Check ==============
 
 @app.get("/api/health")
-async def health_check():
-    return {"status": "healthy", "version": "3.0.0"}
+async def health_check(db: sqlite3.Connection = Depends(get_db)):
+    """
+    Health check endpoint for monitoring and uptime verification.
+
+    Returns:
+    - status: "healthy" or "degraded"
+    - version: API version
+    - timestamp: Current server time
+    - database: Database connectivity status
+    - environment: "development" or "production"
+    """
+    start_time = time.time()
+
+    try:
+        # Check database connectivity
+        cursor = db.cursor()
+        cursor.execute("SELECT 1")
+        cursor.fetchone()
+        db_status = "connected"
+    except Exception as e:
+        db_status = f"error: {str(e)}"
+
+    elapsed_ms = (time.time() - start_time) * 1000
+
+    # Determine environment
+    environment = "production" if os.environ.get("FRONTEND_URL") else "development"
+
+    return {
+        "status": "healthy" if db_status == "connected" else "degraded",
+        "version": "3.0.0",
+        "timestamp": datetime.now().isoformat(),
+        "database": db_status,
+        "environment": environment,
+        "response_time_ms": round(elapsed_ms, 2),
+        "api_endpoints": {
+            "docs": "/docs",
+            "redoc": "/redoc",
+            "openapi": "/openapi.json"
+        }
+    }
 
 # ============== Employees, Payroll, Statistics ==============
 # MOVED TO: routers/employees.py, routers/payroll.py, routers/statistics.py

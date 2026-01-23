@@ -86,11 +86,33 @@ def init_auth_tables(conn):
             role TEXT DEFAULT 'viewer',
             is_active INTEGER DEFAULT 1,
             last_login TEXT,
+            totp_secret TEXT,
+            totp_enabled INTEGER DEFAULT 0,
+            backup_codes TEXT,
             created_at TEXT DEFAULT CURRENT_TIMESTAMP,
             updated_at TEXT DEFAULT CURRENT_TIMESTAMP
         )
     """
     cursor.execute(users_sql)
+
+    # Migrate: Add 2FA columns if they don't exist
+    cursor.execute("PRAGMA table_info(users)")
+    columns = {col[1] for col in cursor.fetchall()}
+
+    migrations = [
+        ("totp_secret", "ALTER TABLE users ADD COLUMN totp_secret TEXT"),
+        ("totp_enabled", "ALTER TABLE users ADD COLUMN totp_enabled INTEGER DEFAULT 0"),
+        ("backup_codes", "ALTER TABLE users ADD COLUMN backup_codes TEXT"),
+    ]
+
+    for col_name, migration_sql in migrations:
+        if col_name not in columns:
+            try:
+                cursor.execute(migration_sql)
+                print(f"[AUTH] Migrated: Added {col_name} column to users table")
+            except Exception as e:
+                # Column might already exist (edge case)
+                print(f"[AUTH] Migration note for {col_name}: {e}")
 
     # Sessions/Tokens table (access tokens)
     tokens_sql = f"""

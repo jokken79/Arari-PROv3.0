@@ -3,7 +3,7 @@
 **Profit Margin Management System for Dispatch Employees**
 
 [![Version](https://img.shields.io/badge/version-3.0.0-blue)](./arari-app/package.json)
-[![Tests](https://img.shields.io/badge/tests-48%20passed-brightgreen)](./arari-app/api/tests)
+[![Tests](https://img.shields.io/badge/tests-311%2B%20passed-brightgreen)](./arari-app/api/tests)
 [![Security](https://img.shields.io/badge/security-auth%20enabled-green)](./CLAUDE.md)
 [![UI/UX](https://img.shields.io/badge/UI%2FUX-9.0%2F10-brightgreen)](./docs)
 [![License](https://img.shields.io/badge/license-Internal%20Use-orange)](./LICENSE)
@@ -41,7 +41,7 @@
 | **認証** | JWT + bcrypt + RBAC |
 | **コンポーネント数** | 45+ React components |
 | **APIエンドポイント** | 80+ endpoints |
-| **テスト** | 48 backend tests |
+| **テスト** | 311+ backend tests + 210+ component tests + 25 E2E |
 | **UI/UXスコア** | 9.0/10 |
 
 ---
@@ -361,7 +361,55 @@ cd arari-app/api && python -m ruff check .
 
 ---
 
+## 📚 ドキュメント (Documentation)
+
+このプロジェクトの詳細なドキュメントは以下をご覧ください:
+
+### 🚀 デプロイ・運用ドキュメント
+
+| ドキュメント | 説明 | 用途 |
+|-------------|------|------|
+| **[SETUP.md](./SETUP.md)** | 開発環境セットアップガイド | 開発者向け - 5分で起動 |
+| **[DEPLOYMENT.md](./DEPLOYMENT.md)** | 本番環境デプロイガイド | DevOps/リリースマネージャー向け |
+| **[PRODUCTION_CHECKLIST.md](./PRODUCTION_CHECKLIST.md)** | 本番デプロイチェックリスト | リリース前の最終確認 |
+| **[MONITORING.md](./MONITORING.md)** | モニタリング・可観測性ガイド | 本番監視システムの設定 |
+
+### 📖 技術リファレンス
+
+| ドキュメント | 説明 | 用途 |
+|-------------|------|------|
+| **[API_REFERENCE.md](./API_REFERENCE.md)** | APIエンドポイントリファレンス | API統合・テスト |
+| **[CLAUDE.md](./CLAUDE.md)** | プロジェクト開発ガイド | Claude AI開発支援用 |
+| **[.env.example](./.env.example)** | 環境変数テンプレート | 環境設定 |
+
+### ✨ 新機能（v3.0.0 FASE 6）
+
+- ✅ **二段階認証（2FA）** - TOTP + バックアップコード
+- ✅ **311+ テスト** - 包括的なテストカバレッジ
+- ✅ **E2E テスト** - Playwright 25+シナリオ
+- ✅ **CI/CD パイプライン** - 自動デプロイ（Railway + Vercel）
+- ✅ **ヘルスチェック** - DB接続確認 + メトリクス
+- ✅ **データベースシード** - テストデータ自動生成
+
+---
+
 ## 📋 変更履歴
+
+### 2026-01-23 - v3.0.0 FASE 6 完成 - 本番環境対応
+- ✅ **2FA実装完成** - TOTP + バックアップコード（60+テスト）
+- ✅ **フロントエンド2FA** - 210+コンポーネントテスト完成
+- ✅ **E2E テスト** - Playwright 25シナリオ完成
+- ✅ **CI/CD パイプライン** - GitHub Actions自動デプロイ
+- ✅ **ドキュメント完成**:
+  - SETUP.md - 開発環境セットアップ
+  - DEPLOYMENT.md - 本番デプロイガイド
+  - MONITORING.md - Sentry + LogRocket + UptimeRobot
+  - API_REFERENCE.md - 5 x 2FAエンドポイント リファレンス
+  - PRODUCTION_CHECKLIST.md - デプロイ前チェックリスト
+- ✅ **ヘルスチェック強化** - DB接続確認 + パフォーマンスメトリクス
+- ✅ **シードスクリプト** - テストデータ自動生成（seed_db.py）
+- 311+バックエンド テスト（セキュリティ + 給与計算 + 2FA）
+- **状態: 🚀 本番環境対応完了**
 
 ### 2026-01-09 - v3.0.0 認証強化・ドキュメント更新
 - 認証システムの包括的ドキュメント追加

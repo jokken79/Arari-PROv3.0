@@ -135,13 +135,50 @@ Email: admin@arari-pro.local
 
 ---
 
-## Notas para Próxima Sesión
+## Sesión Actual (2026-01-23): Implementar Skills + Testing
 
-1. Cambiar credenciales por defecto en producción (admin123 → contraseña segura)
-2. Aumentar test coverage a 90% (actualmente ~70%)
-3. Considerar tests E2E con Playwright
-4. Implementar 2FA opcional para usuarios admin
-5. Optimizar bundle size del frontend
+### 🎯 Objetivo Principal
+Aumentar calidad con:
+- ✅ Implementar skills necesarias (documentado en `.claude/SKILLS_MAP.md`)
+- ⏳ Aumentar test coverage a 90% (actual: 70%)
+- ⏳ Tests E2E con Playwright
+- ⏳ 2FA opcional para admins
+- ⏳ Optimizar bundle size
+
+### 📚 Skills a Usar
+**Testing**: `test-driven-development`, `test-specialist`, `auto-tester`, `code-validator`
+**E2E**: `playwright-skill`, `e2e-testing-patterns`, `browser-automation`
+**2FA**: `security-specialist`, `auth-implementation-patterns`, `secrets-management`
+**Performance**: `nextjs-best-practices`, `web-performance-optimization`
+
+Ubicación: `C:\Users\kenji\.gemini\antigravity\global_skills\`
+
+### Ver También
+- `.claude/SKILLS_MAP.md` - Mapa de skills y su uso
+- `CLAUDE.md` - Documentación del proyecto
+
+---
+
+## Reglas Globales para Claude Code
+
+### 🎯 Regla Global #1: Skills Locales Disponibles
+**Ubicación**: `C:\Users\kenji\.gemini\antigravity\global_skills\`
+
+Claude tiene acceso a **400+ skills/habilidades** locales que pueden ser aplicadas a cualquier proyecto. Ejemplos:
+- `backend-dev-guidelines`, `fastapi-pro`, `python-pro`
+- `nextjs-best-practices`, `react-patterns`, `tailwind-patterns`
+- `test-driven-development`, `playwright-skill`
+- `security-auditor`, `penetration-testing`
+- `database-specialist`, `kubernetes-architect`, `docker-expert`
+- Y muchos más...
+
+**Acción**: Cuando trabaje en cualquier proyecto (no solo Arari-PRO), consultaré esta carpeta para skills relevantes y los usaré si son aplicables.
+
+### 🤖 Regla Global #2: Skills Nativos de Claude Code
+Claude tiene acceso permanente a:
+- **Skills integrados**: `/help`, `/commit`, `/review-pr`
+- **Agentes especializados**: `backend-specialist`, `frontend-specialist`, `test-specialist`, `security-specialist`, `business-logic-specialist`, etc.
+- **Plugins/MCP**: Figma, Greptile, Firebase, Context7, Playwright, etc.
 
 ---
 

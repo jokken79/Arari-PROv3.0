@@ -10,6 +10,8 @@ pytest>=7.4.3
 httpx>=0.25.1
 pyinstaller>=5.13.2
 bcrypt>=4.0.0
+pyotp>=2.9.0
+qrcode>=7.4.2
 black>=23.3.0
 ruff>=0.1.0
 
