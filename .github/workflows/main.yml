@@ -47,10 +47,11 @@ jobs:
         pip install -r arari-app/api/requirements.txt
         pip install pytest-cov
 
-    - name: Install Node.js dependencies
+    - name: Clear npm cache and install dependencies
       run: |
+        npm cache clean --force
         cd arari-app
-        npm install
+        npm install --legacy-peer-deps
 
     # Run Python tests with coverage
     - name: Run Python tests with coverage
