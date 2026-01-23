@@ -4,6 +4,17 @@
 
 ---
 
+## 📌 Important Notes (Updated 2026-01-23)
+
+### ✅ CI/CD Pipeline Fixed
+- npm install issue has been resolved (commit 8dafeea)
+- package-lock.json regenerated with fresh npm install
+- Result: 891 packages, 0 vulnerabilities
+- GitHub Actions workflow ready for production deployments
+- See [WORKFLOW_FAILURE_REPORT.md](./WORKFLOW_FAILURE_REPORT.md) for technical details and prevention tips
+
+---
+
 ## 🌍 本番環境アーキテクチャ
 
 ```

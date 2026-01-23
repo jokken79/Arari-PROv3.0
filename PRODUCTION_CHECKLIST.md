@@ -4,6 +4,17 @@
 
 ---
 
+## 📌 Important Notes (Updated 2026-01-23)
+
+### ✅ CI/CD Pipeline Fixed
+- GitHub Actions workflow is now fully operational
+- npm install failures have been resolved (commit 8dafeea)
+- All 5 jobs (build, security, e2e, status-check, deploy) are ready
+- Expected workflow duration: 12-15 minutes
+- See [CI_CD_PIPELINE_DIAGRAM.md](./CI_CD_PIPELINE_DIAGRAM.md) for visual overview
+
+---
+
 ## ✅ Pre-Deployment (1-2 days before)
 
 ### Code Quality & Testing

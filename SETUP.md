@@ -48,7 +48,10 @@ pip install -r requirements.txt
 # Frontend
 cd ../
 npm install
+# Note: If npm install fails, try: npm install --legacy-peer-deps
 ```
+
+> **最新情報 (2026-01-23):** package-lock.json が CI/CD 互換性のために再生成されました。npm の問題が発生した場合は、`npm install` の前に `npm cache clean --force` を試してください。
 
 ### 4. データベースをセットアップ
 

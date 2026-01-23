@@ -4,6 +4,17 @@ API エンドポイント リファレンスガイド
 
 ---
 
+## 📌 Important Notes (Updated 2026-01-23)
+
+### ✅ API Endpoints Ready
+- All endpoints documented below are implemented and tested in v3.0.0
+- Health check endpoint enhanced with response time metrics
+- HttpOnly cookie authentication secured
+- See [SETUP.md](./SETUP.md) for development API access on `http://localhost:8000/docs`
+- Production API: `https://arari-prov20-production.up.railway.app/api/`
+
+---
+
 ## 📚 Table of Contents
 
 1. [Authentication](#authentication)
