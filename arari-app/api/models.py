@@ -16,8 +16,8 @@ class EmployeeBase(BaseModel):
     name_kana: Optional[str] = Field(None, description="氏名（カナ）")
     dispatch_company: str = Field(..., description="派遣先")
     department: Optional[str] = Field(None, description="部署")
-    hourly_rate: float = Field(0, description="時給")
-    billing_rate: float = Field(0, description="単価")
+    hourly_rate: float = Field(0, ge=0, description="時給")
+    billing_rate: float = Field(0, ge=0, description="単価")
     status: str = Field("active", description="ステータス")
     hire_date: Optional[str] = Field(None, description="入社日")
     employee_type: str = Field(

@@ -353,7 +353,7 @@ def log_action(
         cursor = db.cursor()
         cursor.execute(
             """
-            INSERT INTO audit_logs (user_id, username, action, entity_type, entity_id, details, created_at)
+            INSERT INTO audit_log (user_id, username, action, entity_type, entity_id, details, timestamp)
             VALUES (?, ?, ?, ?, ?, ?, ?)
             """,
             (
