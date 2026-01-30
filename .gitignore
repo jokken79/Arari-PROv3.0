@@ -27,3 +27,6 @@ Thumbs.db
 
 # Logs
 *.log
+
+# Cleanup folder (obsolete files)
+lixo/

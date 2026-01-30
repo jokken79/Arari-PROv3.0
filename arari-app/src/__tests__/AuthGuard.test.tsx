@@ -21,6 +21,9 @@ jest.mock('@/hooks/useAuth', () => ({
   useAuth: jest.fn(),
 }))
 
+// Get the mock for usePathname
+const { usePathname } = require('next/navigation')
+
 describe('AuthGuard Component', () => {
   const mockPush = jest.fn()
   const mockRouter = { push: mockPush }
@@ -28,6 +31,8 @@ describe('AuthGuard Component', () => {
   beforeEach(() => {
     jest.clearAllMocks()
     ;(useRouter as jest.Mock).mockReturnValue(mockRouter)
+    // Default pathname to '/' to prevent undefined errors
+    usePathname.mockReturnValue('/')
   })
 
   describe('When auth is disabled', () => {

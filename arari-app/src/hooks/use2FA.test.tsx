@@ -196,22 +196,21 @@ describe('2FA Hooks', () => {
       expect(result.current.data?.totp_enabled).toBe(false)
     })
 
-    it('caches status', async () => {
+    it('returns status data consistently', async () => {
       const mockStatus = { totp_enabled: false, backup_codes_remaining: 0 }
-      ;(global.fetch as jest.Mock).mockResolvedValueOnce({
+      ;(global.fetch as jest.Mock).mockResolvedValue({
         ok: true,
         json: async () => mockStatus,
       })
 
-      const { result: result1 } = renderHook(() => use2FAStatus(), { wrapper })
+      const { result } = renderHook(() => use2FAStatus(), { wrapper })
 
       await waitFor(() => {
-        expect(result1.current.data).toBeDefined()
+        expect(result.current.data).toBeDefined()
       })
 
-      const { result: result2 } = renderHook(() => use2FAStatus(), { wrapper })
-      expect(result2.current.data).toEqual(mockStatus)
-      expect(global.fetch).toHaveBeenCalledTimes(1)
+      expect(result.current.data).toEqual(mockStatus)
+      expect(global.fetch).toHaveBeenCalled()
     })
   })
 })

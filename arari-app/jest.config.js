@@ -8,6 +8,11 @@ module.exports = {
   transform: {
     '^.+\\.(ts|tsx|js|jsx)$': 'ts-jest',
   },
+  testPathIgnorePatterns: [
+    '<rootDir>/node_modules/',
+    '<rootDir>/e2e/',
+    '<rootDir>/.next/',
+  ],
   globals: {
     'ts-jest': {
       tsconfig: 'tsconfig.jest.json'

@@ -4,26 +4,26 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ---
 
-## 📌 Project Status (Updated 2026-01-23)
+## 📌 Project Status (Updated 2026-01-30)
 
 ### ✅ FASE 6 Complete - Production Ready
 - **Version:** 3.0.0 (v3 Release)
 - **Status:** Production Ready
 - **Latest Commits:**
-  - `05ba6c2`: FASE 6 completion with full documentation
-  - `8dafeea`: CI/CD pipeline fixed (npm install resolved)
-- **GitHub Actions:** Fully operational - 12-15 min per workflow run
+  - `690e355`: All test failures resolved (464/464 passing)
+  - `f370c7a`: ESLint peer dependency conflict fixed
+- **GitHub Actions:** Fully operational (build + security + E2E + deploy)
 - **Production URLs:**
   - Frontend: https://arari-pr-ov2-0.vercel.app
   - Backend: https://arari-prov20-production.up.railway.app
 - **Documentation:** 12+ MD files with comprehensive guides
 
 ### 🎯 Completed Deliverables
-- ✅ 311+ backend tests (pytest)
+- ✅ 469 backend tests (pytest) across 21 test files
 - ✅ 210+ component tests (frontend)
 - ✅ 25 E2E test scenarios (Playwright)
 - ✅ Two-Factor Authentication (TOTP + Backup codes)
-- ✅ GitHub Actions CI/CD pipeline
+- ✅ Full CI/CD pipeline (build, security scanning, E2E, auto-deploy)
 - ✅ Health check endpoint with metrics
 - ✅ Database seed script (seed_db.py)
 - ✅ Comprehensive documentation and deployment guides
@@ -943,27 +943,35 @@ Las constantes de negocio están centralizadas en `arari-app/api/config.py`:
 | Cache management | `arari-app/api/cache.py`, `arari-app/api/routers/cache.py` |
 | ROI calculations | `arari-app/api/roi.py`, `arari-app/api/routers/roi.py` |
 
-## Test Coverage (Updated 2026-01-14)
+## Test Coverage (Updated 2026-01-30)
 
 ### Current Test Summary
 
-**Total Backend Tests: ~311 tests across 13 test files**
+**Total Backend Tests: 469 tests across 21 test files**
 
-| Test File | Tests | Status | Description |
-|-----------|-------|--------|-------------|
-| `test_security_features.py` | 65 | ✓ Excellent | Auth, rate limiting, XSS prevention |
-| `test_salary_parser.py` | 49 | ✓ Excellent | Excel parsing, field extraction |
-| `test_budget.py` | 34 | ✓ Good | Budget management CRUD |
-| `test_audit.py` | 34 | ✓ Good | Audit logging system |
-| `test_additional_costs.py` | 28 | ✓ Good | Additional costs CRUD |
-| `test_reports.py` | 27 | ✓ Good | Report generation |
-| `test_agent_commissions.py` | 25 | ✓ Good | Commission calculations |
-| `test_salary_calculations.py` | 17 | ✓ Good | Business logic formulas |
-| `test_api_endpoints.py` | 15 | ✓ Basic | API endpoint tests |
-| `test_business_rules.py` | 7 | ✓ Basic | Core business rules |
-| `test_reset_db.py` | 6 | ✓ Basic | Database reset functions |
-| `test_login.py` | 3 | ✓ Basic | Login functionality |
-| `test_main.py` | 1 | ✓ Basic | Main module |
+| Test File | Description |
+|-----------|-------------|
+| `test_security_features.py` | Auth, rate limiting, XSS prevention |
+| `test_salary_parser.py` | Excel parsing, field extraction |
+| `test_budget.py` | Budget management CRUD |
+| `test_audit.py` | Audit logging system |
+| `test_additional_costs.py` | Additional costs CRUD |
+| `test_reports.py` | Report generation |
+| `test_agent_commissions.py` | Commission calculations |
+| `test_salary_calculations.py` | Business logic formulas |
+| `test_api_endpoints.py` | API endpoint tests |
+| `test_business_rules.py` | Core business rules |
+| `test_reset_db.py` | Database reset functions |
+| `test_login.py` | Login functionality |
+| `test_main.py` | Main module |
+| `test_totp.py` | TOTP 2FA implementation |
+| `test_2fa_models.py` | 2FA Pydantic models |
+| `test_2fa_endpoints.py` | 2FA API endpoints |
+| `test_database.py` | Database operations |
+| `test_routers_employees.py` | Employee router endpoints |
+| `test_routers_payroll.py` | Payroll router endpoints |
+| `test_routers_statistics.py` | Statistics router endpoints |
+| `test_models.py` | Pydantic model validation |
 
 ### Frontend Tests
 
@@ -972,155 +980,73 @@ Las constantes de negocio están centralizadas en `arari-app/api/config.py`:
 | `utils.test.ts` | 30 | ✓ Good |
 | Components | 4 | ⚠️ Minimal |
 
-### Test Coverage by Module
+### E2E Tests (Playwright)
 
-All critical business modules now have test coverage:
+| Status | Scenarios |
+|--------|-----------|
+| ✓ Implemented | 25 E2E test scenarios |
 
-| Module | Test File | Coverage |
-|--------|-----------|----------|
-| Agent Commissions | `test_agent_commissions.py` | ✓ 25 tests |
-| Additional Costs | `test_additional_costs.py` | ✓ 28 tests |
-| Reports System | `test_reports.py` | ✓ 27 tests |
-| Excel Parser | `test_salary_parser.py` | ✓ 49 tests |
-| Budget Management | `test_budget.py` | ✓ 34 tests |
-| Audit Logging | `test_audit.py` | ✓ 34 tests |
-| Security Features | `test_security_features.py` | ✓ 65 tests |
+Run E2E tests: `cd arari-app && npm run test:e2e`
 
-### Remaining Test Gaps
+## CI/CD Pipeline (Complete)
 
-| Area | Status | Priority |
-|------|--------|----------|
-| E2E Tests (Playwright) | ❌ Not started | Medium |
-| Frontend Components | ⚠️ Minimal (4 tests) | Medium |
-| Integration Tests | ⚠️ Basic | Low |
+The CI/CD pipeline is fully implemented in `.github/workflows/main.yml`.
 
-## CI/CD Improvements (2026-01-14)
+### Pipeline Jobs
 
-### Current Pipeline Status
+| Job | Purpose | Status |
+|-----|---------|--------|
+| `build` | Tests, linting, build verification | ✓ Required |
+| `security` | Safety, Bandit, npm audit | ✓ Non-blocking |
+| `e2e` | Playwright E2E tests | ✓ Non-blocking |
+| `status-check` | Aggregates all job results | ✓ Required |
+| `deploy` | Auto-deploy to Railway + Vercel | ✓ On main only |
 
-| Step | Status | Notes |
-|------|--------|-------|
-| Checkout | ✓ | actions/checkout@v3 |
-| Python Setup | ✓ | Python 3.11 |
-| Node Setup | ✓ | Node 18 |
-| Backend Tests | ✓ | pytest |
-| Frontend Tests | ✓ | npm test |
-| Python Lint | ✓ | ruff |
-| Frontend Lint | ✓ | next lint |
+### Build Job Details
 
-### Critical Missing Steps
-
-| Category | Status | Severity |
-|----------|--------|----------|
-| Code Coverage Tracking | ❌ Missing | HIGH |
-| Security Scanning | ❌ Missing | CRITICAL |
-| Build Verification | ❌ Missing | HIGH |
-| Deployment Automation | ❌ Missing | CRITICAL |
-| Dependency Caching | ❌ Missing | LOW |
-
-### Recommended CI/CD Enhancements
-
-#### 1. Add Code Coverage (HIGH Priority)
 ```yaml
-- name: Generate Backend Coverage Report
-  run: |
-    cd arari-app/api
-    pip install pytest-cov
-    python -m pytest tests/ --cov=. --cov-report=xml
-
-- name: Upload Coverage to Codecov
-  uses: codecov/codecov-action@v3
-  with:
-    files: ./arari-app/api/coverage.xml
+# What runs in the build job:
+- actions/checkout@v4
+- Cache pip and npm dependencies
+- Python 3.11 + Node 18 setup
+- pip install + npm install --legacy-peer-deps
+- pytest with coverage (--cov --cov-report=xml)
+- npm test (Jest)
+- ruff check (Python linter)
+- npm run lint (ESLint)
+- npm run build (Production build verification)
+- Upload coverage to Codecov
 ```
 
-#### 2. Add Security Scanning (CRITICAL)
+### Security Job Details
+
 ```yaml
-- name: Scan Python Dependencies
-  run: |
-    pip install safety
-    safety check --json || true
-
-- name: Scan Node Dependencies
-  run: |
-    cd arari-app
-    npm audit --audit-level=moderate || true
-
-- name: SAST with Bandit
-  run: |
-    pip install bandit
-    bandit -r arari-app/api -f json || true
+# Security scanning (non-blocking):
+- safety check (Python dependencies)
+- bandit -r (SAST for Python)
+- npm audit (Node dependencies)
+- Uploads reports as artifacts
 ```
 
-#### 3. Add Build Verification (HIGH Priority)
-```yaml
-- name: Build Frontend
-  run: |
-    cd arari-app
-    npm run build
-    if [ ! -d ".next" ]; then exit 1; fi
-```
-
-#### 4. Add Dependency Caching (Performance)
-```yaml
-- name: Cache Python Dependencies
-  uses: actions/cache@v3
-  with:
-    path: ~/.cache/pip
-    key: ${{ runner.os }}-pip-${{ hashFiles('arari-app/api/requirements.txt') }}
-
-- name: Cache npm Dependencies
-  uses: actions/cache@v3
-  with:
-    path: arari-app/node_modules
-    key: ${{ runner.os }}-npm-${{ hashFiles('arari-app/package-lock.json') }}
-```
-
-#### 5. Add E2E Testing
-```yaml
-- name: Run E2E Tests (Playwright)
-  run: |
-    cd arari-app
-    npx playwright install
-    npx playwright test
-```
-
-### Files to Create for CI/CD
-
-| File | Purpose | Priority |
-|------|---------|----------|
-| `.github/workflows/security.yml` | Security scanning workflow | P0 |
-| `.github/dependabot.yml` | Automated dependency updates | P2 |
-| `lighthouserc.json` | Performance testing config | P1 |
-| `arari-app/playwright.config.ts` | E2E test configuration | P1 |
-
-### Branch Protection Rules (Recommended)
-
-Enable in GitHub Admin > Branches > Add Rule for `main`:
-- ✓ Require pull request reviews (1 reviewer)
-- ✓ Require status checks to pass
-- ✓ Require branches to be up to date
-- ✓ Dismiss stale approvals
-
-### GitHub Secrets to Configure
+### GitHub Secrets Required
 
 | Secret | Purpose |
 |--------|---------|
-| `RAILWAY_TOKEN` | Backend deployment |
-| `VERCEL_TOKEN` | Frontend deployment |
-| `CODECOV_TOKEN` | Coverage reporting |
-| `SLACK_WEBHOOK` | Failure notifications (optional) |
+| `RAILWAY_TOKEN` | Backend auto-deploy |
+| `VERCEL_TOKEN` | Frontend auto-deploy |
+| `CODECOV_TOKEN` | Coverage reporting (optional) |
 
-## Pending TODOs (2026-01-14)
+## Pending TODOs
 
-These items from Memory.md are still pending:
+| TODO | Status |
+|------|--------|
+| Change default credentials in production | ⚠️ Security priority |
+| Add `.env.instance01-09` for Docker multi-instance | Low priority |
 
-| TODO | File | Status |
-|------|------|--------|
-| Add `.env.instance01-09` for Docker | Memory.md | Low priority |
-| Test drill-down flow in browser | Memory.md | User testing |
-
-**Completed TODOs**:
-- ✓ "TODO: Dividir en routers" - Project now has 17 routers in `arari-app/api/routers/`
-- ✓ "Handle employees with negative net_salary" - Already handled in models.py (negative values allowed, model description says "負値も許容")
-- ✓ Test coverage for critical modules - All critical modules now have tests (311 tests total)
+**All Major TODOs Completed**:
+- ✓ Router refactoring - 17 routers in `arari-app/api/routers/`
+- ✓ Test coverage - 469 tests across 21 test files
+- ✓ CI/CD pipeline - Full GitHub Actions workflow
+- ✓ 2FA implementation - TOTP + backup codes
+- ✓ E2E tests - 25 Playwright scenarios
+- ✓ Security scanning - Safety, Bandit, npm audit
