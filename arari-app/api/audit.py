@@ -9,7 +9,7 @@ import sqlite3
 from datetime import datetime
 from typing import Any, Dict, List
 
-from api.database import USE_POSTGRES
+from database import USE_POSTGRES
 
 
 def _q(query: str) -> str:

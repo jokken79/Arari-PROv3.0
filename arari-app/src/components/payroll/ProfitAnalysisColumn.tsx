@@ -163,7 +163,7 @@ function FormulaSteps({
 
       <div className="flex justify-center text-2xl text-muted-foreground" aria-hidden="true">+</div>
 
-      {/* Step 3: Company Benefits */>
+      {/* Step 3: Company Benefits */}
       <div className="p-3 bg-cyan-500/10 rounded-lg border border-cyan-500/20">
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2">
