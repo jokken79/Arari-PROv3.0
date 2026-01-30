@@ -6,10 +6,16 @@ Manages factory-specific templates for Excel parsing.
 Flow:
 1. First upload → Try intelligent detection by labels
 2. If successful → Generate and save template
-3. Future uploads → Load template by factory/sheet name
+3. Future uploads → Load template by factory/sheet name OR structure hash
 4. If template fails → Fallback to intelligent detection
+
+Enhanced Features (v2.0):
+- MD5 structure hash: Match templates by Excel structure, not just name
+- Usage statistics: Track template usage count and last used time
+- Auto-select best template when multiple match
 """
 
+import hashlib
 import json
 import sqlite3
 from datetime import datetime
@@ -67,7 +73,10 @@ class TemplateManager:
                 is_active INTEGER DEFAULT 1,
                 created_at TEXT DEFAULT CURRENT_TIMESTAMP,
                 updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
-                notes TEXT
+                notes TEXT,
+                structure_hash TEXT,
+                usage_count INTEGER DEFAULT 0,
+                last_used_at TEXT
             )
         """
         )
@@ -81,6 +90,33 @@ class TemplateManager:
                 "ALTER TABLE factory_templates ADD COLUMN layout_type TEXT DEFAULT 'standard'"
             )
 
+        # Migration: Add structure_hash column if it doesn't exist
+        try:
+            cursor.execute("SELECT structure_hash FROM factory_templates LIMIT 1")
+        except sqlite3.OperationalError:
+            print("[TemplateManager] Migrating database: Adding structure_hash column")
+            cursor.execute(
+                "ALTER TABLE factory_templates ADD COLUMN structure_hash TEXT"
+            )
+
+        # Migration: Add usage_count column if it doesn't exist
+        try:
+            cursor.execute("SELECT usage_count FROM factory_templates LIMIT 1")
+        except sqlite3.OperationalError:
+            print("[TemplateManager] Migrating database: Adding usage_count column")
+            cursor.execute(
+                "ALTER TABLE factory_templates ADD COLUMN usage_count INTEGER DEFAULT 0"
+            )
+
+        # Migration: Add last_used_at column if it doesn't exist
+        try:
+            cursor.execute("SELECT last_used_at FROM factory_templates LIMIT 1")
+        except sqlite3.OperationalError:
+            print("[TemplateManager] Migrating database: Adding last_used_at column")
+            cursor.execute(
+                "ALTER TABLE factory_templates ADD COLUMN last_used_at TEXT"
+            )
+
         # Create index for faster lookups
         cursor.execute(
             """
@@ -89,8 +125,46 @@ class TemplateManager:
         """
         )
 
+        # Create index for structure hash lookups
+        cursor.execute(
+            """
+            CREATE INDEX IF NOT EXISTS idx_factory_templates_hash
+            ON factory_templates(structure_hash)
+        """
+        )
+
         conn.commit()
         conn.close()
+
+    @staticmethod
+    def generate_structure_hash(ws, max_rows: int = 40) -> str:
+        """
+        Generate MD5 hash of worksheet structure based on labels in column A.
+
+        This allows matching templates even when the sheet name changes,
+        as long as the structure (row labels) remains the same.
+
+        Args:
+            ws: openpyxl worksheet object
+            max_rows: Maximum rows to include in hash (default 40)
+
+        Returns:
+            MD5 hex digest of the structure
+        """
+        labels = []
+        for row in range(1, min(max_rows + 1, ws.max_row + 1)):
+            cell_value = ws.cell(row=row, column=1).value
+            if cell_value:
+                # Normalize the label
+                label = str(cell_value).strip()
+                # Remove spaces for consistency
+                label = label.replace(" ", "").replace("　", "")
+                if label and len(label) <= 30:
+                    labels.append(f"{row}:{label}")
+
+        # Create hash from sorted labels
+        structure_string = "|".join(sorted(labels))
+        return hashlib.md5(structure_string.encode("utf-8")).hexdigest()
 
     def save_template(
         self,
@@ -106,6 +180,7 @@ class TemplateManager:
         layout_type: str = "standard",
         template_name: Optional[str] = None,
         notes: Optional[str] = None,
+        structure_hash: Optional[str] = None,
     ) -> bool:
         """
         Save or update a factory template.
@@ -122,6 +197,7 @@ class TemplateManager:
             sample_period: Example period for verification
             template_name: Human-readable name for the template
             notes: Additional notes about the template
+            structure_hash: MD5 hash of worksheet structure for matching
 
         Returns:
             True if successful, False otherwise
@@ -136,8 +212,8 @@ class TemplateManager:
                     factory_identifier, template_name, field_positions, column_offsets,
                     detected_allowances, non_billable_allowances, employee_column_width,
                     detection_confidence, sample_employee_id, sample_period, layout_type, notes,
-                    updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    structure_hash, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(factory_identifier) DO UPDATE SET
                     template_name = excluded.template_name,
                     field_positions = excluded.field_positions,
@@ -150,6 +226,7 @@ class TemplateManager:
                     sample_period = excluded.sample_period,
                     layout_type = excluded.layout_type,
                     notes = excluded.notes,
+                    structure_hash = excluded.structure_hash,
                     updated_at = excluded.updated_at
             """,
                 (
@@ -165,14 +242,16 @@ class TemplateManager:
                     sample_period,
                     layout_type,
                     notes,
+                    structure_hash,
                     datetime.now().isoformat(),
                 ),
             )
 
             conn.commit()
+            hash_info = f", hash={structure_hash[:8]}..." if structure_hash else ""
             print(
                 f"[Template] Saved template for '{factory_identifier}' "
-                f"({len(field_positions)} fields, confidence={detection_confidence:.2f})"
+                f"({len(field_positions)} fields, confidence={detection_confidence:.2f}{hash_info})"
             )
             return True
 
@@ -184,12 +263,15 @@ class TemplateManager:
         finally:
             conn.close()
 
-    def load_template(self, factory_identifier: str) -> Optional[Dict[str, Any]]:
+    def load_template(
+        self, factory_identifier: str, update_usage: bool = True
+    ) -> Optional[Dict[str, Any]]:
         """
         Load a template by factory identifier.
 
         Args:
             factory_identifier: Factory/sheet name to look up
+            update_usage: Whether to increment usage count (default True)
 
         Returns:
             Template dict or None if not found
@@ -210,6 +292,12 @@ class TemplateManager:
             if not row:
                 return None
 
+            # Get new field values with safe defaults
+            keys = row.keys()
+            structure_hash = row["structure_hash"] if "structure_hash" in keys else None
+            usage_count = row["usage_count"] if "usage_count" in keys else 0
+            last_used_at = row["last_used_at"] if "last_used_at" in keys else None
+
             template = {
                 "id": row["id"],
                 "factory_identifier": row["factory_identifier"],
@@ -225,16 +313,32 @@ class TemplateManager:
                 "sample_employee_id": row["sample_employee_id"],
                 "sample_period": row["sample_period"],
                 "layout_type": (
-                    row["layout_type"] if "layout_type" in row.keys() else "standard"
+                    row["layout_type"] if "layout_type" in keys else "standard"
                 ),
                 "created_at": row["created_at"],
                 "updated_at": row["updated_at"],
                 "notes": row["notes"],
+                "structure_hash": structure_hash,
+                "usage_count": usage_count,
+                "last_used_at": last_used_at,
             }
+
+            # Update usage statistics
+            if update_usage:
+                cursor.execute(
+                    """
+                    UPDATE factory_templates
+                    SET usage_count = COALESCE(usage_count, 0) + 1,
+                        last_used_at = ?
+                    WHERE factory_identifier = ?
+                """,
+                    (datetime.now().isoformat(), factory_identifier),
+                )
+                conn.commit()
 
             print(
                 f"[Template] Loaded template for '{factory_identifier}' "
-                f"({len(template['field_positions'])} fields)"
+                f"({len(template['field_positions'])} fields, used {usage_count + 1}x)"
             )
             return template
 
@@ -245,23 +349,88 @@ class TemplateManager:
         finally:
             conn.close()
 
-    def find_matching_template(self, sheet_name: str) -> Optional[Dict[str, Any]]:
+    def find_by_structure_hash(self, structure_hash: str) -> Optional[Dict[str, Any]]:
         """
-        Find a template that matches the sheet name.
-        Uses fuzzy matching for factory names.
+        Find a template by its structure hash.
+
+        This allows matching templates even when the sheet name changes,
+        as long as the Excel structure remains the same.
 
         Args:
-            sheet_name: Sheet name from Excel file
+            structure_hash: MD5 hash of worksheet structure
 
         Returns:
             Best matching template or None
         """
-        # First, try exact match
+        conn = self._get_connection()
+        cursor = conn.cursor()
+
+        try:
+            cursor.execute(
+                """
+                SELECT factory_identifier, detection_confidence, usage_count
+                FROM factory_templates
+                WHERE structure_hash = ? AND is_active = 1
+                ORDER BY detection_confidence DESC, usage_count DESC
+                LIMIT 1
+            """,
+                (structure_hash,),
+            )
+
+            row = cursor.fetchone()
+            if row:
+                print(
+                    f"[Template] Found template by hash: '{row['factory_identifier']}'"
+                )
+                return self.load_template(row["factory_identifier"])
+
+            return None
+
+        except Exception as e:
+            print(f"[Template ERROR] Failed to find by hash: {e}")
+            return None
+
+        finally:
+            conn.close()
+
+    def find_matching_template(
+        self, sheet_name: str, ws=None
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Find a template that matches the sheet name or structure.
+
+        Matching priority:
+        1. Exact name match
+        2. Structure hash match (if worksheet provided)
+        3. Partial name match (substring)
+
+        Args:
+            sheet_name: Sheet name from Excel file
+            ws: Optional openpyxl worksheet for hash-based matching
+
+        Returns:
+            Best matching template or None
+        """
+        # Priority 1: Try exact name match
         template = self.load_template(sheet_name)
         if template:
             return template
 
-        # Try partial match (factory name might be substring)
+        # Priority 2: Try structure hash match (if worksheet provided)
+        if ws is not None:
+            try:
+                structure_hash = self.generate_structure_hash(ws)
+                template = self.find_by_structure_hash(structure_hash)
+                if template:
+                    print(
+                        f"[Template] Matched '{sheet_name}' by structure hash "
+                        f"to '{template['factory_identifier']}'"
+                    )
+                    return template
+            except Exception as e:
+                print(f"[Template] Hash matching failed: {e}")
+
+        # Priority 3: Try partial name match (factory name might be substring)
         conn = self._get_connection()
         cursor = conn.cursor()
 
@@ -292,7 +461,7 @@ class TemplateManager:
 
     def list_templates(self, include_inactive: bool = False) -> List[Dict[str, Any]]:
         """
-        List all templates.
+        List all templates with usage statistics.
 
         Args:
             include_inactive: Whether to include inactive templates
@@ -306,20 +475,21 @@ class TemplateManager:
         try:
             if include_inactive:
                 cursor.execute(
-                    "SELECT * FROM factory_templates ORDER BY updated_at DESC"
+                    "SELECT * FROM factory_templates ORDER BY usage_count DESC, updated_at DESC"
                 )
             else:
                 cursor.execute(
                     """
                     SELECT * FROM factory_templates
                     WHERE is_active = 1
-                    ORDER BY updated_at DESC
+                    ORDER BY usage_count DESC, updated_at DESC
                 """
                 )
 
             templates = []
             for row in cursor.fetchall():
                 field_positions = json.loads(row["field_positions"])
+                keys = row.keys()
                 templates.append(
                     {
                         "id": row["id"],
@@ -332,6 +502,15 @@ class TemplateManager:
                         "is_active": bool(row["is_active"]),
                         "created_at": row["created_at"],
                         "updated_at": row["updated_at"],
+                        "structure_hash": (
+                            row["structure_hash"] if "structure_hash" in keys else None
+                        ),
+                        "usage_count": (
+                            row["usage_count"] if "usage_count" in keys else 0
+                        ),
+                        "last_used_at": (
+                            row["last_used_at"] if "last_used_at" in keys else None
+                        ),
                     }
                 )
 
@@ -399,7 +578,7 @@ class TemplateManager:
 
     def get_template_stats(self) -> Dict[str, Any]:
         """
-        Get statistics about templates.
+        Get statistics about templates including usage data.
 
         Returns:
             Dict with template statistics
@@ -414,18 +593,42 @@ class TemplateManager:
                     COUNT(*) as total,
                     SUM(CASE WHEN is_active = 1 THEN 1 ELSE 0 END) as active,
                     AVG(detection_confidence) as avg_confidence,
-                    MAX(updated_at) as last_updated
+                    MAX(updated_at) as last_updated,
+                    SUM(COALESCE(usage_count, 0)) as total_usage,
+                    AVG(COALESCE(usage_count, 0)) as avg_usage,
+                    MAX(last_used_at) as last_used,
+                    SUM(CASE WHEN structure_hash IS NOT NULL THEN 1 ELSE 0 END) as with_hash
                 FROM factory_templates
             """
             )
 
             row = cursor.fetchone()
 
+            # Get top used templates
+            cursor.execute(
+                """
+                SELECT factory_identifier, usage_count
+                FROM factory_templates
+                WHERE is_active = 1
+                ORDER BY usage_count DESC
+                LIMIT 5
+            """
+            )
+            top_used = [
+                {"factory": r["factory_identifier"], "count": r["usage_count"] or 0}
+                for r in cursor.fetchall()
+            ]
+
             return {
                 "total_templates": row["total"] or 0,
                 "active_templates": row["active"] or 0,
                 "average_confidence": row["avg_confidence"] or 0.0,
                 "last_updated": row["last_updated"],
+                "total_usage_count": row["total_usage"] or 0,
+                "average_usage_per_template": row["avg_usage"] or 0.0,
+                "last_used": row["last_used"],
+                "templates_with_hash": row["with_hash"] or 0,
+                "top_used_templates": top_used,
             }
 
         except Exception as e:

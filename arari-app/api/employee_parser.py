@@ -147,6 +147,7 @@ class DBGenzaiXParser:
             "errors": 0,
         }
 
+        wb = None
         try:
             # Load workbook
             wb = openpyxl.load_workbook(file_path, data_only=True)
@@ -276,12 +277,17 @@ class DBGenzaiXParser:
                     print(f"[DEBUG] Error in row {row_num}: {e}")
                     self.errors.append(f"Fila {row_num}: {str(e)}")
 
-            wb.close()
-
         except FileNotFoundError:
             self.errors.append(f"Archivo no encontrado: {file_path}")
         except Exception as e:
             self.errors.append(f"Error al leer archivo Excel: {str(e)}")
+        finally:
+            # ALWAYS close the workbook to release file handle
+            if wb is not None:
+                try:
+                    wb.close()
+                except Exception:
+                    pass  # Ignore close errors
 
         return employees, stats
 

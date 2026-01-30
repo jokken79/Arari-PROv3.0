@@ -54,6 +54,11 @@ from search import SearchService
 from services import ExcelParser, PayrollService
 from template_manager import TemplateManager, create_template_from_excel
 from validation import ValidationService
+from path_security import (
+    validate_upload_filename,
+    sanitize_filename,
+    ALLOWED_UPLOAD_EXTENSIONS,
+)
 
 # Import modular routers
 from routers import (
@@ -410,14 +415,20 @@ async def import_employees(
     Dedicated endpoint for importing employees from Excel (DBGenzaiX format).
     Used by EmployeeUploader.tsx (requires admin)
     """
-    allowed_extensions = ['.xlsx', '.xlsm', '.xls']
-    file_ext = '.' + file.filename.split('.')[-1].lower() if '.' in file.filename else ''
+    # Security: Validate and sanitize uploaded filename
+    excel_extensions = {'.xlsx', '.xlsm', '.xls'}
+    is_valid, error_msg, safe_filename = validate_upload_filename(
+        file.filename,
+        allowed_extensions=excel_extensions
+    )
 
-    if file_ext not in allowed_extensions:
+    if not is_valid:
         raise HTTPException(
             status_code=400,
-            detail=f"Invalid file type. Allowed: {', '.join(allowed_extensions)}"
+            detail=f"Invalid file: {error_msg}"
         )
+
+    file_ext = '.' + safe_filename.rsplit('.', 1)[1].lower() if '.' in safe_filename else ''
 
     try:
         content = await file.read()
@@ -475,8 +486,19 @@ async def import_employees(
             }
 
         finally:
-            if os.path.exists(tmp_path):
-                os.unlink(tmp_path)
+            # Windows may keep file handles briefly - retry deletion
+            import time
+            import gc
+            gc.collect()  # Force garbage collection to release any lingering handles
+            for attempt in range(3):
+                try:
+                    if os.path.exists(tmp_path):
+                        os.unlink(tmp_path)
+                    break
+                except PermissionError:
+                    if attempt < 2:
+                        time.sleep(0.5)  # Wait and retry
+                    # Silently ignore on final attempt - OS will clean temp later
 
     except Exception as e:
         logging.error(f"Import failed: {e}")
@@ -493,21 +515,31 @@ async def upload_payroll_file(
     import asyncio
     import concurrent.futures
 
+    # Security: Pre-validate filename before generator starts
+    upload_extensions = {'.xlsx', '.xlsm', '.xls', '.csv'}
+    is_valid, error_msg, safe_filename = validate_upload_filename(
+        file.filename,
+        allowed_extensions=upload_extensions
+    )
+
+    if not is_valid:
+        # Return error immediately without starting generator
+        async def error_generator():
+            yield json.dumps({
+                "type": "error",
+                "message": f"Security validation failed: {error_msg}"
+            }) + "\n"
+        return StreamingResponse(error_generator(), media_type="application/x-ndjson")
+
+    # Use sanitized filename for all further operations
+    original_filename = file.filename  # Keep original for display in Japanese detection
+    file_ext = '.' + safe_filename.rsplit('.', 1)[1].lower() if '.' in safe_filename else ''
 
     async def log_generator():
         try:
-            yield json.dumps({"type": "info", "message": f"Upload started: {file.filename}"}) + "\n"
+            yield json.dumps({"type": "info", "message": f"Upload started: {safe_filename}"}) + "\n"
 
-            # Validate file type
-            allowed_extensions = ['.xlsx', '.xlsm', '.xls', '.csv']
-            file_ext = '.' + file.filename.split('.')[-1].lower() if '.' in file.filename else ''
-
-            if file_ext not in allowed_extensions:
-                yield json.dumps({
-                    "type": "error",
-                    "message": f"Invalid extension. Allowed: {', '.join(allowed_extensions)}"
-                }) + "\n"
-                return
+            # File type already validated above, skip redundant check
 
             # Validate file size (max 50MB)
             MAX_FILE_SIZE = 50 * 1024 * 1024
@@ -529,8 +561,9 @@ async def upload_payroll_file(
 
             # ---------------------------------------------------------
             # CASE A: Payroll File (給与明細)
+            # Note: Use original_filename for Japanese character detection
             # ---------------------------------------------------------
-            if file_ext in ['.xlsm', '.xlsx'] and ('給与' in file.filename or '給料' in file.filename or '明細' in file.filename):
+            if file_ext in ['.xlsm', '.xlsx'] and ('給与' in original_filename or '給料' in original_filename or '明細' in original_filename):
                 yield json.dumps({"type": "info", "message": "Detected: Payroll Statement (給与明細)"}) + "\n"
                 yield json.dumps({"type": "progress", "message": "Parsing Excel file (this may take a moment)..."}) + "\n"
 
@@ -600,8 +633,9 @@ async def upload_payroll_file(
 
             # ---------------------------------------------------------
             # CASE B: Employee Master File (社員台帳)
+            # Note: Use original_filename for Japanese character detection
             # ---------------------------------------------------------
-            elif file_ext in ['.xlsx', '.xlsm', '.xls'] and ('社員' in file.filename or 'Employee' in file.filename or '台帳' in file.filename):
+            elif file_ext in ['.xlsx', '.xlsm', '.xls'] and ('社員' in original_filename or 'Employee' in original_filename or '台帳' in original_filename):
                 yield json.dumps({"type": "info", "message": "Detected: Employee Master (社員台帳)"}) + "\n"
 
                 with tempfile.NamedTemporaryFile(delete=False, suffix=file_ext) as tmp:
@@ -675,8 +709,18 @@ async def upload_payroll_file(
                     }) + "\n"
 
                 finally:
-                    if os.path.exists(tmp_path):
-                        os.unlink(tmp_path)
+                    # Windows may keep file handles briefly - retry deletion
+                    import gc
+                    gc.collect()
+                    for attempt in range(3):
+                        try:
+                            if os.path.exists(tmp_path):
+                                os.unlink(tmp_path)
+                            break
+                        except PermissionError:
+                            if attempt < 2:
+                                import time
+                                time.sleep(0.5)
 
             else:
                 # Fallback (Generic)
@@ -1206,14 +1250,17 @@ async def analyze_excel_for_templates(file: UploadFile = File(...)):
     Analyze an Excel file and generate templates for all sheets.
     Does NOT import payroll data - only creates templates.
     """
-    # Validate file type
-    allowed_extensions = ['.xlsx', '.xlsm', '.xls']
-    file_ext = '.' + file.filename.split('.')[-1].lower() if '.' in file.filename else ''
+    # Security: Validate and sanitize uploaded filename
+    excel_extensions = {'.xlsx', '.xlsm', '.xls'}
+    is_valid, error_msg, safe_filename = validate_upload_filename(
+        file.filename,
+        allowed_extensions=excel_extensions
+    )
 
-    if file_ext not in allowed_extensions:
+    if not is_valid:
         raise HTTPException(
             status_code=400,
-            detail=f"Invalid file type. Allowed: {', '.join(allowed_extensions)}"
+            detail=f"Invalid file: {error_msg}"
         )
 
     try:
@@ -1224,7 +1271,7 @@ async def analyze_excel_for_templates(file: UploadFile = File(...)):
 
         return {
             "status": "success",
-            "filename": file.filename,
+            "filename": safe_filename,  # Return sanitized filename
             "templates_created": results['templates_created'],
             "templates_failed": results['templates_failed'],
             "errors": results['errors'][:10] if results['errors'] else None

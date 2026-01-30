@@ -24,6 +24,23 @@ export const apiUrl = (endpoint: string): string => {
   return `${API_BASE_URL}${cleanEndpoint}`
 }
 
+// Runtime config validation (client-only)
+if (typeof window !== 'undefined') {
+  const trimmed = API_BASE_URL.trim()
+
+  if (trimmed.endsWith('/api')) {
+    console.warn(
+      '[Config] NEXT_PUBLIC_API_URL should be the base origin (e.g., http://localhost:8000) without /api.'
+    )
+  }
+
+  if (/^https?:\/\/backend(:\d+)?/i.test(trimmed)) {
+    console.warn(
+      '[Config] NEXT_PUBLIC_API_URL points to "backend" hostname, which is not reachable from the browser. Use a public host like http://localhost:8000 or your domain.'
+    )
+  }
+}
+
 // Export for convenience
 export default {
   API_BASE_URL,

@@ -5,6 +5,7 @@
 
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useCallback } from 'react';
+import { API_BASE_URL } from '@/lib/api';
 
 // Types
 export interface TwoFASetupResponse {
@@ -39,7 +40,7 @@ export interface TwoFADisableRequest {
 export const use2FASetup = () => {
   return useMutation({
     mutationFn: async () => {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/2fa/setup`, {
+      const response = await fetch(`${API_BASE_URL}/api/2fa/setup`, {
         method: 'POST',
         credentials: 'include',
         headers: {
@@ -62,7 +63,7 @@ export const use2FASetup = () => {
 export const useVerify2FA = () => {
   return useMutation({
     mutationFn: async (data: TwoFAVerifyRequest) => {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/2fa/verify`, {
+      const response = await fetch(`${API_BASE_URL}/api/2fa/verify`, {
         method: 'POST',
         credentials: 'include',
         headers: {
@@ -86,7 +87,7 @@ export const useVerify2FA = () => {
 export const useVerifyCode2FA = () => {
   return useMutation({
     mutationFn: async (data: TwoFAVerifyCodeRequest) => {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/2fa/verify-code`, {
+      const response = await fetch(`${API_BASE_URL}/api/2fa/verify-code`, {
         method: 'POST',
         credentials: 'include',
         headers: {
@@ -110,7 +111,7 @@ export const useVerifyCode2FA = () => {
 export const useDisable2FA = () => {
   return useMutation({
     mutationFn: async (data: TwoFADisableRequest) => {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/2fa/disable`, {
+      const response = await fetch(`${API_BASE_URL}/api/2fa/disable`, {
         method: 'POST',
         credentials: 'include',
         headers: {
@@ -135,7 +136,7 @@ export const use2FAStatus = () => {
   return useQuery({
     queryKey: ['2fa-status'],
     queryFn: async () => {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/2fa/status`, {
+      const response = await fetch(`${API_BASE_URL}/api/2fa/status`, {
         method: 'GET',
         credentials: 'include',
         headers: {

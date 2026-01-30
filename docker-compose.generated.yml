@@ -20,7 +20,7 @@ services:
     env_file:
       - ./.env.instance00
     volumes:
-      - arari_app_db_00:/var/lib/arari
+      - arari_app_db_00:/app/api
 
   # Instance 01
   arari_app_frontend_01:
@@ -41,7 +41,7 @@ services:
     env_file:
       - ./.env.instance01
     volumes:
-      - arari_app_db_01:/var/lib/arari
+      - arari_app_db_01:/app/api
 
   # Instance 02
   arari_app_frontend_02:
@@ -62,7 +62,7 @@ services:
     env_file:
       - ./.env.instance02
     volumes:
-      - arari_app_db_02:/var/lib/arari
+      - arari_app_db_02:/app/api
 
   # Instance 03
   arari_app_frontend_03:
@@ -83,7 +83,7 @@ services:
     env_file:
       - ./.env.instance03
     volumes:
-      - arari_app_db_03:/var/lib/arari
+      - arari_app_db_03:/app/api
 
   # Instance 04
   arari_app_frontend_04:
@@ -104,7 +104,7 @@ services:
     env_file:
       - ./.env.instance04
     volumes:
-      - arari_app_db_04:/var/lib/arari
+      - arari_app_db_04:/app/api
 
   # Instance 05
   arari_app_frontend_05:
@@ -125,7 +125,7 @@ services:
     env_file:
       - ./.env.instance05
     volumes:
-      - arari_app_db_05:/var/lib/arari
+      - arari_app_db_05:/app/api
 
   # Instance 06
   arari_app_frontend_06:
@@ -146,7 +146,7 @@ services:
     env_file:
       - ./.env.instance06
     volumes:
-      - arari_app_db_06:/var/lib/arari
+      - arari_app_db_06:/app/api
 
   # Instance 07
   arari_app_frontend_07:
@@ -167,7 +167,7 @@ services:
     env_file:
       - ./.env.instance07
     volumes:
-      - arari_app_db_07:/var/lib/arari
+      - arari_app_db_07:/app/api
 
   # Instance 08
   arari_app_frontend_08:
@@ -188,7 +188,7 @@ services:
     env_file:
       - ./.env.instance08
     volumes:
-      - arari_app_db_08:/var/lib/arari
+      - arari_app_db_08:/app/api
 
   # Instance 09
   arari_app_frontend_09:
@@ -209,7 +209,7 @@ services:
     env_file:
       - ./.env.instance09
     volumes:
-      - arari_app_db_09:/var/lib/arari
+      - arari_app_db_09:/app/api
 
 volumes:
   arari_app_data_00: {}

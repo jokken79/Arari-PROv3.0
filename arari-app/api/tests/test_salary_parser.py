@@ -627,3 +627,377 @@ class TestParsingState:
 
         assert parser.detected_fields == {}
         assert parser.using_template is False
+
+
+# ================================================================
+# KINTAIHYO FORMAT PARSER TESTS (勤怠表 - 8-row blocks)
+# ================================================================
+
+
+class TestKintaihyoFormatDetection:
+    """Tests for Kintaihyo 8-row format detection"""
+
+    def test_is_kintaihyo_block_start_valid(self):
+        """Should detect valid Kintaihyo block start pattern"""
+        from salary_parser import SalaryStatementParser
+
+        parser = SalaryStatementParser()
+
+        # Create mock worksheet with Kintaihyo pattern
+        ws = MagicMock()
+
+        def mock_cell(row, column):
+            cell = MagicMock()
+            # Row+0: English name
+            if row == 1 and column == 1:
+                cell.value = "NGUYEN VAN A"
+            # Row+1: Employee ID > 10000
+            elif row == 2 and column == 1:
+                cell.value = 123456
+            # Row+2: Japanese name
+            elif row == 3 and column == 1:
+                cell.value = "グエン　ヴァン　A"
+            # Row+3: Base rate > 500
+            elif row == 4 and column == 1:
+                cell.value = 1500
+            else:
+                cell.value = None
+            return cell
+
+        ws.cell = mock_cell
+
+        result = parser._is_kintaihyo_block_start(ws, 1, 1)
+        assert result is True
+
+    def test_is_kintaihyo_block_start_invalid_no_id(self):
+        """Should reject block without valid employee ID"""
+        from salary_parser import SalaryStatementParser
+
+        parser = SalaryStatementParser()
+
+        ws = MagicMock()
+
+        def mock_cell(row, column):
+            cell = MagicMock()
+            if row == 1 and column == 1:
+                cell.value = "NGUYEN VAN A"
+            elif row == 2 and column == 1:
+                cell.value = 999  # Too small, not valid ID
+            elif row == 3 and column == 1:
+                cell.value = "グエン　ヴァン　A"
+            elif row == 4 and column == 1:
+                cell.value = 1500
+            else:
+                cell.value = None
+            return cell
+
+        ws.cell = mock_cell
+
+        result = parser._is_kintaihyo_block_start(ws, 1, 1)
+        assert result is False
+
+    def test_is_kintaihyo_block_start_invalid_no_japanese(self):
+        """Should reject block without Japanese name"""
+        from salary_parser import SalaryStatementParser
+
+        parser = SalaryStatementParser()
+
+        ws = MagicMock()
+
+        def mock_cell(row, column):
+            cell = MagicMock()
+            if row == 1 and column == 1:
+                cell.value = "NGUYEN VAN A"
+            elif row == 2 and column == 1:
+                cell.value = 123456
+            elif row == 3 and column == 1:
+                cell.value = "NGUYEN VAN A"  # English, not Japanese
+            elif row == 4 and column == 1:
+                cell.value = 1500
+            else:
+                cell.value = None
+            return cell
+
+        ws.cell = mock_cell
+
+        result = parser._is_kintaihyo_block_start(ws, 1, 1)
+        assert result is False
+
+    def test_is_kintaihyo_block_start_invalid_low_rate(self):
+        """Should reject block with rate too low"""
+        from salary_parser import SalaryStatementParser
+
+        parser = SalaryStatementParser()
+
+        ws = MagicMock()
+
+        def mock_cell(row, column):
+            cell = MagicMock()
+            if row == 1 and column == 1:
+                cell.value = "NGUYEN VAN A"
+            elif row == 2 and column == 1:
+                cell.value = 123456
+            elif row == 3 and column == 1:
+                cell.value = "グエン　ヴァン　A"
+            elif row == 4 and column == 1:
+                cell.value = 100  # Too low
+            else:
+                cell.value = None
+            return cell
+
+        ws.cell = mock_cell
+
+        result = parser._is_kintaihyo_block_start(ws, 1, 1)
+        assert result is False
+
+
+class TestKintaihyoBlockDetection:
+    """Tests for finding Kintaihyo blocks in a worksheet"""
+
+    def test_detect_kintaihyo_blocks_finds_multiple(self):
+        """Should find multiple worker blocks"""
+        from salary_parser import SalaryStatementParser
+
+        parser = SalaryStatementParser()
+
+        ws = MagicMock()
+        ws.max_row = 50
+        ws.max_column = 10
+
+        # Create two worker blocks at rows 1 and 10
+        def mock_cell(row, column):
+            cell = MagicMock()
+            # Block 1 at row 1
+            if row == 1 and column == 1:
+                cell.value = "Worker 1"
+            elif row == 2 and column == 1:
+                cell.value = 100001
+            elif row == 3 and column == 1:
+                cell.value = "山田太郎"
+            elif row == 4 and column == 1:
+                cell.value = 1500
+            # Block 2 at row 10
+            elif row == 10 and column == 1:
+                cell.value = "Worker 2"
+            elif row == 11 and column == 1:
+                cell.value = 100002
+            elif row == 12 and column == 1:
+                cell.value = "鈴木花子"
+            elif row == 13 and column == 1:
+                cell.value = 1600
+            else:
+                cell.value = None
+            return cell
+
+        ws.cell = mock_cell
+
+        blocks = parser.detect_kintaihyo_blocks(ws)
+        assert len(blocks) == 2
+        assert (1, 1) in blocks
+        assert (10, 1) in blocks
+
+
+class TestKintaihyoPeriodDetection:
+    """Tests for period detection in Kintaihyo sheets"""
+
+    def test_detect_period_standard_format(self):
+        """Should detect 2025年1月 format"""
+        from salary_parser import SalaryStatementParser
+
+        parser = SalaryStatementParser()
+
+        ws = MagicMock()
+
+        def mock_cell(row, column):
+            cell = MagicMock()
+            if row == 1 and column == 1:
+                cell.value = "2025年1月"
+            else:
+                cell.value = None
+            return cell
+
+        ws.cell = mock_cell
+
+        period = parser._detect_kintaihyo_period(ws)
+        assert period == "2025年1月"
+
+    def test_detect_period_reiwa_format(self):
+        """Should detect 令和7年1月 format and convert to Western"""
+        from salary_parser import SalaryStatementParser
+
+        parser = SalaryStatementParser()
+
+        ws = MagicMock()
+
+        def mock_cell(row, column):
+            cell = MagicMock()
+            if row == 1 and column == 1:
+                cell.value = "令和7年1月"
+            else:
+                cell.value = None
+            return cell
+
+        ws.cell = mock_cell
+
+        period = parser._detect_kintaihyo_period(ws)
+        assert period == "2025年1月"  # Reiwa 7 = 2025
+
+    def test_detect_period_datetime_object(self):
+        """Should handle datetime objects from Excel"""
+        from salary_parser import SalaryStatementParser
+        from datetime import datetime
+
+        parser = SalaryStatementParser()
+
+        ws = MagicMock()
+
+        def mock_cell(row, column):
+            cell = MagicMock()
+            if row == 1 and column == 1:
+                cell.value = datetime(2025, 3, 15)
+            else:
+                cell.value = None
+            return cell
+
+        ws.cell = mock_cell
+
+        period = parser._detect_kintaihyo_period(ws)
+        assert period == "2025年3月"
+
+
+class TestKintaihyoDailyHoursExtraction:
+    """Tests for extracting daily hours from Kintaihyo format"""
+
+    def test_extract_daily_hours_basic(self):
+        """Should extract total hours and work days"""
+        from salary_parser import SalaryStatementParser
+
+        parser = SalaryStatementParser()
+
+        ws = MagicMock()
+        ws.max_column = 35
+
+        # Simulate 3 days of work: 8, 8.5, 9 hours
+        def mock_cell(row, column):
+            cell = MagicMock()
+            if row == 1 and column == 2:
+                cell.value = 8
+            elif row == 1 and column == 3:
+                cell.value = 8.5
+            elif row == 1 and column == 4:
+                cell.value = 9
+            else:
+                cell.value = None
+            return cell
+
+        ws.cell = mock_cell
+
+        result = parser._extract_kintaihyo_daily_hours(ws, 1, 1)
+
+        assert result["work_days"] == 3
+        assert result["total_hours"] == 25.5
+        # Overtime = (8-8) + (8.5-8) + (9-8) = 0 + 0.5 + 1 = 1.5
+        assert result["overtime_hours"] == 1.5
+
+    def test_extract_daily_hours_with_zero_days(self):
+        """Should handle days with 0 hours (weekends/holidays)"""
+        from salary_parser import SalaryStatementParser
+
+        parser = SalaryStatementParser()
+
+        ws = MagicMock()
+        ws.max_column = 35
+
+        # 2 work days, 1 off day
+        def mock_cell(row, column):
+            cell = MagicMock()
+            if row == 1 and column == 2:
+                cell.value = 8
+            elif row == 1 and column == 3:
+                cell.value = 0  # Off day
+            elif row == 1 and column == 4:
+                cell.value = 8
+            else:
+                cell.value = None
+            return cell
+
+        ws.cell = mock_cell
+
+        result = parser._extract_kintaihyo_daily_hours(ws, 1, 1)
+
+        assert result["work_days"] == 2
+        assert result["total_hours"] == 16
+
+
+class TestKintaihyoLayoutDetection:
+    """Tests for detecting Kintaihyo layout type"""
+
+    def test_detect_layout_type_kintaihyo(self):
+        """Should detect kintaihyo layout"""
+        from salary_parser import SalaryStatementParser
+
+        parser = SalaryStatementParser()
+
+        ws = MagicMock()
+        ws.max_row = 50
+        ws.max_column = 30
+
+        # Create valid Kintaihyo pattern
+        def mock_cell(row, column):
+            cell = MagicMock()
+            if row == 1 and column == 1:
+                cell.value = "Worker Name"
+            elif row == 2 and column == 1:
+                cell.value = 100001
+            elif row == 3 and column == 1:
+                cell.value = "山田太郎"
+            elif row == 4 and column == 1:
+                cell.value = 1500
+            else:
+                cell.value = None
+            return cell
+
+        ws.cell = mock_cell
+
+        layout = parser._detect_layout_type(ws)
+        assert layout == "kintaihyo"
+
+
+class TestKintaihyoFieldIdentification:
+    """Tests for identifying field types from labels"""
+
+    def test_identify_base_salary_field(self):
+        """Should identify base salary labels"""
+        from salary_parser import SalaryStatementParser
+
+        parser = SalaryStatementParser()
+
+        result = parser._identify_kintaihyo_field("基本給")
+        assert result == "base_salary"
+
+    def test_identify_overtime_pay_field(self):
+        """Should identify overtime pay labels"""
+        from salary_parser import SalaryStatementParser
+
+        parser = SalaryStatementParser()
+
+        result = parser._identify_kintaihyo_field("残業手当")
+        assert result == "overtime_pay"
+
+    def test_identify_gross_salary_field(self):
+        """Should identify gross salary labels"""
+        from salary_parser import SalaryStatementParser
+
+        parser = SalaryStatementParser()
+
+        result = parser._identify_kintaihyo_field("総支給額")
+        assert result == "gross_salary"
+
+    def test_identify_unknown_field(self):
+        """Should return None for unknown labels"""
+        from salary_parser import SalaryStatementParser
+
+        parser = SalaryStatementParser()
+
+        result = parser._identify_kintaihyo_field("不明なラベル")
+        assert result is None

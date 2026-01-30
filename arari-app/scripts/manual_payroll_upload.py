@@ -8,7 +8,7 @@ import mimetypes
 base_path = r"D:/"
 pattern = "給与明細(派遣社員)*.xlsm"
 files = glob.glob(os.path.join(base_path, pattern))
-url = "http://localhost:8765/api/upload"
+url = os.environ.get("ARARI_BACKEND_URL", "http://localhost:8000") + "/api/upload"
 
 if not files:
     print("No payroll files found matching pattern.")
@@ -17,6 +17,7 @@ if not files:
 print(f"Found {len(files)} files.")
 
 boundary = '----WebKitFormBoundary7MA4YWxkTrZu0gW'
+auth_token = os.environ.get("ARARI_TOKEN", "").strip()
 
 for file_path in files[:1]: # Try just one first
     if not os.path.exists(file_path):
@@ -40,6 +41,8 @@ for file_path in files[:1]: # Try just one first
         
         body = b'\r\n'.join(data)
         headers = {'Content-Type': f'multipart/form-data; boundary={boundary}', 'Content-Length': str(len(body))}
+        if auth_token:
+            headers['Authorization'] = f'Bearer {auth_token}'
         
         req = urllib.request.Request(url, body, headers)
         with urllib.request.urlopen(req, timeout=300) as response:
