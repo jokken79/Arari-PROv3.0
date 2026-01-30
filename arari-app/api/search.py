@@ -8,7 +8,7 @@ import sqlite3
 from dataclasses import dataclass
 from typing import Any, Dict, List
 
-from database import USE_POSTGRES
+from api.database import USE_POSTGRES
 
 
 def _q(query: str) -> str:

@@ -7,8 +7,8 @@ import sqlite3
 import sys
 from pathlib import Path
 
-from salary_parser import SalaryStatementParser
-from services import PayrollService
+from api.salary_parser import SalaryStatementParser
+from api.services import PayrollService
 
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8")

@@ -952,38 +952,47 @@ def create_template_from_excel(
 
     generator = TemplateGenerator()
 
-    for sheet_name in wb.sheetnames:
-        # Skip summary sheets
-        if sheet_name in ["集計", "Summary", "目次", "Index"]:
-            continue
+    try:
+        for sheet_name in wb.sheetnames:
+            # Skip summary sheets
+            if sheet_name in ["集計", "Summary", "目次", "Index"]:
+                continue
 
-        try:
-            ws = wb[sheet_name]
-            template = generator.analyze_worksheet(ws, sheet_name)
+            try:
+                ws = wb[sheet_name]
+                template = generator.analyze_worksheet(ws, sheet_name)
 
-            if template:
-                # Save the template
-                success = template_manager.save_template(
-                    factory_identifier=template["factory_identifier"],
-                    field_positions=template["field_positions"],
-                    column_offsets=template["column_offsets"],
-                    detected_allowances=template["detected_allowances"],
-                    non_billable_allowances=template["non_billable_allowances"],
-                    employee_column_width=template["employee_column_width"],
-                    detection_confidence=template["detection_confidence"],
-                    sample_employee_id=template.get("sample_employee_id"),
-                    sample_period=template.get("sample_period"),
-                    layout_type=template.get("layout_type", "standard"),
-                )
+                if template:
+                    # Save the template
+                    success = template_manager.save_template(
+                        factory_identifier=template["factory_identifier"],
+                        field_positions=template["field_positions"],
+                        column_offsets=template["column_offsets"],
+                        detected_allowances=template["detected_allowances"],
+                        non_billable_allowances=template["non_billable_allowances"],
+                        employee_column_width=template["employee_column_width"],
+                        detection_confidence=template["detection_confidence"],
+                        sample_employee_id=template.get("sample_employee_id"),
+                        sample_period=template.get("sample_period"),
+                        layout_type=template.get("layout_type", "standard"),
+                    )
 
-                if success:
-                    results["templates_created"].append(sheet_name)
+                    if success:
+                        results["templates_created"].append(sheet_name)
+                    else:
+                        results["templates_failed"].append(sheet_name)
                 else:
                     results["templates_failed"].append(sheet_name)
-            else:
-                results["templates_failed"].append(sheet_name)
 
-        except Exception as e:
-            results["errors"].append(f"Sheet '{sheet_name}': {e}")
+            except Exception as e:
+                results["errors"].append(f"Sheet '{sheet_name}': {e}")
+
+    finally:
+        # CRITICAL: Close workbook to prevent resource leaks
+        if wb is not None:
+            try:
+                wb.close()
+            except Exception as e:
+                results["errors"].append(f"Error closing workbook: {e}")
 
     return results

@@ -12,7 +12,7 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from typing import Any, Dict, List
 
-from database import USE_POSTGRES
+from api.database import USE_POSTGRES
 
 
 def _q(query: str) -> str:

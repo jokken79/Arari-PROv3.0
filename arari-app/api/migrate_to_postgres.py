@@ -89,7 +89,7 @@ def import_postgres(input_file: str):
     print(f"[INFO] Exported at: {data.get('exported_at')}")
 
     # Initialize tables first
-    from database import init_db
+    from api.database import init_db
 
     init_db(conn)
 

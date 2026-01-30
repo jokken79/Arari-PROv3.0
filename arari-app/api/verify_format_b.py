@@ -7,7 +7,7 @@ import openpyxl
 # Add current directory to path
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from salary_parser import SalaryStatementParser
+from api.salary_parser import SalaryStatementParser
 
 
 def create_mock_format_b():

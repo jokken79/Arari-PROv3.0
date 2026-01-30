@@ -16,7 +16,7 @@ from typing import Any, Dict, List, Optional
 
 # Check if using PostgreSQL
 try:
-    from database import USE_POSTGRES
+    from api.database import USE_POSTGRES
 except ImportError:
     USE_POSTGRES = False
 
@@ -309,7 +309,7 @@ class AgentCommissionService:
         Creates a cost entry and records it in commission history.
         Uses transaction to prevent TOCTOU race condition.
         """
-        from additional_costs import AdditionalCostsService
+        from api.additional_costs import AdditionalCostsService
 
         cursor = self.db.cursor()
         cost_service = AdditionalCostsService(self.db)

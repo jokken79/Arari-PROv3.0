@@ -104,6 +104,17 @@ export default function CompanyDetailPage({ params }: { params: { id: string } }
     return result.sort((a, b) => comparePeriods(b.period, a.period))
   }, [payrollRecords, companyEmployeeIds])
 
+  // Count of ACTIVE employees (those with payroll records in any period)
+  const activeEmployeeCount = useMemo(() => {
+    const activeIds = new Set<string>()
+    payrollRecords.forEach(r => {
+      if (companyEmployeeIds.has(r.employeeId)) {
+        activeIds.add(r.employeeId)
+      }
+    })
+    return activeIds.size
+  }, [payrollRecords, companyEmployeeIds])
+
   // Calculate totals
   const totals = useMemo(() => {
     const total = monthlyData.reduce((acc, m) => ({
@@ -172,7 +183,7 @@ export default function CompanyDetailPage({ params }: { params: { id: string } }
                 <p className="text-muted-foreground mt-1 flex items-center gap-4">
                   <span className="flex items-center gap-1">
                     <Users className="h-4 w-4" aria-hidden="true" />
-                    登録従業員: {companyEmployees.length}名
+                    従業員数: {activeEmployeeCount}名
                   </span>
                   <span className="flex items-center gap-1">
                     <Calendar className="h-4 w-4" aria-hidden="true" />

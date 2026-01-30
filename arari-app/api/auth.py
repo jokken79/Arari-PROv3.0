@@ -13,7 +13,7 @@ from typing import Any, Dict, Optional
 import bcrypt
 from dotenv import load_dotenv
 
-from database import USE_POSTGRES
+from api.database import USE_POSTGRES
 
 load_dotenv()
 

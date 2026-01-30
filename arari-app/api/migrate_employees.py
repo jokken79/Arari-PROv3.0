@@ -162,7 +162,7 @@ def migrate_from_excel(
     Returns:
         Tuple of (success: bool, stats: dict)
     """
-    from employee_parser import DBGenzaiXParser
+    from api.employee_parser import DBGenzaiXParser
 
     stats = {
         "total_added": 0,

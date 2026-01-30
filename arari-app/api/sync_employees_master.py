@@ -4,10 +4,10 @@ import sys
 # Add current directory to path
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from database import get_connection
-from employee_parser import DBGenzaiXParser
-from models import EmployeeCreate
-from services import PayrollService
+from api.database import get_connection
+from api.employee_parser import DBGenzaiXParser
+from api.models import EmployeeCreate
+from api.services import PayrollService
 
 
 def sync_employees_from_master():

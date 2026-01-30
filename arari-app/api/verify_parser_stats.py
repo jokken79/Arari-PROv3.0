@@ -4,7 +4,7 @@ import sys
 # Add current directory to path to find models
 sys.path.append(os.getcwd())
 
-from salary_parser import SalaryStatementParser
+from api.salary_parser import SalaryStatementParser
 
 
 def verify_fix():

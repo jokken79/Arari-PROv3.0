@@ -2,7 +2,7 @@ import io
 
 import openpyxl
 
-from salary_parser import SalaryStatementParser
+from api.salary_parser import SalaryStatementParser
 
 
 def create_mock_vertical_file_no_id():

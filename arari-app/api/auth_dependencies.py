@@ -13,8 +13,8 @@ from typing import Any, Dict, Optional
 from dotenv import load_dotenv
 from fastapi import Cookie, Depends, Header, HTTPException, Request, Response
 
-from auth import check_role_level, has_permission, validate_token
-from database import get_db
+from api.auth import check_role_level, has_permission, validate_token
+from api.database import get_db
 from rate_limiter import (
     get_rate_limiter,
     get_client_ip,

@@ -43,8 +43,8 @@ from typing import Any, Dict, List, Optional
 
 import openpyxl
 
-from models import PayrollRecordCreate
-from template_manager import TemplateGenerator, TemplateManager
+from api.models import PayrollRecordCreate
+from api.template_manager import TemplateGenerator, TemplateManager
 
 
 class SalaryStatementParser:
@@ -459,65 +459,97 @@ class SalaryStatementParser:
         Returns:
             List of PayrollRecordCreate objects
         """
+        import tempfile
+        import os
+        
+        # Use temporary file instead of BytesIO to avoid "read of closed file" errors
+        # openpyxl has issues with BytesIO when data_only=True
+        tmp_path = None
+        wb = None
+        
         try:
-            # Keep BytesIO open throughout parsing
-            file_buffer = BytesIO(content)
-            wb = openpyxl.load_workbook(file_buffer, data_only=True, read_only=False)
+            # Write content to temporary file
+            with tempfile.NamedTemporaryFile(mode='wb', suffix='.xlsm', delete=False) as tmp:
+                tmp.write(content)
+                tmp_path = tmp.name
+            
+            print(f"[DEBUG] Created temp file: {tmp_path} ({len(content)} bytes)")
+            wb = openpyxl.load_workbook(tmp_path, data_only=True, read_only=False)
         except Exception as e:
             print(f"[ERROR] Error loading Excel file: {e}")
+            if tmp_path and os.path.exists(tmp_path):
+                os.unlink(tmp_path)
             return []
 
         records = []
 
-        print(f"[DEBUG] Starting SalaryStatementParser. Sheets: {wb.sheetnames}")
+        try:
+            print(f"[DEBUG] Starting SalaryStatementParser. Sheets: {wb.sheetnames}")
 
-        # Process all sheets except the summary sheet (集計) and Contract (請負)
-        for sheet_name in wb.sheetnames:
-            # Skip only summary and index sheets. '請負' (Ukeoi) is now ALLOWED.
-            if sheet_name in [
-                "集計",
-                "Summary",
-                "目次",
-                "Index",
-                "請負",
-                "DBUkeoiX",
-                "請負社員",
-            ]:
-                print(f"[DEBUG] Skipping sheet: {sheet_name}")
-                continue
+            # Process all sheets except the summary sheet (集計) and Contract (請負)
+            for sheet_name in wb.sheetnames:
+                # Skip only summary and index sheets. '請負' (Ukeoi) is now ALLOWED.
+                if sheet_name in [
+                    "集計",
+                    "Summary",
+                    "目次",
+                    "Index",
+                    "請負",
+                    "DBUkeoiX",
+                    "請負社員",
+                ]:
+                    print(f"[DEBUG] Skipping sheet: {sheet_name}")
+                    continue
 
-            try:
-                print(f"[DEBUG] Processing sheet: {sheet_name}")
-                ws = wb[sheet_name]
-                sheet_records = self._parse_sheet(ws, sheet_name)
-                print(
-                    f"[DEBUG] Sheet '{sheet_name}' yielded {len(sheet_records)} records"
-                )
-                records.extend(sheet_records)
-            except Exception as e:
-                print(f"[WARNING] Error parsing sheet '{sheet_name}': {e}")
-                import traceback
+                try:
+                    print(f"[DEBUG] Processing sheet: {sheet_name}")
+                    ws = wb[sheet_name]
+                    sheet_records = self._parse_sheet(ws, sheet_name)
+                    print(
+                        f"[DEBUG] Sheet '{sheet_name}' yielded {len(sheet_records)} records"
+                    )
+                    records.extend(sheet_records)
+                except Exception as e:
+                    print(f"[WARNING] Error parsing sheet '{sheet_name}': {e}")
+                    import traceback
 
-                traceback.print_exc()
-                continue
+                    traceback.print_exc()
+                    continue
 
-        print(f"[OK] Parsed {len(records)} employee records from Excel")
+            print(f"[OK] Parsed {len(records)} employee records from Excel")
 
-        # Show template usage summary
-        if self.templates_used or self.templates_generated:
-            print("\n[TEMPLATES] Summary:")
-            if self.templates_used:
-                print(f"   Used existing templates: {', '.join(self.templates_used)}")
-            if self.templates_generated:
-                print(
-                    f"   Generated new templates: {', '.join(self.templates_generated)}"
-                )
+            # Show template usage summary
+            if self.templates_used or self.templates_generated:
+                print("\n[TEMPLATES] Summary:")
+                if self.templates_used:
+                    print(f"   Used existing templates: {', '.join(self.templates_used)}")
+                if self.templates_generated:
+                    print(
+                        f"   Generated new templates: {', '.join(self.templates_generated)}"
+                    )
 
-        # Show validation warnings
-        if self.validation_warnings:
-            print(f"\n[WARNING] VALIDATION WARNINGS ({len(self.validation_warnings)}):")
-            for warning in self.validation_warnings[:10]:  # Show first 10
-                print(f"   {warning}")
+            # Show validation warnings
+            if self.validation_warnings:
+                print(f"\n[WARNING] VALIDATION WARNINGS ({len(self.validation_warnings)}):")
+                for warning in self.validation_warnings[:10]:  # Show first 10
+                    print(f"   {warning}")
+
+        finally:
+            # CRITICAL: Close workbook and cleanup temp file
+            if wb is not None:
+                try:
+                    wb.close()
+                    print(f"[DEBUG] Workbook closed successfully")
+                except Exception as e:
+                    print(f"[WARNING] Error closing workbook: {e}")
+            
+            # Clean up temporary file
+            if tmp_path and os.path.exists(tmp_path):
+                try:
+                    os.unlink(tmp_path)
+                    print(f"[DEBUG] Temp file deleted: {tmp_path}")
+                except Exception as e:
+                    print(f"[WARNING] Error deleting temp file: {e}")
 
         return records
 

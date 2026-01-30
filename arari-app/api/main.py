@@ -508,10 +508,14 @@ async def import_employees(
 @app.post("/api/upload")
 async def upload_payroll_file(
     file: UploadFile = File(...),
-    db: sqlite3.Connection = Depends(get_db),
     current_user: Dict[str, Any] = Depends(require_admin)
 ):
-    """Upload and parse a payroll file (Excel or CSV) with Streaming Log (requires admin)"""
+    """Upload and parse a payroll file (Excel or CSV) with Streaming Log (requires admin)
+    
+    NOTE: DB connection is created INSIDE the generator (not via Depends) because
+    StreamingResponse generators execute AFTER the endpoint returns, at which point
+    FastAPI's Depends(get_db) would have already closed the connection.
+    """
     import asyncio
     import concurrent.futures
 
@@ -535,24 +539,38 @@ async def upload_payroll_file(
     original_filename = file.filename  # Keep original for display in Japanese detection
     file_ext = '.' + safe_filename.rsplit('.', 1)[1].lower() if '.' in safe_filename else ''
 
+    # CRITICAL: Read file content BEFORE the generator starts
+    # This prevents "read of closed file" errors with StreamingResponse
+    MAX_FILE_SIZE = 50 * 1024 * 1024
+    try:
+        content = await file.read()
+    except Exception as e:
+        async def error_generator():
+            yield json.dumps({
+                "type": "error",
+                "message": f"Failed to read file: {str(e)}"
+            }) + "\n"
+        return StreamingResponse(error_generator(), media_type="application/x-ndjson")
+
+    if len(content) > MAX_FILE_SIZE:
+        async def error_generator():
+            yield json.dumps({
+                "type": "error",
+                "message": f"File too large (>50MB). Size: {len(content) / 1024 / 1024:.2f}MB"
+            }) + "\n"
+        return StreamingResponse(error_generator(), media_type="application/x-ndjson")
+
     async def log_generator():
+        # CRITICAL: Create DB connection INSIDE the generator
+        # The Depends(get_db) connection closes when the endpoint returns,
+        # but the generator continues executing after that.
+        from database import get_connection
+        db_conn = get_connection()
+        
         try:
             yield json.dumps({"type": "info", "message": f"Upload started: {safe_filename}"}) + "\n"
 
-            # File type already validated above, skip redundant check
-
-            # Validate file size (max 50MB)
-            MAX_FILE_SIZE = 50 * 1024 * 1024
-            content = await file.read()
-
-            if len(content) > MAX_FILE_SIZE:
-                 yield json.dumps({
-                    "type": "error",
-                    "message": f"File too large (>50MB). Size: {len(content) / 1024 / 1024:.2f}MB"
-                }) + "\n"
-                 return
-
-            yield json.dumps({"type": "info", "message": "File read successfully. Detecting type..."}) + "\n"
+            yield json.dumps({"type": "info", "message": f"File read successfully ({len(content)} bytes). Detecting type..."}) + "\n"
 
             # Shared resources for keepalive mechanism (prevents timeout on large files)
             loop = asyncio.get_event_loop()
@@ -594,12 +612,12 @@ async def upload_payroll_file(
 
                 yield json.dumps({"type": "info", "message": f"Parsed {len(records)} records. Saving to database..."}) + "\n"
 
-                service = PayrollService(db)
+                service = PayrollService(db_conn)
                 saved_count = 0
                 error_count = 0
 
                 # Batch save or single transaction? Using single transaction for speed/consistency
-                cursor = db.cursor()
+                cursor = db_conn.cursor()
                 cursor.execute("BEGIN")  # Standard SQL (works in SQLite and PostgreSQL)
                 try:
                     total = len(records)
@@ -619,7 +637,7 @@ async def upload_payroll_file(
                                  "total": total
                              }) + "\n"
 
-                    db.commit()
+                    db_conn.commit()
                     yield json.dumps({
                         "type": "success",
                         "message": f"Successfully saved {saved_count} records.",
@@ -627,7 +645,7 @@ async def upload_payroll_file(
                     }) + "\n"
 
                 except Exception as e:
-                    db.rollback()
+                    db_conn.rollback()
                     yield json.dumps({"type": "error", "message": f"Database Error: {str(e)}"}) + "\n"
                     raise e
 
@@ -665,7 +683,7 @@ async def upload_payroll_file(
                         employees, stats = emp_future.result()
                     yield json.dumps({"type": "info", "message": f"Found {len(employees)} employees."}) + "\n"
 
-                    service = PayrollService(db)
+                    service = PayrollService(db_conn)
                     imported_count = 0
                     total = len(employees)
 
@@ -747,7 +765,7 @@ async def upload_payroll_file(
                 if records is None:
                     records = []
 
-                service = PayrollService(db)
+                service = PayrollService(db_conn)
                 saved_count = 0
                 # Simple save loop
                 for i, r in enumerate(records):
@@ -770,6 +788,10 @@ async def upload_payroll_file(
 
         except Exception as e:
             yield json.dumps({"type": "error", "message": f"Critical Error: {str(e)}"}) + "\n"
+        finally:
+            # CRITICAL: Close database connection created inside generator
+            if db_conn:
+                db_conn.close()
 
     # Add explicit headers for CORS and streaming compatibility
     headers = {

@@ -359,7 +359,7 @@ def init_db(conn=None):
 
     # Import and initialize all agent tables
     try:
-        from auth import init_auth_tables
+        from api.auth import init_auth_tables
 
         init_auth_tables(conn)
         print("[OK] Auth tables initialized")
@@ -367,7 +367,7 @@ def init_db(conn=None):
         print(f"[WARN] Auth tables: {e}")
 
     try:
-        from alerts import init_alerts_tables
+        from api.alerts import init_alerts_tables
 
         init_alerts_tables(conn)
         print("[OK] Alerts tables initialized")
@@ -375,7 +375,7 @@ def init_db(conn=None):
         print(f"[WARN] Alerts tables: {e}")
 
     try:
-        from audit import init_audit_tables
+        from api.audit import init_audit_tables
 
         init_audit_tables(conn)
         print("[OK] Audit tables initialized")
@@ -383,7 +383,7 @@ def init_db(conn=None):
         print(f"[WARN] Audit tables: {e}")
 
     try:
-        from reports import init_reports_tables
+        from api.reports import init_reports_tables
 
         init_reports_tables(conn)
         print("[OK] Reports tables initialized")
@@ -391,7 +391,7 @@ def init_db(conn=None):
         print(f"[WARN] Reports tables: {e}")
 
     try:
-        from budget import init_budget_tables
+        from api.budget import init_budget_tables
 
         init_budget_tables(conn)
         print("[OK] Budget tables initialized")
@@ -399,7 +399,7 @@ def init_db(conn=None):
         print(f"[WARN] Budget tables: {e}")
 
     try:
-        from notifications import init_notification_tables
+        from api.notifications import init_notification_tables
 
         init_notification_tables(conn)
         print("[OK] Notifications tables initialized")
@@ -407,7 +407,7 @@ def init_db(conn=None):
         print(f"[WARN] Notifications tables: {e}")
 
     try:
-        from cache import init_cache_tables
+        from api.cache import init_cache_tables
 
         init_cache_tables(conn)
         print("[OK] Cache tables initialized")
@@ -415,7 +415,7 @@ def init_db(conn=None):
         print(f"[WARN] Cache tables: {e}")
 
     try:
-        from backup import init_backup_system
+        from api.backup import init_backup_system
 
         init_backup_system()
         print("[OK] Backup system initialized")
@@ -423,14 +423,14 @@ def init_db(conn=None):
         print(f"[WARN] Backup system: {e}")
 
     try:
-        from additional_costs import init_additional_costs_tables
+        from api.additional_costs import init_additional_costs_tables
 
         init_additional_costs_tables(conn)
     except Exception as e:
         print(f"[WARN] Additional costs tables: {e}")
 
     try:
-        from agent_commissions import init_agent_commissions_tables
+        from api.agent_commissions import init_agent_commissions_tables
 
         init_agent_commissions_tables(conn)
     except Exception as e:

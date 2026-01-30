@@ -8,8 +8,8 @@ import io
 import sqlite3
 from typing import Any, Dict, List, Optional
 
-from database import USE_POSTGRES
-from models import EmployeeCreate, PayrollRecordCreate
+from api.database import USE_POSTGRES
+from api.models import EmployeeCreate, PayrollRecordCreate
 
 
 def _q(query: str) -> str:
