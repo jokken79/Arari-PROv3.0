@@ -94,7 +94,7 @@ export function PayrollSlipModal({ isOpen, onClose, record, employee }: PayrollS
           <MobileTabNav activeTab={activeTab} setActiveTab={setActiveTab} />
 
           {/* Main Content - 3 Columns on desktop, 2 columns on tablet, tabs on mobile */}
-          <div className="flex-1 overflow-y-auto p-3 sm:p-6 bg-gradient-to-br from-slate-950 to-slate-900 dark:from-[#0a0a0a] dark:to-[#111]">
+          <div className="flex-1 overflow-y-auto p-3 sm:p-6 bg-gradient-to-br from-slate-100 to-slate-50 dark:from-slate-950 dark:to-slate-900">
             {/* Desktop: Show all 3 columns, Tablet: Show 2 columns */}
             <div className="hidden md:grid md:grid-cols-2 lg:grid-cols-3 gap-6">
               <SalaryDetailsColumn record={record} employee={employee} />

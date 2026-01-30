@@ -54,6 +54,10 @@ export function ProfitAnalysisColumn({ record, employee, settings }: ProfitAnaly
     }
   }, [record, settings])
 
+  // Detect data issues
+  const hasBillingIssue = record.billingAmount === 0 && employee.billingRate > 0
+  const hasMissingRate = employee.billingRate === 0
+
   return (
     <div className="glass-card rounded-xl overflow-hidden hover:bg-white/[0.02] transition-colors">
       <div className="px-4 py-3 bg-emerald-500/10 border-b border-emerald-500/20">
@@ -65,6 +69,18 @@ export function ProfitAnalysisColumn({ record, employee, settings }: ProfitAnaly
       </div>
 
       <div className="p-4 space-y-4">
+        {/* Warning Alert for Data Issues */}
+        {(hasBillingIssue || hasMissingRate) && (
+          <div className="p-3 bg-yellow-500/20 border border-yellow-500/50 rounded-lg">
+            <p className="text-yellow-600 dark:text-yellow-400 text-sm font-medium flex items-center gap-2">
+              <span className="text-lg">⚠️</span>
+              {hasMissingRate 
+                ? '単価が設定されていません。社員マスターを確認してください。' 
+                : '請求金額が計算されていません。データを再インポートしてください。'}
+            </p>
+          </div>
+        )}
+
         {/* Formula Steps */}
         <FormulaSteps
           record={record}
@@ -130,7 +146,7 @@ function FormulaSteps({
         </div>
       </div>
 
-      <div className="flex justify-center text-2xl text-slate-500" aria-hidden="true">↓</div>
+      <div className="flex justify-center text-2xl text-muted-foreground" aria-hidden="true">↓</div>
 
       {/* Step 2: Gross Salary */}
       <div className="p-3 bg-orange-500/10 rounded-lg border border-orange-500/20">
@@ -145,9 +161,9 @@ function FormulaSteps({
         </div>
       </div>
 
-      <div className="flex justify-center text-2xl text-slate-500" aria-hidden="true">+</div>
+      <div className="flex justify-center text-2xl text-muted-foreground" aria-hidden="true">+</div>
 
-      {/* Step 3: Company Benefits */}
+      {/* Step 3: Company Benefits */>
       <div className="p-3 bg-cyan-500/10 rounded-lg border border-cyan-500/20">
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2">
@@ -180,13 +196,13 @@ function FormulaSteps({
         </div>
       </div>
 
-      <div className="flex justify-center text-2xl text-slate-500" aria-hidden="true">=</div>
+      <div className="flex justify-center text-2xl text-muted-foreground" aria-hidden="true">=</div>
 
       {/* Final Result */}
       <div className={`p-4 rounded-xl border ${marginColors.border} backdrop-blur-md bg-gradient-to-br from-black/40 to-black/20 text-center relative overflow-hidden`}>
         <div className={`absolute inset-0 ${marginColors.bg}`} aria-hidden="true"></div>
         <div className="relative z-10">
-          <p className="text-sm font-medium text-slate-400 mb-1">
+          <p className="text-sm font-medium text-muted-foreground mb-1">
             粗利益 (1 - 2 - 3)
           </p>
           <p className={`text-4xl font-bold ${marginColors.text} drop-shadow-[0_0_15px_rgba(0,0,0,0.5)]`}>

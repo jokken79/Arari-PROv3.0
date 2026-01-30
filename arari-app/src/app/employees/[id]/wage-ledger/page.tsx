@@ -118,23 +118,23 @@ export default function WageLedgerPage({ params }: { params: { id: string } }) {
         }
     };
 
-    if (loading) return <div className="p-10 text-center text-gray-400">Loading Wage Ledger...</div>;
-    if (!employee) return <div className="p-10 text-center text-red-400">Employee not found</div>;
+    if (loading) return <div className="p-10 text-center text-muted-foreground">Loading Wage Ledger...</div>;
+    if (!employee) return <div className="p-10 text-center text-destructive">Employee not found</div>;
 
     return (
-        <div className="min-h-screen bg-[#111111] text-gray-200 font-sans">
+        <div className="min-h-screen bg-background text-foreground font-sans">
             {/* HEADER */}
-            <div className="bg-[#1a1a1a] border-b border-gray-800 p-6 sticky top-0 z-10 backdrop-blur-md bg-opacity-90">
+            <div className="bg-card border-b border-border p-6 sticky top-0 z-10 backdrop-blur-md bg-opacity-90">
                 <div className="max-w-7xl mx-auto flex items-center justify-between">
                     <div className="flex items-center gap-4">
-                        <button onClick={() => router.back()} className="p-2 hover:bg-gray-800 rounded-full transition">
-                            <ArrowLeft className="w-6 h-6 text-gray-400" />
+                        <button onClick={() => router.back()} className="p-2 hover:bg-muted rounded-full transition">
+                            <ArrowLeft className="w-6 h-6 text-muted-foreground" />
                         </button>
                         <div>
                             <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
                                 賃金台帳 (Wage Ledger)
                             </h1>
-                            <div className="flex items-center gap-4 text-sm text-gray-400 mt-1">
+                            <div className="flex items-center gap-4 text-sm text-muted-foreground mt-1">
                                 <span className="flex items-center gap-1"><User size={14} /> {employee.name} ({employee.employee_id})</span>
                                 <span className="flex items-center gap-1"><Building2 size={14} /> {employee.dispatch_company}</span>
                             </div>
@@ -142,20 +142,20 @@ export default function WageLedgerPage({ params }: { params: { id: string } }) {
                     </div>
 
                     <div className="flex items-center gap-4">
-                        <div className="flex items-center bg-gray-900 rounded-lg p-1 border border-gray-700">
+                        <div className="flex items-center bg-muted rounded-lg p-1 border border-border">
                             <button
                                 onClick={() => setYear(year - 1)}
-                                className="px-3 py-1 text-sm hover:text-white text-gray-500 transition"
+                                className="px-3 py-1 text-sm hover:text-foreground text-muted-foreground transition"
                             >
                                 {year - 1}
                             </button>
-                            <div className="px-4 py-1 text-sm font-bold text-blue-400 border-x border-gray-700">
+                            <div className="px-4 py-1 text-sm font-bold text-primary border-x border-border">
                                 <Calendar size={14} className="inline mr-2 -mt-1" />
                                 {year}年度
                             </div>
                             <button
                                 onClick={() => setYear(year + 1)}
-                                className="px-3 py-1 text-sm hover:text-white text-gray-500 transition"
+                                className="px-3 py-1 text-sm hover:text-foreground text-muted-foreground transition"
                             >
                                 {year + 1}
                             </button>
@@ -166,39 +166,39 @@ export default function WageLedgerPage({ params }: { params: { id: string } }) {
 
             {/* ACTION BAR */}
             <div className="max-w-7xl mx-auto p-6">
-                <div className="bg-[#1a1a1a] rounded-xl border border-gray-800 p-4 flex flex-wrap items-center justify-between gap-4 shadow-lg mb-8">
+                <div className="bg-card rounded-xl border border-border p-4 flex flex-wrap items-center justify-between gap-4 shadow-lg mb-8">
                     <div className="flex items-center gap-3">
                         <div className="p-2 bg-blue-500/10 rounded-lg">
-                            <FileSpreadsheet className="text-blue-400" />
+                            <FileSpreadsheet className="text-blue-500" />
                         </div>
                         <div>
-                            <h3 className="font-semibold text-white">出力オプション</h3>
-                            <p className="text-xs text-gray-500">テンプレートを選択</p>
+                            <h3 className="font-semibold text-foreground">出力オプション</h3>
+                            <p className="text-xs text-muted-foreground">テンプレートを選択</p>
                         </div>
                     </div>
 
                     <div className="flex items-center gap-4">
-                        <div className="flex items-center gap-2 bg-gray-900 p-1 rounded-lg border border-gray-700">
+                        <div className="flex items-center gap-2 bg-muted p-1 rounded-lg border border-border">
                             <button
                                 onClick={() => setExportType('format_b')}
-                                className={`px-4 py-2 text-sm rounded-md transition ${exportType === 'format_b' ? 'bg-blue-600 text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}
+                                className={`px-4 py-2 text-sm rounded-md transition ${exportType === 'format_b' ? 'bg-blue-600 text-white shadow-lg' : 'text-muted-foreground hover:text-foreground'}`}
                             >
                                 Format B
                             </button>
                             <button
                                 onClick={() => setExportType('format_c')}
-                                className={`px-4 py-2 text-sm rounded-md transition ${exportType === 'format_c' ? 'bg-purple-600 text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}
+                                className={`px-4 py-2 text-sm rounded-md transition ${exportType === 'format_c' ? 'bg-purple-600 text-white shadow-lg' : 'text-muted-foreground hover:text-foreground'}`}
                             >
                                 Format C
                             </button>
                         </div>
 
-                        <div className="h-8 w-px bg-gray-700 mx-2"></div>
+                        <div className="h-8 w-px bg-border mx-2"></div>
 
                         <button
                             onClick={() => handleExport('single')}
                             disabled={exporting}
-                            className="flex items-center gap-2 px-6 py-2.5 bg-gray-800 hover:bg-gray-700 text-white rounded-lg border border-gray-700 transition disabled:opacity-50"
+                            className="flex items-center gap-2 px-6 py-2.5 bg-muted hover:bg-muted/80 text-foreground rounded-lg border border-border transition disabled:opacity-50"
                         >
                             <Download size={18} />
                             {exporting ? '処理中...' : '個人 (Excel)'}
@@ -216,65 +216,65 @@ export default function WageLedgerPage({ params }: { params: { id: string } }) {
                 </div>
 
                 {/* DATA GRID */}
-                <div className="bg-[#1a1a1a] rounded-xl border border-gray-800 overflow-hidden shadow-2xl">
+                <div className="bg-card rounded-xl border border-border overflow-hidden shadow-2xl">
                     <div className="overflow-x-auto">
                         <table className="w-full text-sm text-left">
-                            <thead className="bg-gray-900 text-gray-400 font-medium">
+                            <thead className="bg-muted text-muted-foreground font-medium">
                                 <tr>
-                                    <th className="px-6 py-4 sticky left-0 bg-gray-900">項目 / 月度</th>
+                                    <th className="px-6 py-4 sticky left-0 bg-muted">項目 / 月度</th>
                                     {sortedPayrolls.map(p => (
                                         <th key={p.period} className="px-6 py-4 min-w-[120px] text-center">{p.period}</th>
                                     ))}
                                     {/* Fill empty months if needed */}
                                     {Array.from({ length: 12 - sortedPayrolls.length }).map((_, i) => (
-                                        <th key={i} className="px-6 py-4 min-w-[120px] text-center text-gray-700">-</th>
+                                        <th key={i} className="px-6 py-4 min-w-[120px] text-center text-muted-foreground/50">-</th>
                                     ))}
                                 </tr>
                             </thead>
-                            <tbody className="divide-y divide-gray-800">
+                            <tbody className="divide-y divide-border">
                                 {/* Attendance Section */}
-                                <tr className="bg-gray-800/50"><td colSpan={100} className="px-6 py-2 text-xs font-bold text-gray-500 uppercase tracking-wider">勤怠 (Attendance)</td></tr>
+                                <tr className="bg-muted/50"><td colSpan={100} className="px-6 py-2 text-xs font-bold text-muted-foreground uppercase tracking-wider">勤怠 (Attendance)</td></tr>
 
-                                <tr className="hover:bg-gray-800/50 transition">
-                                    <td className="px-6 py-3 font-medium text-gray-300 sticky left-0 bg-[#1a1a1a]">出勤日数</td>
+                                <tr className="hover:bg-muted/50 transition">
+                                    <td className="px-6 py-3 font-medium text-foreground sticky left-0 bg-card">出勤日数</td>
                                     {sortedPayrolls.map(p => <td key={p.period} className="px-6 py-3 text-center">{p.work_days}</td>)}
                                 </tr>
-                                <tr className="hover:bg-gray-800/50 transition">
-                                    <td className="px-6 py-3 font-medium text-gray-300 sticky left-0 bg-[#1a1a1a]">労働時間</td>
+                                <tr className="hover:bg-muted/50 transition">
+                                    <td className="px-6 py-3 font-medium text-foreground sticky left-0 bg-card">労働時間</td>
                                     {sortedPayrolls.map(p => <td key={p.period} className="px-6 py-3 text-center">{p.work_hours}H</td>)}
                                 </tr>
-                                <tr className="hover:bg-gray-800/50 transition">
-                                    <td className="px-6 py-3 font-medium text-gray-300 sticky left-0 bg-[#1a1a1a]">残業時間</td>
-                                    {sortedPayrolls.map(p => <td key={p.period} className="px-6 py-3 text-center text-yellow-500">{p.overtime_hours}H</td>)}
+                                <tr className="hover:bg-muted/50 transition">
+                                    <td className="px-6 py-3 font-medium text-foreground sticky left-0 bg-card">残業時間</td>
+                                    {sortedPayrolls.map(p => <td key={p.period} className="px-6 py-3 text-center text-yellow-600 dark:text-yellow-500">{p.overtime_hours}H</td>)}
                                 </tr>
 
                                 {/* Payment Section */}
-                                <tr className="bg-gray-800/50"><td colSpan={100} className="px-6 py-2 text-xs font-bold text-blue-500 uppercase tracking-wider">支給 (Earnings)</td></tr>
+                                <tr className="bg-muted/50"><td colSpan={100} className="px-6 py-2 text-xs font-bold text-blue-600 dark:text-blue-500 uppercase tracking-wider">支給 (Earnings)</td></tr>
 
-                                <tr className="hover:bg-gray-800/50 transition">
-                                    <td className="px-6 py-3 font-medium text-gray-300 sticky left-0 bg-[#1a1a1a]">基本給</td>
+                                <tr className="hover:bg-muted/50 transition">
+                                    <td className="px-6 py-3 font-medium text-foreground sticky left-0 bg-card">基本給</td>
                                     {sortedPayrolls.map(p => <td key={p.period} className="px-6 py-3 text-center">¥{p.base_salary.toLocaleString()}</td>)}
                                 </tr>
-                                <tr className="hover:bg-gray-800/50 transition">
-                                    <td className="px-6 py-3 font-medium text-gray-300 sticky left-0 bg-[#1a1a1a]">残業手当</td>
+                                <tr className="hover:bg-muted/50 transition">
+                                    <td className="px-6 py-3 font-medium text-foreground sticky left-0 bg-card">残業手当</td>
                                     {sortedPayrolls.map(p => <td key={p.period} className="px-6 py-3 text-center">¥{p.overtime_pay.toLocaleString()}</td>)}
                                 </tr>
-                                <tr className="hover:bg-gray-800/50 transition bg-blue-900/10">
-                                    <td className="px-6 py-3 font-bold text-blue-300 sticky left-0 bg-[#1a1a1a] border-l-4 border-blue-500">総支給額</td>
-                                    {sortedPayrolls.map(p => <td key={p.period} className="px-6 py-3 text-center font-bold text-blue-300">¥{p.gross_salary.toLocaleString()}</td>)}
+                                <tr className="hover:bg-muted/50 transition bg-blue-500/10">
+                                    <td className="px-6 py-3 font-bold text-blue-600 dark:text-blue-300 sticky left-0 bg-card border-l-4 border-blue-500">総支給額</td>
+                                    {sortedPayrolls.map(p => <td key={p.period} className="px-6 py-3 text-center font-bold text-blue-600 dark:text-blue-300">¥{p.gross_salary.toLocaleString()}</td>)}
                                 </tr>
 
                                 {/* Net Section */}
-                                <tr className="bg-gray-800/50"><td colSpan={100} className="px-6 py-2 text-xs font-bold text-green-500 uppercase tracking-wider">合計 (Summary)</td></tr>
-                                <tr className="hover:bg-gray-800/50 transition bg-green-900/10">
-                                    <td className="px-6 py-3 font-bold text-green-300 sticky left-0 bg-[#1a1a1a] border-l-4 border-green-500">差引支給額</td>
-                                    {sortedPayrolls.map(p => <td key={p.period} className="px-6 py-3 text-center font-bold text-green-300">¥{p.net_salary.toLocaleString()}</td>)}
+                                <tr className="bg-muted/50"><td colSpan={100} className="px-6 py-2 text-xs font-bold text-green-600 dark:text-green-500 uppercase tracking-wider">合計 (Summary)</td></tr>
+                                <tr className="hover:bg-muted/50 transition bg-green-500/10">
+                                    <td className="px-6 py-3 font-bold text-green-600 dark:text-green-300 sticky left-0 bg-card border-l-4 border-green-500">差引支給額</td>
+                                    {sortedPayrolls.map(p => <td key={p.period} className="px-6 py-3 text-center font-bold text-green-600 dark:text-green-300">¥{p.net_salary.toLocaleString()}</td>)}
                                 </tr>
                             </tbody>
                         </table>
                     </div>
                     {!currentYearPayrolls.length && (
-                        <div className="p-12 text-center text-gray-500">
+                        <div className="p-12 text-center text-muted-foreground">
                             <p className="text-lg">No records found for {year}</p>
                             <p className="text-sm">Try selecting a different year</p>
                         </div>

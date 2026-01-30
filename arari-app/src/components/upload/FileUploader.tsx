@@ -355,8 +355,8 @@ export function FileUploader() {
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
           >
-            <div className="rounded-lg overflow-hidden border border-slate-800 bg-slate-950 shadow-inner mb-6">
-              <div className="flex items-center gap-2 px-4 py-2 bg-slate-900 border-b border-slate-800 text-slate-400 text-xs">
+            <div className="rounded-lg overflow-hidden border border-border bg-muted dark:bg-slate-950 shadow-inner mb-6">
+              <div className="flex items-center gap-2 px-4 py-2 bg-muted/80 dark:bg-slate-900 border-b border-border text-muted-foreground text-xs">
                 <Terminal className="h-3 w-3" />
                 <span>Upload Process Output</span>
               </div>
@@ -365,8 +365,8 @@ export function FileUploader() {
                 className="p-4 h-[200px] overflow-y-auto font-mono text-xs md:text-sm space-y-1"
               >
                 {logs.map((log, index) => (
-                  <div key={index} className="flex gap-2 text-slate-300">
-                    <span className="text-slate-600 shrink-0">[{log.timestamp}]</span>
+                  <div key={index} className="flex gap-2 text-foreground">
+                    <span className="text-muted-foreground shrink-0">[{log.timestamp}]</span>
                     <span className={cn(
                       "break-all",
                       log.type === 'error' && "text-red-400",
@@ -379,8 +379,8 @@ export function FileUploader() {
                   </div>
                 ))}
                 {isUploading && (
-                  <div className="flex gap-2 text-slate-500 animate-pulse">
-                    <span className="text-slate-600">[{new Date().toLocaleTimeString()}]</span>
+                  <div className="flex gap-2 text-muted-foreground animate-pulse">
+                    <span className="text-muted-foreground">[{new Date().toLocaleTimeString()}]</span>
                     <span>_</span>
                   </div>
                 )}

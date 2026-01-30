@@ -140,7 +140,7 @@ export function GlobalSearch() {
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: -20 }}
               transition={{ duration: 0.15 }}
-              className="w-full max-w-xl bg-slate-900 border border-white/10 rounded-xl shadow-2xl overflow-hidden"
+              className="w-full max-w-xl bg-background border border-border rounded-xl shadow-2xl overflow-hidden"
               onClick={e => e.stopPropagation()}
             >
               {/* Search input */}
