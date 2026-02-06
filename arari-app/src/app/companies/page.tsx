@@ -200,26 +200,26 @@ export default function CompaniesPage() {
                         </div>
 
                         {/* Stats */}
-                        <div className="flex-1 grid grid-cols-2 md:grid-cols-4 gap-4">
-                          <div className="space-y-1">
+                        <div className="flex-1 grid grid-cols-2 lg:grid-cols-4 gap-6">
+                          <div className="space-y-1 min-w-0">
                             <p className="text-xs text-muted-foreground">月間売上</p>
-                            <p className="text-lg font-semibold">
+                            <p className="text-sm lg:text-base font-semibold truncate">
                               {formatYen(company.totalMonthlyRevenue)}
                             </p>
                           </div>
-                          <div className="space-y-1">
+                          <div className="space-y-1 min-w-0">
                             <p className="text-xs text-muted-foreground">月間粗利</p>
-                            <p className="text-lg font-semibold text-emerald-500">
+                            <p className="text-sm lg:text-base font-semibold text-emerald-500 truncate">
                               {formatYen(company.totalMonthlyProfit)}
                             </p>
                           </div>
-                          <div className="space-y-1">
+                          <div className="space-y-1 min-w-0">
                             <p className="text-xs text-muted-foreground">平均単価</p>
-                            <p className="text-lg font-semibold">
+                            <p className="text-sm lg:text-base font-semibold truncate">
                               {formatYen(company.avgBillingRate)}/h
                             </p>
                           </div>
-                          <div className="space-y-1">
+                          <div className="space-y-1 min-w-0">
                             <p className="text-xs text-muted-foreground">マージン率</p>
                             <Badge className={getProfitBgColor(company.avgMargin)}>
                               {formatPercent(company.avgMargin)}

@@ -16,7 +16,7 @@ from typing import Any, Dict, List, Optional
 
 # Check if using PostgreSQL
 try:
-    from api.database import USE_POSTGRES
+    from database import USE_POSTGRES
 except ImportError:
     USE_POSTGRES = False
 

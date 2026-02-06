@@ -11,7 +11,7 @@ from datetime import datetime, timedelta
 from functools import wraps
 from typing import Any, Callable, Dict, Optional
 
-from api.database import USE_POSTGRES
+from database import USE_POSTGRES
 
 # In-memory cache
 _cache: Dict[str, Dict[str, Any]] = {}

@@ -12,6 +12,9 @@ Usage:
 """
 
 import json
+from database import get_connection, init_db
+from models import Employee
+from services import PayrollService
 import os
 import sqlite3
 import sys

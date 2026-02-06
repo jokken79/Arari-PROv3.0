@@ -1,0 +1,136 @@
+import random
+
+def insert_sample_data(conn):
+    """Insert sample data for demonstration"""
+    cursor = conn.cursor()
+
+    # Sample employees
+    employees = [
+        ("EMP001", "田中 太郎", "タナカ タロウ", "ABC株式会社", "製造部", 1200, 1800, "active", "2023-04-01"),
+        ("EMP002", "鈴木 花子", "スズキ ハナコ", "XYZ工業", "品質管理", 1350, 2100, "active", "2023-06-15"),
+        ("EMP003", "佐藤 次郎", "サトウ ジロウ", "ABC株式会社", "物流部", 1150, 1650, "active", "2023-08-01"),
+        ("EMP004", "高橋 美咲", "タカハシ ミサキ", "テック産業", "組立ライン", 1400, 2200, "active", "2023-03-01"),
+        ("EMP005", "伊藤 健太", "イトウ ケンタ", "XYZ工業", "製造部", 1250, 1900, "active", "2023-09-01"),
+        ("EMP006", "渡辺 さくら", "ワタナベ サクラ", "グローバル製造", "検査部", 1300, 2000, "active", "2023-05-15"),
+        ("EMP007", "山本 大輔", "ヤマモト ダイスケ", "ABC株式会社", "製造部", 1180, 1750, "active", "2023-07-01"),
+        ("EMP008", "中村 愛", "ナカムラ アイ", "テック産業", "事務", 1100, 1600, "active", "2023-10-01"),
+        ("EMP009", "小林 翔太", "コバヤシ ショウタ", "グローバル製造", "製造部", 1280, 1950, "active", "2023-04-15"),
+        ("EMP010", "加藤 真由美", "カトウ マユミ", "XYZ工業", "品質管理", 1320, 2050, "active", "2023-02-01"),
+        ("EMP011", "吉田 誠", "ヨシダ マコト", "ABC株式会社", "物流部", 1220, 1850, "active", "2023-11-01"),
+        ("EMP012", "山田 優子", "ヤマダ ユウコ", "テック産業", "組立ライン", 1380, 2150, "active", "2023-01-15"),
+    ]
+
+    cursor.executemany(
+        """
+        INSERT INTO employees (employee_id, name, name_kana, dispatch_company, department, hourly_rate, billing_rate, status, hire_date)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    """,
+        employees,
+    )
+
+    # Sample payroll records for 6 months
+    periods = [
+        "2024年8月",
+        "2024年9月",
+        "2024年10月",
+        "2024年11月",
+        "2024年12月",
+        "2025年1月",
+    ]
+
+    for emp in employees:
+        employee_id = emp[0]
+        hourly_rate = emp[5]
+        billing_rate = emp[6]
+
+        for period in periods:
+            work_hours = 160 + random.randint(-8, 8)
+            overtime_hours = random.randint(0, 30)
+            paid_leave_hours = random.randint(0, 16)
+
+            base_salary = hourly_rate * work_hours
+            overtime_pay = hourly_rate * 1.25 * overtime_hours
+            transport_allowance = 15000
+            other_allowances = 5000
+            gross_salary = (
+                base_salary + overtime_pay + transport_allowance + other_allowances
+            )
+
+            # Deductions
+            social_insurance = round(gross_salary * 0.15)
+            employment_insurance = round(gross_salary * 0.006)
+            income_tax = round(gross_salary * 0.05)
+            resident_tax = round(gross_salary * 0.1)
+            net_salary = (
+                gross_salary
+                - social_insurance
+                - employment_insurance
+                - income_tax
+                - resident_tax
+            )
+
+            # Billing
+            billing_amount = billing_rate * (work_hours + overtime_hours)
+
+            # Company costs (2024年度 rates)
+            company_social_insurance = social_insurance  # Same as employee (労使折半)
+            company_employment_insurance = round(
+                gross_salary * 0.009
+            )  # 0.90% (2025年度)
+            company_workers_comp = round(gross_salary * 0.003)  # 労災保険 0.3%
+            total_company_cost = (
+                gross_salary
+                + company_social_insurance
+                + company_employment_insurance
+                + company_workers_comp
+            )
+
+            # Profit
+            gross_profit = billing_amount - total_company_cost
+            profit_margin = (
+                (gross_profit / billing_amount * 100) if billing_amount > 0 else 0
+            )
+
+            cursor.execute(
+                """
+                INSERT INTO payroll_records (
+                    employee_id, period, work_days, work_hours, overtime_hours,
+                    paid_leave_hours, paid_leave_days, base_salary, overtime_pay,
+                    transport_allowance, other_allowances, gross_salary,
+                    social_insurance, employment_insurance, income_tax, resident_tax,
+                    net_salary, billing_amount, company_social_insurance,
+                    company_employment_insurance, company_workers_comp, total_company_cost, gross_profit, profit_margin
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+                (
+                    employee_id,
+                    period,
+                    work_hours // 8,
+                    work_hours,
+                    overtime_hours,
+                    paid_leave_hours,
+                    paid_leave_hours / 8,
+                    base_salary,
+                    overtime_pay,
+                    transport_allowance,
+                    other_allowances,
+                    gross_salary,
+                    social_insurance,
+                    employment_insurance,
+                    income_tax,
+                    resident_tax,
+                    net_salary,
+                    billing_amount,
+                    company_social_insurance,
+                    company_employment_insurance,
+                    company_workers_comp,
+                    total_company_cost,
+                    gross_profit,
+                    profit_margin,
+                ),
+            )
+
+    conn.commit()
+    print(
+        f"✅ Inserted {len(employees)} employees and {len(employees) * len(periods)} payroll records"
+    )

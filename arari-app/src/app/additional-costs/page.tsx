@@ -186,225 +186,222 @@ export default function AdditionalCostsPage() {
   }
 
   return (
-    <div className="flex h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950">
+      <Header onMenuClick={() => setSidebarOpen(true)} />
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <Header onMenuClick={() => setSidebarOpen(true)} />
-
-        <main className="flex-1 overflow-y-auto p-4 md:p-6">
-          <div className="max-w-7xl mx-auto space-y-6">
-            {/* Header */}
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-              <div>
-                <h1 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                  <Bus className="h-7 w-7 text-blue-500" />
-                  追加コスト管理
-                </h1>
-                <p className="text-slate-500 dark:text-slate-400 mt-1">
-                  企業別の追加費用（送迎バス等）を管理します
-                </p>
-              </div>
-
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  onClick={() => setIsCopyDialogOpen(true)}
-                  className="flex items-center gap-2"
-                >
-                  <Copy className="h-4 w-4" />
-                  期間コピー
-                </Button>
-                <Button onClick={openNewDialog} className="flex items-center gap-2">
-                  <Plus className="h-4 w-4" />
-                  新規追加
-                </Button>
-              </div>
+      <main className="md:pl-[280px] pt-16 transition-all duration-300">
+        <div className="container py-6 px-4 md:px-6 max-w-7xl mx-auto space-y-6">
+          {/* Header */}
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div>
+              <h1 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <Bus className="h-7 w-7 text-blue-500" />
+                追加コスト管理
+              </h1>
+              <p className="text-slate-500 dark:text-slate-400 mt-1">
+                企業別の追加費用（送迎バス等）を管理します
+              </p>
             </div>
 
-            {/* Filters */}
-            <Card>
-              <CardContent className="p-4">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <Label className="text-sm font-medium mb-2 block">期間</Label>
-                    <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
-                      <SelectTrigger aria-label="期間を選択">
-                        <SelectValue placeholder="すべての期間" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="__all__">すべての期間</SelectItem>
-                        {sortedPeriods.map((period) => (
-                          <SelectItem key={period} value={period}>
-                            {period}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={() => setIsCopyDialogOpen(true)}
+                className="flex items-center gap-2"
+              >
+                <Copy className="h-4 w-4" />
+                期間コピー
+              </Button>
+              <Button onClick={openNewDialog} className="flex items-center gap-2">
+                <Plus className="h-4 w-4" />
+                新規追加
+              </Button>
+            </div>
+          </div>
 
-                  <div>
-                    <Label className="text-sm font-medium mb-2 block">企業</Label>
-                    <Select value={selectedCompany} onValueChange={setSelectedCompany}>
-                      <SelectTrigger aria-label="企業を選択">
-                        <SelectValue placeholder="すべての企業" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="__all__">すべての企業</SelectItem>
-                        {companies.map((company) => (
-                          <SelectItem key={company} value={company}>
-                            {company}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+          {/* Filters */}
+          <Card>
+            <CardContent className="p-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <Label className="text-sm font-medium mb-2 block">期間</Label>
+                  <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
+                    <SelectTrigger aria-label="期間を選択">
+                      <SelectValue placeholder="すべての期間" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__all__">すべての期間</SelectItem>
+                      {sortedPeriods.map((period) => (
+                        <SelectItem key={period} value={period}>
+                          {period}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
 
-                  <div className="flex items-end">
-                    <div className="bg-slate-100 dark:bg-slate-800 rounded-lg p-3 w-full">
-                      <p className="text-xs text-slate-500 dark:text-slate-400">
-                        合計追加コスト
-                      </p>
-                      <p className="text-lg font-bold text-red-600 dark:text-red-400">
-                        {formatYen(totalCosts)}
-                      </p>
-                    </div>
+                <div>
+                  <Label className="text-sm font-medium mb-2 block">企業</Label>
+                  <Select value={selectedCompany} onValueChange={setSelectedCompany}>
+                    <SelectTrigger aria-label="企業を選択">
+                      <SelectValue placeholder="すべての企業" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__all__">すべての企業</SelectItem>
+                      {companies.map((company) => (
+                        <SelectItem key={company} value={company}>
+                          {company}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="flex items-end">
+                  <div className="bg-slate-100 dark:bg-slate-800 rounded-lg p-3 w-full">
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                      合計追加コスト
+                    </p>
+                    <p className="text-lg font-bold text-red-600 dark:text-red-400">
+                      {formatYen(totalCosts)}
+                    </p>
                   </div>
                 </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Costs List */}
+          {isLoading ? (
+            <Card>
+              <CardContent className="p-8 text-center text-slate-500">
+                読み込み中...
               </CardContent>
             </Card>
-
-            {/* Costs List */}
-            {isLoading ? (
-              <Card>
-                <CardContent className="p-8 text-center text-slate-500">
-                  読み込み中...
-                </CardContent>
-              </Card>
-            ) : costs.length === 0 ? (
-              <Card>
-                <CardContent className="p-8 text-center">
-                  <AlertCircle className="h-12 w-12 mx-auto text-slate-400 mb-4" />
-                  <p className="text-slate-500 dark:text-slate-400">
-                    追加コストはまだ登録されていません
-                  </p>
-                  <Button onClick={openNewDialog} className="mt-4">
-                    <Plus className="h-4 w-4 mr-2" />
-                    最初のコストを追加
-                  </Button>
-                </CardContent>
-              </Card>
-            ) : (
-              <div className="space-y-4">
-                {Array.from(costsByCompany.entries()).map(([company, companyCosts]) => (
-                  <motion.div
-                    key={company}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                  >
-                    <Card>
-                      <CardHeader className="pb-3">
-                        <div className="flex items-center justify-between">
-                          <CardTitle className="text-lg flex items-center gap-2">
-                            <Building2 className="h-5 w-5 text-blue-500" />
-                            {company}
-                          </CardTitle>
-                          <Badge variant="secondary" className="text-red-600">
-                            合計: {formatYen(companyCosts.reduce((s, c) => s + c.amount, 0))}
-                          </Badge>
-                        </div>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="overflow-x-auto">
-                          <table className="w-full">
-                            <thead>
-                              <tr className="border-b border-slate-200 dark:border-slate-700">
-                                <th className="text-left py-2 px-3 text-sm font-medium text-slate-500">
-                                  期間
-                                </th>
-                                <th className="text-left py-2 px-3 text-sm font-medium text-slate-500">
-                                  コストタイプ
-                                </th>
-                                <th className="text-right py-2 px-3 text-sm font-medium text-slate-500">
-                                  金額
-                                </th>
-                                <th className="text-left py-2 px-3 text-sm font-medium text-slate-500">
-                                  備考
-                                </th>
-                                <th className="text-right py-2 px-3 text-sm font-medium text-slate-500">
-                                  操作
-                                </th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {companyCosts
-                                .sort((a, b) => comparePeriods(b.period, a.period))
-                                .map((cost) => (
-                                  <tr
-                                    key={cost.id}
-                                    className="border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50"
-                                  >
-                                    <td className="py-3 px-3">
-                                      <div className="flex items-center gap-2">
-                                        <Calendar className="h-4 w-4 text-slate-400" />
-                                        <span className="font-medium">{cost.period}</span>
-                                      </div>
-                                    </td>
-                                    <td className="py-3 px-3">
-                                      <Badge
-                                        variant="outline"
-                                        className={
-                                          cost.cost_type === 'transport_bus'
-                                            ? 'border-blue-300 text-blue-700 dark:text-blue-400'
-                                            : ''
-                                        }
+          ) : costs.length === 0 ? (
+            <Card>
+              <CardContent className="p-8 text-center">
+                <AlertCircle className="h-12 w-12 mx-auto text-slate-400 mb-4" />
+                <p className="text-slate-500 dark:text-slate-400">
+                  追加コストはまだ登録されていません
+                </p>
+                <Button onClick={openNewDialog} className="mt-4">
+                  <Plus className="h-4 w-4 mr-2" />
+                  最初のコストを追加
+                </Button>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-4">
+              {Array.from(costsByCompany.entries()).map(([company, companyCosts]) => (
+                <motion.div
+                  key={company}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                >
+                  <Card>
+                    <CardHeader className="pb-3">
+                      <div className="flex items-center justify-between">
+                        <CardTitle className="text-lg flex items-center gap-2">
+                          <Building2 className="h-5 w-5 text-blue-500" />
+                          {company}
+                        </CardTitle>
+                        <Badge variant="secondary" className="text-red-600">
+                          合計: {formatYen(companyCosts.reduce((s, c) => s + c.amount, 0))}
+                        </Badge>
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="overflow-x-auto">
+                        <table className="w-full">
+                          <thead>
+                            <tr className="border-b border-slate-200 dark:border-slate-700">
+                              <th className="text-left py-2 px-3 text-sm font-medium text-slate-500">
+                                期間
+                              </th>
+                              <th className="text-left py-2 px-3 text-sm font-medium text-slate-500">
+                                コストタイプ
+                              </th>
+                              <th className="text-right py-2 px-3 text-sm font-medium text-slate-500">
+                                金額
+                              </th>
+                              <th className="text-left py-2 px-3 text-sm font-medium text-slate-500">
+                                備考
+                              </th>
+                              <th className="text-right py-2 px-3 text-sm font-medium text-slate-500">
+                                操作
+                              </th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {companyCosts
+                              .sort((a, b) => comparePeriods(b.period, a.period))
+                              .map((cost) => (
+                                <tr
+                                  key={cost.id}
+                                  className="border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50"
+                                >
+                                  <td className="py-3 px-3">
+                                    <div className="flex items-center gap-2">
+                                      <Calendar className="h-4 w-4 text-slate-400" />
+                                      <span className="font-medium">{cost.period}</span>
+                                    </div>
+                                  </td>
+                                  <td className="py-3 px-3">
+                                    <Badge
+                                      variant="outline"
+                                      className={
+                                        cost.cost_type === 'transport_bus'
+                                          ? 'border-blue-300 text-blue-700 dark:text-blue-400'
+                                          : ''
+                                      }
+                                    >
+                                      {cost.cost_type_label ||
+                                        COST_TYPES[cost.cost_type] ||
+                                        cost.cost_type}
+                                    </Badge>
+                                  </td>
+                                  <td className="py-3 px-3 text-right">
+                                    <span className="font-semibold text-red-600 dark:text-red-400">
+                                      {formatYen(cost.amount)}
+                                    </span>
+                                  </td>
+                                  <td className="py-3 px-3 text-slate-500 text-sm">
+                                    {cost.notes || '-'}
+                                  </td>
+                                  <td className="py-3 px-3 text-right">
+                                    <div className="flex justify-end gap-1">
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => handleEdit(cost)}
                                       >
-                                        {cost.cost_type_label ||
-                                          COST_TYPES[cost.cost_type] ||
-                                          cost.cost_type}
-                                      </Badge>
-                                    </td>
-                                    <td className="py-3 px-3 text-right">
-                                      <span className="font-semibold text-red-600 dark:text-red-400">
-                                        {formatYen(cost.amount)}
-                                      </span>
-                                    </td>
-                                    <td className="py-3 px-3 text-slate-500 text-sm">
-                                      {cost.notes || '-'}
-                                    </td>
-                                    <td className="py-3 px-3 text-right">
-                                      <div className="flex justify-end gap-1">
-                                        <Button
-                                          variant="ghost"
-                                          size="sm"
-                                          onClick={() => handleEdit(cost)}
-                                        >
-                                          <Edit2 className="h-4 w-4" />
-                                        </Button>
-                                        <Button
-                                          variant="ghost"
-                                          size="sm"
-                                          onClick={() => setDeleteId(cost.id)}
-                                          className="text-red-500 hover:text-red-700"
-                                        >
-                                          <Trash2 className="h-4 w-4" />
-                                        </Button>
-                                      </div>
-                                    </td>
-                                  </tr>
-                                ))}
-                            </tbody>
-                          </table>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </motion.div>
-                ))}
-              </div>
-            )}
-          </div>
-        </main>
-      </div>
+                                        <Edit2 className="h-4 w-4" />
+                                      </Button>
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => setDeleteId(cost.id)}
+                                        className="text-red-500 hover:text-red-700"
+                                      >
+                                        <Trash2 className="h-4 w-4" />
+                                      </Button>
+                                    </div>
+                                  </td>
+                                </tr>
+                              ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              ))}
+            </div>
+          )}
+        </div>
+      </main>
 
       {/* Add/Edit Dialog */}
       <AnimatePresence>
@@ -674,6 +671,6 @@ export default function AdditionalCostsPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+    </div >
   )
 }

@@ -43,8 +43,9 @@ from typing import Any, Dict, List, Optional
 
 import openpyxl
 
-from api.models import PayrollRecordCreate
-from api.template_manager import TemplateGenerator, TemplateManager
+from models import PayrollRecordCreate
+from japanese_format import romaji_to_katakana
+from template_manager import TemplateGenerator, TemplateManager
 
 
 class SalaryStatementParser:

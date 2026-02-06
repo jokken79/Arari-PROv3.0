@@ -61,3 +61,76 @@ async def update_setting(
 
     service.update_setting(key, str(value), description)
     return {"key": key, "value": value, "status": "updated"}
+
+
+# Create a separate router for reset-db at /api level
+reset_router = APIRouter(prefix="/api", tags=["data-management"])
+
+
+@reset_router.delete("/reset-db")
+async def reset_database(
+    target: str = "payroll",
+    db: sqlite3.Connection = Depends(get_db),
+    current_user: Dict[str, Any] = Depends(require_admin)
+):
+    """
+    Reset/delete data from the database (requires admin).
+    
+    Target options:
+    - payroll: Delete only payroll records
+    - employees: Delete employees and related payroll records  
+    - all: Delete all data (employees, payroll, additional costs, etc.)
+    """
+    valid_targets = ["payroll", "employees", "all"]
+    if target not in valid_targets:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid target. Must be one of: {', '.join(valid_targets)}"
+        )
+    
+    cursor = db.cursor()
+    deleted = {"target": target, "counts": {}}
+    
+    try:
+        if target == "payroll":
+            # Delete only payroll records
+            cursor.execute("SELECT COUNT(*) FROM payroll_records")
+            count = cursor.fetchone()[0]
+            cursor.execute("DELETE FROM payroll_records")
+            deleted["counts"]["payroll_records"] = count
+            
+        elif target == "employees":
+            # Delete employees and payroll records
+            cursor.execute("SELECT COUNT(*) FROM payroll_records")
+            payroll_count = cursor.fetchone()[0]
+            cursor.execute("DELETE FROM payroll_records")
+            deleted["counts"]["payroll_records"] = payroll_count
+            
+            cursor.execute("SELECT COUNT(*) FROM employees")
+            emp_count = cursor.fetchone()[0]
+            cursor.execute("DELETE FROM employees")
+            deleted["counts"]["employees"] = emp_count
+            
+        elif target == "all":
+            # Delete all data
+            tables = ["payroll_records", "employees", "additional_costs", "budgets", "alerts"]
+            for table in tables:
+                try:
+                    cursor.execute(f"SELECT COUNT(*) FROM {table}")
+                    count = cursor.fetchone()[0]
+                    cursor.execute(f"DELETE FROM {table}")
+                    deleted["counts"][table] = count
+                except sqlite3.OperationalError:
+                    # Table doesn't exist, skip
+                    pass
+        
+        db.commit()
+        deleted["status"] = "success"
+        deleted["message"] = f"Successfully deleted data for target: {target}"
+        
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to reset database: {str(e)}")
+    
+    return deleted
+

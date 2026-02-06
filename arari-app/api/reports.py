@@ -9,8 +9,8 @@ from datetime import datetime
 from io import BytesIO
 from typing import Any, Dict, List
 
-from api.database import USE_POSTGRES
-from api.japanese_format import (
+from database import USE_POSTGRES
+from japanese_format import (
     format_japanese_yen,
     format_japanese_yen_short,
     format_japanese_hours,

@@ -7,7 +7,9 @@ the ChinginGenerator database to the Arari PRO database.
 
 import sqlite3
 from pathlib import Path
-from typing import Any, Dict, Optional, Tuple
+from database import get_connection
+from models import EmployeeCreate, Optional, Tuple
+from typing import Any, Dict
 
 
 def get_chingin_db_path() -> Optional[Path]:

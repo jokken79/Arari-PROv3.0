@@ -133,176 +133,173 @@ export default function AgentCommissionsPage() {
   }
 
   return (
-    <div className="flex h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950">
+      <Header onMenuClick={() => setSidebarOpen(true)} />
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <Header onMenuClick={() => setSidebarOpen(true)} />
-
-        <main className="flex-1 overflow-y-auto p-4 md:p-6">
-          <div className="max-w-7xl mx-auto space-y-6">
-            {/* Header */}
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-              <div>
-                <h1 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                  <UserCheck className="h-7 w-7 text-purple-500" />
-                  仲介手数料管理
-                </h1>
-                <p className="text-slate-500 dark:text-slate-400 mt-1">
-                  エージェント別の仲介手数料を計算・登録します
-                </p>
-              </div>
+      <main className="md:pl-[280px] pt-16 transition-all duration-300">
+        <div className="container py-6 px-4 md:px-6 max-w-7xl mx-auto space-y-6">
+          {/* Header */}
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div>
+              <h1 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <UserCheck className="h-7 w-7 text-purple-500" />
+                仲介手数料管理
+              </h1>
+              <p className="text-slate-500 dark:text-slate-400 mt-1">
+                エージェント別の仲介手数料を計算・登録します
+              </p>
             </div>
+          </div>
 
-            {/* Filters */}
+          {/* Filters */}
+          <Card>
+            <CardContent className="p-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <Label className="text-sm font-medium mb-2 block">エージェント</Label>
+                  <Select value={selectedAgent} onValueChange={setSelectedAgent}>
+                    <SelectTrigger aria-label="エージェントを選択">
+                      <SelectValue placeholder="エージェントを選択" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {agents.map((agent) => (
+                        <SelectItem key={agent.id} value={agent.id}>
+                          {agent.display_name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <Label className="text-sm font-medium mb-2 block">期間</Label>
+                  <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
+                    <SelectTrigger aria-label="期間を選択">
+                      <SelectValue placeholder="期間を選択" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {sortedPeriods.map((period) => (
+                        <SelectItem key={period} value={period}>
+                          {period}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {calculation && (
+                  <div className="flex items-end">
+                    <div className="bg-purple-50 dark:bg-purple-900/20 rounded-lg p-3 w-full border border-purple-200 dark:border-purple-800">
+                      <p className="text-xs text-purple-600 dark:text-purple-400">
+                        合計手数料
+                      </p>
+                      <p className="text-lg font-bold text-purple-700 dark:text-purple-300">
+                        {formatYen(calculation.summary.total_amount)}
+                      </p>
+                      <p className="text-xs text-purple-500 dark:text-purple-400">
+                        {calculation.summary.total_employees}名
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Rate Info */}
+          {calculation && (
             <Card>
               <CardContent className="p-4">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <Label className="text-sm font-medium mb-2 block">エージェント</Label>
-                    <Select value={selectedAgent} onValueChange={setSelectedAgent}>
-                      <SelectTrigger aria-label="エージェントを選択">
-                        <SelectValue placeholder="エージェントを選択" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {agents.map((agent) => (
-                          <SelectItem key={agent.id} value={agent.id}>
-                            {agent.display_name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                <div className="flex flex-wrap gap-4">
+                  <div className="flex items-center gap-2">
+                    <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400">
+                      ベトナム(通常)
+                    </Badge>
+                    <span className="text-sm font-medium">
+                      {formatYen(calculation.rules.vietnam_normal_rate)}
+                    </span>
                   </div>
-
-                  <div>
-                    <Label className="text-sm font-medium mb-2 block">期間</Label>
-                    <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
-                      <SelectTrigger aria-label="期間を選択">
-                        <SelectValue placeholder="期間を選択" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {sortedPeriods.map((period) => (
-                          <SelectItem key={period} value={period}>
-                            {period}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                  <div className="flex items-center gap-2">
+                    <Badge className="bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400">
+                      ベトナム(欠勤/有給)
+                    </Badge>
+                    <span className="text-sm font-medium">
+                      {formatYen(calculation.rules.vietnam_reduced_rate)}
+                    </span>
                   </div>
-
-                  {calculation && (
-                    <div className="flex items-end">
-                      <div className="bg-purple-50 dark:bg-purple-900/20 rounded-lg p-3 w-full border border-purple-200 dark:border-purple-800">
-                        <p className="text-xs text-purple-600 dark:text-purple-400">
-                          合計手数料
-                        </p>
-                        <p className="text-lg font-bold text-purple-700 dark:text-purple-300">
-                          {formatYen(calculation.summary.total_amount)}
-                        </p>
-                        <p className="text-xs text-purple-500 dark:text-purple-400">
-                          {calculation.summary.total_employees}名
-                        </p>
-                      </div>
-                    </div>
-                  )}
+                  <div className="flex items-center gap-2">
+                    <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">
+                      その他国籍
+                    </Badge>
+                    <span className="text-sm font-medium">
+                      {formatYen(calculation.rules.other_rate)}
+                    </span>
+                  </div>
                 </div>
               </CardContent>
             </Card>
+          )}
 
-            {/* Rate Info */}
-            {calculation && (
-              <Card>
-                <CardContent className="p-4">
-                  <div className="flex flex-wrap gap-4">
-                    <div className="flex items-center gap-2">
-                      <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400">
-                        ベトナム(通常)
-                      </Badge>
-                      <span className="text-sm font-medium">
-                        {formatYen(calculation.rules.vietnam_normal_rate)}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Badge className="bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400">
-                        ベトナム(欠勤/有給)
-                      </Badge>
-                      <span className="text-sm font-medium">
-                        {formatYen(calculation.rules.vietnam_reduced_rate)}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">
-                        その他国籍
-                      </Badge>
-                      <span className="text-sm font-medium">
-                        {formatYen(calculation.rules.other_rate)}
-                      </span>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
+          {/* Loading State */}
+          {loadingCalculation && (
+            <Card>
+              <CardContent className="p-8 text-center">
+                <Loader2 className="h-8 w-8 mx-auto animate-spin text-purple-500" />
+                <p className="text-slate-500 mt-2">計算中...</p>
+              </CardContent>
+            </Card>
+          )}
 
-            {/* Loading State */}
-            {loadingCalculation && (
+          {/* Error State */}
+          {calcError && (
+            <Card>
+              <CardContent className="p-8 text-center">
+                <AlertCircle className="h-12 w-12 mx-auto text-red-400 mb-4" />
+                <p className="text-red-500">計算エラー: {calcError.message}</p>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* No Data State */}
+          {!loadingCalculation &&
+            !calcError &&
+            calculation &&
+            calculation.companies.length === 0 && (
               <Card>
                 <CardContent className="p-8 text-center">
-                  <Loader2 className="h-8 w-8 mx-auto animate-spin text-purple-500" />
-                  <p className="text-slate-500 mt-2">計算中...</p>
+                  <Users className="h-12 w-12 mx-auto text-slate-400 mb-4" />
+                  <p className="text-slate-500 dark:text-slate-400">
+                    この期間に該当する従業員がいません
+                  </p>
+                  <p className="text-sm text-slate-400 mt-2">
+                    給与データがアップロードされているか確認してください
+                  </p>
                 </CardContent>
               </Card>
             )}
 
-            {/* Error State */}
-            {calcError && (
-              <Card>
-                <CardContent className="p-8 text-center">
-                  <AlertCircle className="h-12 w-12 mx-auto text-red-400 mb-4" />
-                  <p className="text-red-500">計算エラー: {calcError.message}</p>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* No Data State */}
-            {!loadingCalculation &&
-              !calcError &&
-              calculation &&
-              calculation.companies.length === 0 && (
-                <Card>
-                  <CardContent className="p-8 text-center">
-                    <Users className="h-12 w-12 mx-auto text-slate-400 mb-4" />
-                    <p className="text-slate-500 dark:text-slate-400">
-                      この期間に該当する従業員がいません
-                    </p>
-                    <p className="text-sm text-slate-400 mt-2">
-                      給与データがアップロードされているか確認してください
-                    </p>
-                  </CardContent>
-                </Card>
-              )}
-
-            {/* Results by Company */}
-            {!loadingCalculation && calculation && calculation.companies.length > 0 && (
-              <div className="space-y-4">
-                {calculation.companies.map((companyResult) => (
-                  <CompanyCard
-                    key={companyResult.company}
-                    result={companyResult}
-                    agentId={selectedAgent}
-                    period={selectedPeriod}
-                    isExpanded={expandedCompanies.has(companyResult.company)}
-                    onToggle={() => toggleExpand(companyResult.company)}
-                    onRegister={() => handleRegister(companyResult)}
-                    isRegistering={registeringCompany === companyResult.company}
-                    getCategoryLabel={getCategoryLabel}
-                    getCategoryColor={getCategoryColor}
-                  />
-                ))}
-              </div>
-            )}
-          </div>
-        </main>
-      </div>
+          {/* Results by Company */}
+          {!loadingCalculation && calculation && calculation.companies.length > 0 && (
+            <div className="space-y-4">
+              {calculation.companies.map((companyResult) => (
+                <CompanyCard
+                  key={companyResult.company}
+                  result={companyResult}
+                  agentId={selectedAgent}
+                  period={selectedPeriod}
+                  isExpanded={expandedCompanies.has(companyResult.company)}
+                  onToggle={() => toggleExpand(companyResult.company)}
+                  onRegister={() => handleRegister(companyResult)}
+                  isRegistering={registeringCompany === companyResult.company}
+                  getCategoryLabel={getCategoryLabel}
+                  getCategoryColor={getCategoryColor}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      </main>
     </div>
   )
 }

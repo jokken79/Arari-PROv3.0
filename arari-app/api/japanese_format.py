@@ -224,6 +224,95 @@ def get_margin_tier_jp(margin: float) -> dict:
     info["tier"] = tier
     return info
 
+# Romaji to Katakana map (simplified)
+ROMAJI_TO_KATAKANA_MAP = {
+    # Vowels
+    'A': 'ア', 'I': 'イ', 'U': 'ウ', 'E': 'エ', 'O': 'オ',
+    # K-row
+    'KA': 'カ', 'KI': 'キ', 'KU': 'ク', 'KE': 'ケ', 'KO': 'コ',
+    # S-row
+    'SA': 'サ', 'SHI': 'シ', 'SI': 'シ', 'SU': 'ス', 'SE': 'セ', 'SO': 'ソ',
+    # T-row
+    'TA': 'タ', 'CHI': 'チ', 'TI': 'チ', 'TSU': 'ツ', 'TU': 'ツ', 'TE': 'テ', 'TO': 'ト',
+    # N-row
+    'NA': 'ナ', 'NI': 'ニ', 'NU': 'ヌ', 'NE': 'ネ', 'NO': 'ノ',
+    # H-row
+    'HA': 'ハ', 'HI': 'ヒ', 'FU': 'フ', 'HU': 'フ', 'HE': 'ヘ', 'HO': 'ホ',
+    # M-row
+    'MA': 'マ', 'MI': 'ミ', 'MU': 'ム', 'ME': 'メ', 'MO': 'モ',
+    # Y-row
+    'YA': 'ヤ', 'YU': 'ユ', 'YO': 'ヨ',
+    # R-row
+    'RA': 'ラ', 'RI': 'リ', 'RU': 'ル', 'RE': 'レ', 'RO': 'ロ',
+    # W-row
+    'WA': 'ワ', 'WO': 'ヲ',
+    # N
+    'N': 'ン',
+    # G-row
+    'GA': 'ガ', 'GI': 'ギ', 'GU': 'グ', 'GE': 'ゲ', 'GO': 'ゴ',
+    # Z-row
+    'ZA': 'ザ', 'JI': 'ジ', 'ZI': 'ジ', 'ZU': 'ズ', 'ZE': 'ゼ', 'ZO': 'ゾ',
+    # D-row
+    'DA': 'ダ', 'DI': 'ヂ', 'DU': 'ヅ', 'DE': 'デ', 'DO': 'ド',
+    # B-row
+    'BA': 'バ', 'BI': 'ビ', 'BU': 'ブ', 'BE': 'ベ', 'BO': 'ボ',
+    # P-row
+    'PA': 'パ', 'PI': 'ピ', 'PU': 'プ', 'PE': 'ペ', 'PO': 'ポ',
+    # Combinations
+    'KYA': 'キャ', 'KYU': 'キュ', 'KYO': 'キョ',
+    'SHA': 'シャ', 'SHU': 'シュ', 'SHO': 'ショ',
+    'CHA': 'チャ', 'CHU': 'チュ', 'CHO': 'チョ',
+    'NYA': 'ニャ', 'NYU': 'ニュ', 'NYO': 'ニョ',
+    'HYA': 'ヒャ', 'HYU': 'ヒュ', 'HYO': 'ヒョ',
+    'MYA': 'ミャ', 'MYU': 'ミュ', 'MYO': 'ミョ',
+    'RYA': 'リャ', 'RYU': 'リュ', 'RYO': 'リョ',
+    'GYA': 'ギャ', 'GYU': 'ギュ', 'GYO': 'ギョ',
+    'JA': 'ジャ', 'JU': 'ジュ', 'JO': 'ジョ',
+    'BYA': 'ビャ', 'BYU': 'ビュ', 'BYO': 'ビョ',
+    'PYA': 'ピャ', 'PYU': 'ピュ', 'PYO': 'ピョ',
+    # Foreign sounds
+    'FA': 'ファ', 'FI': 'フィ', 'FE': 'フェ', 'FO': 'フォ',
+    'VA': 'ヴァ', 'VI': 'ヴィ', 'VU': 'ヴ', 'VE': 'ヴェ', 'VO': 'ヴォ',
+    'TI': 'ティ', 'TU': 'トゥ', 'DI': 'ディ', 'DU': 'ドゥ',
+    'LA': 'ラ', 'LI': 'リ', 'LU': 'ル', 'LE': 'レ', 'LO': 'ロ',
+    # Double consonants for simplification
+    'CC': 'ッ', 'KK': 'ッ', 'PP': 'ッ', 'SS': 'ッ', 'TT': 'ッ',
+}
+
+def romaji_to_katakana(name: str) -> str:
+    """Convert romaji name to katakana"""
+    if not name:
+        return name
+
+    # Check if already contains Japanese characters
+    for char in name:
+        if '\u3040' <= char <= '\u30ff' or '\u4e00' <= char <= '\u9fff':
+            return name  # Already Japanese
+
+    result = []
+    # Normalize: upper case
+    words = name.upper().split()
+
+    for word in words:
+        katakana_word = ""
+        i = 0
+        while i < len(word):
+            # Try 3, 2, 1 chars
+            matched = False
+            for length in [3, 2, 1]:
+                if i + length <= len(word):
+                    chunk = word[i:i+length]
+                    if chunk in ROMAJI_TO_KATAKANA_MAP:
+                        katakana_word += ROMAJI_TO_KATAKANA_MAP[chunk]
+                        i += length
+                        matched = True
+                        break
+            if not matched:
+                i += 1 # skip
+        result.append(katakana_word)
+
+    return ' '.join(result)
+
 
 # Export aliases for convenience
 万 = 10_000
@@ -257,3 +346,6 @@ if __name__ == "__main__":
         short = format_japanese_yen(val, short=True)
         very_short = format_japanese_yen_short(val)
         print(f"{val:>20,} → {full:<20} | short: {short:<12} | chart: {very_short}")
+        
+    print("\nName Conversion Test:")
+    print(f"NGUYEN VAN A -> {romaji_to_katakana('NGUYEN VAN A')}")
